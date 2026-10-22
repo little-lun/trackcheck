@@ -1,0 +1,39 @@
+MIT License
+
+Copyright (c) 2026 little-lun
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+-------------------------------------------------------------------------------
+适用范围与例外
+-------------------------------------------------------------------------------
+
+1. 本 MIT 许可适用于本仓库的**源代码**，即 `tools/` 目录下的全部文件。
+
+2. 本仓库 `docs/` 与 `练习/` 目录下的**研究文档、笔记、数值整理**采用
+   Creative Commons Attribution-NonCommercial-ShareAlike 4.0
+   International（CC BY-NC-SA 4.0）许可：
+   https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+3. 第三方内容：
+   · 《植物大战僵尸》(Plants vs. Zombies) 及其一切素材、名称、数值的版权
+     归 PopCap Games / Electronic Arts 所有。本仓库不包含游戏本体、
+     游戏资源文件或任何破解／修改工具，仅包含研究性质的文字与自写代码。
+   · `docs/原始资料/` 中的读本、维基条目等为社区作品，版权归原作者所有，
+     此处仅作研究引用。

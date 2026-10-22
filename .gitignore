@@ -2,15 +2,35 @@
 # 需要云端备份请用 Git LFS 或网盘；本仓库只存研究文字/代码/图
 练习/**/*.mp4
 *.mp4
+*.mov
+*.mkv
 
-# ── PyInstaller 构建中间产物（可由 build_win.py 重新生成）──
+# ── 打包产物（体积大且可重建；对外分发走 GitHub Releases 附件）──
+tools/trackcheck/dist/
 tools/trackcheck/build/
+tools/trackcheck/legacy/*.exe
 
-# ── Python 缓存 ──
+# ── Python ──
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
 
-# ── 打包临时目录 ──
-tools/trackcheck/dist/_tmp/
+# ── 临时 / 调试脚本 ──
+_tmp_*.py
+out_*.html
+out_*.txt
+out_*.json
+
+# ── 编辑器 / 系统 ──
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+*.swp
+
+# ── 本机独有的东西 ──
+*.log
+*.bak

@@ -34,7 +34,7 @@ Let me be pragmatic: the docx and pdf are large reference materials. I'll use th
 Actually, let's think about efficiency. The main deliverable should be a knowledge base / study plan. Let me:
 1. Fetch wiki pages (生存无尽入门, 精确数据, 技术目录) via WebFetch.
 2. Read offline materials.
-3. Build a structured knowledge base in the workspace: e.g. `D:/PVZ endless/知识库/` with markdown files, or a single main index.
+3. Build a structured knowledge base in the workspace: e.g. `D:/PVZ endless/docs/知识库/` with markdown files, or a single main index.
 
 Given the user's preference for high autonomy and structured output, I should produce: a workspace knowledge base structure + a study/practice roadmap. Maybe an INDEX.md.
 
@@ -1995,14 +1995,14 @@ Now I have a good map. The PDF (新轨道读本) is 5 parts by 台妹绷绷:
 Now let me decide the deliverable. The user says "这一栏用于pvz初代生存无尽的研究、学习、练习" — they're setting up a workspace section. Best action: build a proper knowledge base + study/practice plan in D:/PVZ endless/.
 
 Deliverables:
-1. `知识库/00-索引.md` — index & learning path
-2. `知识库/01-寻址与术语.md` — 场地/坐标/路/列/半场
-3. `知识库/02-刷新机制.md` — refresh mechanics + numbers
-4. `知识库/03-轨道语言与运算量.md` — P/N/I/A/C, 运算量, 轨/式, 简式展开式, OT/ET
-5. `知识库/04-节奏体系.md` — P/C/T/D/S/I系, 参数, 变奏范式, ch/c/i, 冰平衡
-6. `知识库/05-数据手册.md` — 精确数据 (times, ranges, damages)
-7. `知识库/06-控丑与波长表.md`
-8. `知识库/07-阵型库.md` — 新手阵型 + 炮位理论
+1. `docs/知识库/00-索引.md` — index & learning path
+2. `docs/知识库/01-寻址与术语.md` — 场地/坐标/路/列/半场
+3. `docs/知识库/02-刷新机制.md` — refresh mechanics + numbers
+4. `docs/知识库/03-轨道语言与运算量.md` — P/N/I/A/C, 运算量, 轨/式, 简式展开式, OT/ET
+5. `docs/知识库/04-节奏体系.md` — P/C/T/D/S/I系, 参数, 变奏范式, ch/c/i, 冰平衡
+6. `docs/知识库/05-数据手册.md` — 精确数据 (times, ranges, damages)
+7. `docs/知识库/06-控丑与波长表.md`
+8. `docs/知识库/07-阵型库.md` — 新手阵型 + 炮位理论
 9. `练习计划.md` — practice roadmap
 
 That might be too many files. But for a research workspace it's good. Maybe consolidate into a reasonable structure:
@@ -2141,7 +2141,7 @@ I now have solid material. Time to build the knowledge base. Let me plan the fil
 ```
 D:/PVZ endless/
 ├── README.md                      总索引 + 学习路径
-├── 知识库/
+├── docs/知识库/
 │   ├── 01-坐标与术语.md
 │   ├── 02-刷新机制.md
 │   ├── 03-轨道语言与运算量.md
@@ -2152,7 +2152,7 @@ D:/PVZ endless/
 │   └── 08-数据速查表.md   (maybe merge into 05)
 ├── 练习/
 │   └── 训练路线.md
-└── 原始资料/
+└── docs/原始资料/
     ├── 轨道理论完全读本.txt
     └── 新轨道读本.txt
 ```
@@ -2162,13 +2162,13 @@ Hmm, that's a lot of files. But it's a research workspace — this is appropriat
 Actually, let me reconsider: too much fragmentation may be less usable. But a knowledge base with a clear index is fine. Let me consolidate slightly:
 
 1. `README.md` — 总目录、资料地图、学习路径（4 阶段）、常用速查
-2. `知识库/01-基础：场地、坐标与术语.md`
-3. `知识库/02-核心：僵尸刷新机制.md`
-4. `知识库/03-核心：轨道语言与运算量.md`
-5. `知识库/04-核心：节奏体系全谱.md` (P/C/T/D/S/I + 参数 + ch/c/i + 冰平衡 + 复用)
-6. `知识库/05-数据：精确数值手册.md`
-7. `知识库/06-专题：控丑与波长表.md`
-8. `知识库/07-专题：炮位理论与阵型库.md`
+2. `docs/知识库/01-基础：场地、坐标与术语.md`
+3. `docs/知识库/02-核心：僵尸刷新机制.md`
+4. `docs/知识库/03-核心：轨道语言与运算量.md`
+5. `docs/知识库/04-核心：节奏体系全谱.md` (P/C/T/D/S/I + 参数 + ch/c/i + 冰平衡 + 复用)
+6. `docs/知识库/05-数据：精确数值手册.md`
+7. `docs/知识库/06-专题：控丑与波长表.md`
+8. `docs/知识库/07-专题：炮位理论与阵型库.md`
 9. `练习/00-训练路线与自测.md`
 
 That's 9 files. OK.
@@ -2311,13 +2311,13 @@ Let me write.
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && mkdir -p \"知识库\" \"练习\" \"原始资料\" && mv _docx_dump.txt \"原始资料/【旧】轨道理论完全读本.txt\" && mv _pdf_dump.txt \"原始资料/【新】新轨道读本.txt\" && ls -R", "description": "建立目录并归档文本提取件"}
+{"command": "cd \"D:/PVZ endless\" && mkdir -p \"知识库\" \"练习\" \"原始资料\" && mv _docx_dump.txt \"docs/原始资料/【旧】轨道理论完全读本.txt\" && mv _pdf_dump.txt \"docs/原始资料/【新】新轨道读本.txt\" && ls -R", "description": "建立目录并归档文本提取件"}
 ```
 
 **📤 工具结果** `call_00_fR6TrBNuEUPu30sXVoZk6389`
 
 ```
-Command: cd "D:/PVZ endless" && mkdir -p "知识库" "练习" "原始资料" && mv _docx_dump.txt "原始资料/【旧】轨道理论完全读本.txt" && mv _pdf_dump.txt "原始资料/【新】新轨道读本.txt" && ls -R
+Command: cd "D:/PVZ endless" && mkdir -p "知识库" "练习" "原始资料" && mv _docx_dump.txt "docs/原始资料/【旧】轨道理论完全读本.txt" && mv _pdf_dump.txt "docs/原始资料/【新】新轨道读本.txt" && ls -R
 Stdout: .:
 原始资料
 新轨道读本.pdf
@@ -2974,15 +2974,15 @@ Successfully created and wrote to new file: D:\PVZ endless\练习\日志.md
 ```
 Command: cd "D:/PVZ endless" && find . -name "*.md" -o -name "*.txt" | sort && echo "---" && du -sh 知识库 练习 原始资料 2>/dev/null
 Stdout: ./README.md
-./原始资料/【新】新轨道读本.txt
-./原始资料/【旧】轨道理论完全读本.txt
-./知识库/01-基础-场地坐标与术语.md
-./知识库/02-核心-僵尸刷新机制.md
-./知识库/03-核心-轨道语言与运算量.md
-./知识库/04-核心-节奏体系全谱.md
-./知识库/05-数据-精确数值手册.md
-./知识库/06-专题-控丑与关键波长.md
-./知识库/07-专题-炮位理论与阵型库.md
+./docs/原始资料/【新】新轨道读本.txt
+./docs/原始资料/【旧】轨道理论完全读本.txt
+./docs/知识库/01-基础-场地坐标与术语.md
+./docs/知识库/02-核心-僵尸刷新机制.md
+./docs/知识库/03-核心-轨道语言与运算量.md
+./docs/知识库/04-核心-节奏体系全谱.md
+./docs/知识库/05-数据-精确数值手册.md
+./docs/知识库/06-专题-控丑与关键波长.md
+./docs/知识库/07-专题-炮位理论与阵型库.md
 ./练习/00-训练路线与自测.md
 ./练习/日志.md
 ---
@@ -3037,7 +3037,7 @@ Signal: (none)
 **🔧 工具调用：`Write`**
 
 ```json
-{"content": "# 2026-10-17\n\n## PVZ 生存无尽知识库初始化\n\n**背景**：用户把 `D:/PVZ endless/` 设为 PVZ 初代生存无尽的研究/学习/练习工作区，提供了维基三个链接（生存无尽入门、精确数据、技术导航）、贴吧 5194693832，以及离线资料《轨道理论完全读本.docx》（旧版，36k 字）与《新轨道读本.pdf》（新版，133 页 / 73k 字）。\n\n**做的事**：\n- 通读两份读本全文 + 抓取维基两个核心条目，交叉核对关键数值（17.8s 冰平衡、1121.1/1301.1cs 波长下限、19.29/7.46s 投篮红线、171s 固定时长、参数公式等）。\n- 建立知识库：`README.md` + `知识库/01~07` + `练习/00-训练路线与自测.md` + `练习/日志.md`。\n- 生成两份可 grep 的纯文本提取件到 `原始资料/`。\n\n**发现的资料问题（后续需注意）**：\n1. 维基 `doku.php?id=技术` 页面不存在（技术是命名空间前缀，不是页面）。技术类条目需通过 `技术:XXX` 直接访问或走 home 导航。\n2. 旧版读本 5.4.1 的 `参数 × 2 = 基础运算量` 与同章 RE.二十炮例子（参数 6 / 基础运算量 8）自相矛盾。已在 `03` 中标注：估算可用，拍板必须逐波数。\n3. 旧帖\"红字后 5.5s 点咖啡豆\"与精确数据\"珊瑚在红字后 9.2s 出现\"看似冲突，实为 5.5+1.98=7.48s 生效、冰冻结 3s 覆盖 9.2s。已在 README 注明。\n4. A/A' 的大小写约定在新旧文献间不统一（旧读本 A=樱桃 A1=辣椒 a=窝瓜；新读本部分章节 A'=辣椒）。已在 `03` 加警告：读轨道前先找作者声明。\n5. 精确数据条目中大量表格为图片，未能提取（僵尸攻防判定全表、僵尸时间表 240826、减速波长表等）。已在 `05` 末尾列出待补清单。\n", "file_path": "D:\\PVZ endless\\.workbuddy\\memory\\2026-10-17.md"}
+{"content": "# 2026-10-17\n\n## PVZ 生存无尽知识库初始化\n\n**背景**：用户把 `D:/PVZ endless/` 设为 PVZ 初代生存无尽的研究/学习/练习工作区，提供了维基三个链接（生存无尽入门、精确数据、技术导航）、贴吧 5194693832，以及离线资料《轨道理论完全读本.docx》（旧版，36k 字）与《新轨道读本.pdf》（新版，133 页 / 73k 字）。\n\n**做的事**：\n- 通读两份读本全文 + 抓取维基两个核心条目，交叉核对关键数值（17.8s 冰平衡、1121.1/1301.1cs 波长下限、19.29/7.46s 投篮红线、171s 固定时长、参数公式等）。\n- 建立知识库：`README.md` + `docs/知识库/01~07` + `练习/00-训练路线与自测.md` + `练习/日志.md`。\n- 生成两份可 grep 的纯文本提取件到 `docs/原始资料/`。\n\n**发现的资料问题（后续需注意）**：\n1. 维基 `doku.php?id=技术` 页面不存在（技术是命名空间前缀，不是页面）。技术类条目需通过 `技术:XXX` 直接访问或走 home 导航。\n2. 旧版读本 5.4.1 的 `参数 × 2 = 基础运算量` 与同章 RE.二十炮例子（参数 6 / 基础运算量 8）自相矛盾。已在 `03` 中标注：估算可用，拍板必须逐波数。\n3. 旧帖\"红字后 5.5s 点咖啡豆\"与精确数据\"珊瑚在红字后 9.2s 出现\"看似冲突，实为 5.5+1.98=7.48s 生效、冰冻结 3s 覆盖 9.2s。已在 README 注明。\n4. A/A' 的大小写约定在新旧文献间不统一（旧读本 A=樱桃 A1=辣椒 a=窝瓜；新读本部分章节 A'=辣椒）。已在 `03` 加警告：读轨道前先找作者声明。\n5. 精确数据条目中大量表格为图片，未能提取（僵尸攻防判定全表、僵尸时间表 240826、减速波长表等）。已在 `05` 末尾列出待补清单。\n", "file_path": "D:\\PVZ endless\\.workbuddy\\memory\\2026-10-17.md"}
 ```
 
 **📤 工具结果** `call_00_ET_IqufJWtWWAsQBjphUAif2533`
@@ -3053,7 +3053,7 @@ Successfully created and wrote to new file: D:\PVZ endless\.workbuddy\memory\202
 **🔧 工具调用：`Write`**
 
 ```json
-{"content": "# 项目长期记忆 · PVZ 生存无尽\n\n## 工作区定位\n`D:/PVZ endless/` 是 PVZ 初代（PC 1.0 原版）Survival Endless 的研究/学习/练习工作区，不是游戏安装目录。\n\n## 知识来源优先级\n1. 维基《技术:精确数据》—— **唯一权威数值源**，条目本身声明\"除非确信有误请勿修改\"。\n2. 新版《新轨道读本》（台妹绷绷，5 篇）—— 教程主线，**先读**。\n3. 旧版《轨道理论完全读本》—— 理论体系与命名规范，**后读**。\n4. 贴吧 5194693832（2017）—— 历史源头，部分结论已过时，尤其冰消珊瑚的时间口径。\n\n## 写作约定\n- 任何数值必须注明来源（维基 / 新读本第几篇 / 旧读本第几章 / 帖号）。\n- 存疑标 `⚠️待核`，不静默改数。\n- 原始资料的纯文本提取件在 `原始资料/`，可直接 grep 定位原文。\n- 练习复盘记在 `练习/日志.md`，只写\"崩在哪/为什么崩/下次改什么\"。\n\n## 已知资料坑\n- 维基 `id=技术` 不是有效页面（技术是命名空间）。\n- 旧读本 `参数×2=基础运算量` 与自身例子矛盾 → 逐波计数为准。\n- A / A' 樱桃辣椒的大小写在新旧文献中不统一。\n- 精确数据条目里约 8 张关键表格是图片，未提取。\n", "file_path": "D:\\PVZ endless\\.workbuddy\\memory\\MEMORY.md"}
+{"content": "# 项目长期记忆 · PVZ 生存无尽\n\n## 工作区定位\n`D:/PVZ endless/` 是 PVZ 初代（PC 1.0 原版）Survival Endless 的研究/学习/练习工作区，不是游戏安装目录。\n\n## 知识来源优先级\n1. 维基《技术:精确数据》—— **唯一权威数值源**，条目本身声明\"除非确信有误请勿修改\"。\n2. 新版《新轨道读本》（台妹绷绷，5 篇）—— 教程主线，**先读**。\n3. 旧版《轨道理论完全读本》—— 理论体系与命名规范，**后读**。\n4. 贴吧 5194693832（2017）—— 历史源头，部分结论已过时，尤其冰消珊瑚的时间口径。\n\n## 写作约定\n- 任何数值必须注明来源（维基 / 新读本第几篇 / 旧读本第几章 / 帖号）。\n- 存疑标 `⚠️待核`，不静默改数。\n- 原始资料的纯文本提取件在 `docs/原始资料/`，可直接 grep 定位原文。\n- 练习复盘记在 `练习/日志.md`，只写\"崩在哪/为什么崩/下次改什么\"。\n\n## 已知资料坑\n- 维基 `id=技术` 不是有效页面（技术是命名空间）。\n- 旧读本 `参数×2=基础运算量` 与自身例子矛盾 → 逐波计数为准。\n- A / A' 樱桃辣椒的大小写在新旧文献中不统一。\n- 精确数据条目里约 8 张关键表格是图片，未提取。\n", "file_path": "D:\\PVZ endless\\.workbuddy\\memory\\MEMORY.md"}
 ```
 
 **📤 工具结果** `call_00_ET_USqn2M58JdImjCYwRUrx8895`
@@ -3064,9 +3064,9 @@ Successfully created and wrote to new file: D:\PVZ endless\.workbuddy\memory\MEM
 
 <details><summary>💭 思考过程</summary>
 
-Now present files. Present README first, then the knowledge base files? present_files takes multiple. Let me present README.md + a few key ones. Actually artifact cards for markdown. Maybe present README + 知识库/02 + 04 + 练习/00. But too many may clutter. The instruction: order by viewing priority.
+Now present files. Present README first, then the knowledge base files? present_files takes multiple. Let me present README.md + a few key ones. Actually artifact cards for markdown. Maybe present README + docs/知识库/02 + 04 + 练习/00. But too many may clutter. The instruction: order by viewing priority.
 
-I'll present README.md, 知识库/04-核心-节奏体系全谱.md, 知识库/02-核心-僵尸刷新机制.md, 知识库/05-数据-精确数值手册.md, 练习/00-训练路线与自测.md.
+I'll present README.md, docs/知识库/04-核心-节奏体系全谱.md, docs/知识库/02-核心-僵尸刷新机制.md, docs/知识库/05-数据-精确数值手册.md, 练习/00-训练路线与自测.md.
 
 Hmm — better to present the index first plus the full set? "When multiple deliverable files are produced, prefer batching them into a single present_files call with all paths". Let me include all 10 md files. That might be a lot of cards but acceptable. Actually maybe present README + all 7 knowledge + 1 practice = 9. Let me do that.
 
@@ -3089,7 +3089,7 @@ Let me do all.
 **📤 工具结果** `call_00_9P0kcJciXLN0K97JdpKj8436`
 
 ```
-[{"type": "input_text", "text": "{\"type\":\"present_files_result\",\"files\":[\"D:/PVZ endless/README.md\",\"D:/PVZ endless/知识库/02-核心-僵尸刷新机制.md\",\"D:/PVZ endless/知识库/04-核心-节奏体系全谱.md\",\"D:/PVZ endless/知识库/03-核心-轨道语言与运算量.md\",\"D:/PVZ endless/知识库/06-专题-控丑与关键波长.md\",\"D:/PVZ endless/知识库/05-数据-精确数值手册.md\",\"D:/PVZ endless/知识库/07-专题-炮位理论与阵型库.md\",\"D:/PVZ endless/知识库/01-基础-场地坐标与术语.md\",\"D:/PVZ endless/练习/00-训练路线与自测.md\"],\"previewed\":[],\"explanation\":\"PVZ 生存无尽知识库已建成：总索引 + 七篇主题笔记 + 训练路线，全部标注了来源与存疑点。\",\"message\":\"Successfully presented 9 file(s).\"}"}]
+[{"type": "input_text", "text": "{\"type\":\"present_files_result\",\"files\":[\"D:/PVZ endless/README.md\",\"D:/PVZ endless/docs/知识库/02-核心-僵尸刷新机制.md\",\"D:/PVZ endless/docs/知识库/04-核心-节奏体系全谱.md\",\"D:/PVZ endless/docs/知识库/03-核心-轨道语言与运算量.md\",\"D:/PVZ endless/docs/知识库/06-专题-控丑与关键波长.md\",\"D:/PVZ endless/docs/知识库/05-数据-精确数值手册.md\",\"D:/PVZ endless/docs/知识库/07-专题-炮位理论与阵型库.md\",\"D:/PVZ endless/docs/知识库/01-基础-场地坐标与术语.md\",\"D:/PVZ endless/练习/00-训练路线与自测.md\"],\"previewed\":[],\"explanation\":\"PVZ 生存无尽知识库已建成：总索引 + 七篇主题笔记 + 训练路线，全部标注了来源与存疑点。\",\"message\":\"Successfully presented 9 file(s).\"}"}]
 ```
 
 已经建好工作区了。两份读本一共约 11 万字，我把它们全部读了一遍，并和维基的《生存无尽入门》《精确数据》逐条核对了数值，然后整理成一套可检索的笔记。
@@ -3099,13 +3099,13 @@ Let me do all.
 | 文件 | 内容 |
 |---|---|
 | `README.md` | 总索引、外部源优先级、四阶段学习路径 |
-| `知识库/01-基础` | 九大场地差异、路、列、半场的划分、坐标、珊瑚、空降、墓碑三大关末机制 |
-| `知识库/02-核心-刷新` | 六条刷新规则、红字和白字的时间安排、什么时候会刷新的判断表、六类出怪组合 |
-| `知识库/03-核心-轨道语言` | 运算量表、两代轨（效果轨、操作轨）、OT 与 ET、简式与展开式 |
-| `知识库/04-核心-节奏体系` | P、C、T、D、S、I 各级节奏、参数本质、冰平衡算术、炮的复用、超多炮手段 |
-| `知识库/05-数据-精确数值` | cs 时间表、射程判定、命中延迟、溅射公式、蹦极偷曾概率 |
-| `知识库/06-专题-控丑` | 按曾哥所在列整理的八种控丑定式、三条波长红线、冰消珊瑚时序 |
-| `知识库/07-专题-炮位与阵型` | 炮位风险分级、鬼位炮三种保护方式、18 个阵逐项拆解 |
+| `docs/知识库/01-基础` | 九大场地差异、路、列、半场的划分、坐标、珊瑚、空降、墓碑三大关末机制 |
+| `docs/知识库/02-核心-刷新` | 六条刷新规则、红字和白字的时间安排、什么时候会刷新的判断表、六类出怪组合 |
+| `docs/知识库/03-核心-轨道语言` | 运算量表、两代轨（效果轨、操作轨）、OT 与 ET、简式与展开式 |
+| `docs/知识库/04-核心-节奏体系` | P、C、T、D、S、I 各级节奏、参数本质、冰平衡算术、炮的复用、超多炮手段 |
+| `docs/知识库/05-数据-精确数值` | cs 时间表、射程判定、命中延迟、溅射公式、蹦极偷曾概率 |
+| `docs/知识库/06-专题-控丑` | 按曾哥所在列整理的八种控丑定式、三条波长红线、冰消珊瑚时序 |
+| `docs/知识库/07-专题-炮位与阵型` | 炮位风险分级、鬼位炮三种保护方式、18 个阵逐项拆解 |
 | `练习/00-训练路线` | 四阶段路线、崩阵诊断表、22 道自测题（带答案） |
 
 **几处需要你知道的资料问题**（都已写进笔记，没有默默改掉）
@@ -6272,18 +6272,18 @@ New content:
 7. **pvz.tools 其他板块** — download, toolkit, video.
 
 Structure plan:
-- `知识库/08-维基-节奏体系与命名规范.md` — authoritative naming (supersedes/refines 04's naming section)
-- `知识库/09-维基-出怪机制.md` — spawn mechanics (complements 02)
-- `知识库/10-维基-无炮研究.md` — no-cob research
-- `知识库/11-维基-栈位理论.md` — stack theory
-- `知识库/12-工程-内存基址与脚本框架.md` — memory + AvZ/pyvz
+- `docs/知识库/08-维基-节奏体系与命名规范.md` — authoritative naming (supersedes/refines 04's naming section)
+- `docs/知识库/09-维基-出怪机制.md` — spawn mechanics (complements 02)
+- `docs/知识库/10-维基-无炮研究.md` — no-cob research
+- `docs/知识库/11-维基-栈位理论.md` — stack theory
+- `docs/知识库/12-工程-内存基址与脚本框架.md` — memory + AvZ/pyvz
 
 And update:
 - `README.md` — add new files, new sources, correct the A/A' note (now resolved: A'=辣椒 is the standard), add tool links.
-- `知识库/04` — add a pointer that naming has an authoritative version in 08, and flag the S3/S4 波长 discrepancy.
-- `知识库/03` — fix A/A' note: 现行标准 A=樱桃 A'=辣椒 a=窝瓜; old 读本 A1=辣椒 is legacy.
-- `知识库/02` — add pointer to 09.
-- `知识库/06` — add detailed 控丑 cs values from 无炮研究 (1081, 888, 1320).
+- `docs/知识库/04` — add a pointer that naming has an authoritative version in 08, and flag the S3/S4 波长 discrepancy.
+- `docs/知识库/03` — fix A/A' note: 现行标准 A=樱桃 A'=辣椒 a=窝瓜; old 读本 A1=辣椒 is legacy.
+- `docs/知识库/02` — add pointer to 09.
+- `docs/知识库/06` — add detailed 控丑 cs values from 无炮研究 (1081, 888, 1320).
 
 Also memory update.
 
@@ -6821,13 +6821,13 @@ Let me append after that.
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && ls -1 知识库/ && echo \"---\" && wc -c 知识库/*.md README.md 练习/*.md | tail -15", "description": "核对知识库文件与体积"}
+{"command": "cd \"D:/PVZ endless\" && ls -1 docs/知识库/ && echo \"---\" && wc -c docs/知识库/*.md README.md 练习/*.md | tail -15", "description": "核对知识库文件与体积"}
 ```
 
 **📤 工具结果** `call_00_ylLfHczg2iQ5Io7S5YpV5263`
 
 ```
-Command: cd "D:/PVZ endless" && ls -1 知识库/ && echo "---" && wc -c 知识库/*.md README.md 练习/*.md | tail -15
+Command: cd "D:/PVZ endless" && ls -1 docs/知识库/ && echo "---" && wc -c docs/知识库/*.md README.md 练习/*.md | tail -15
 Stdout: 01-基础-场地坐标与术语.md
 02-核心-僵尸刷新机制.md
 03-核心-轨道语言与运算量.md
@@ -6841,17 +6841,17 @@ Stdout: 01-基础-场地坐标与术语.md
 11-维基-栈位理论.md
 12-工程-内存基址与脚本框架.md
 ---
-  6569 知识库/02-核心-僵尸刷新机制.md
-  8116 知识库/03-核心-轨道语言与运算量.md
- 15936 知识库/04-核心-节奏体系全谱.md
- 11327 知识库/05-数据-精确数值手册.md
-  9604 知识库/06-专题-控丑与关键波长.md
-  9714 知识库/07-专题-炮位理论与阵型库.md
-  9915 知识库/08-维基-节奏体系与命名规范.md
- 10297 知识库/09-维基-出怪机制.md
- 15142 知识库/10-维基-无炮研究.md
- 10432 知识库/11-维基-栈位理论.md
- 12369 知识库/12-工程-内存基址与脚本框架.md
+  6569 docs/知识库/02-核心-僵尸刷新机制.md
+  8116 docs/知识库/03-核心-轨道语言与运算量.md
+ 15936 docs/知识库/04-核心-节奏体系全谱.md
+ 11327 docs/知识库/05-数据-精确数值手册.md
+  9604 docs/知识库/06-专题-控丑与关键波长.md
+  9714 docs/知识库/07-专题-炮位理论与阵型库.md
+  9915 docs/知识库/08-维基-节奏体系与命名规范.md
+ 10297 docs/知识库/09-维基-出怪机制.md
+ 15142 docs/知识库/10-维基-无炮研究.md
+ 10432 docs/知识库/11-维基-栈位理论.md
+ 12369 docs/知识库/12-工程-内存基址与脚本框架.md
   8690 README.md
  11771 练习/00-训练路线与自测.md
    416 练习/日志.md
@@ -6869,7 +6869,7 @@ Signal: (none)
 **🔧 工具调用：`Edit`**
 
 ```json
-{"file_path": "D:\\PVZ endless\\.workbuddy\\memory\\2026-10-17.md", "new_string": "5. 精确数据条目中大量表格为图片，未能提取（僵尸攻防判定全表、僵尸时间表 240826、减速波长表等）。已在 `05` 末尾列出待补清单。\n\n---\n\n## 第二批资料（同日 16:06 后）\n\n**新增来源**：维基《节奏体系》《无炮研究》《出怪机制》《栈位理论》《内存基址》五篇 + pvz.tools 站（scripts / endless / 根导航）。\n\n**新增文件**：\n- `知识库/08-维基-节奏体系与命名规范.md` —— **权威裁决篇**\n- `知识库/09-维基-出怪机制.md`\n- `知识库/10-维基-无炮研究.md`\n- `知识库/11-维基-栈位理论.md`\n- `知识库/12-工程-内存基址与脚本框架.md`\n- `练习/00` 追加 18 道进阶自测（理论层+工程层）及答案\n\n**这次推翻了第一批笔记的三处说法（已回改）**：\n1. **C 系参数用\"过怪量\"，不是\"加速×1+减速×2\"**。后者只适用于 P/S/ch/Cxu/I 系。已在 `04` §2.4 修正并说明成因（2010 年代炮阵体系规范化，无炮沿用旧口径）。\n2. **A/A' 的约定其实已统一**：A=樱桃、A'=辣椒、a=窝瓜、N=核、N'=复制核。旧读本的 `A1=辣椒` 是历史写法。已把 `03` 里的\"约定不统一\"警告改为说明。\n3. **节奏例的波长不是定义的一部分**。维基给 S3=(25|10)/S4=(18|9|9)，读本给 24/12、20/7.5/7.5，是各自阵型的取值，不是矛盾。已在 `04` 单冰变奏表下加注。\n\n**其他要点**：\n- `ch6` 默认指\"对 ch6\"（减加|减加）；`ch7`→邻C7u，`ch9`→C9u 独立，`ch8`→拖长的邻C8u。\n- `Cxu` 的 `u` 是分类名的一部分，无含义。\n- `Ixi` 参数 = 最接近 3475 的循环节数量。\n- 出怪四个饱和阈值 47/85/109/126f，是判断\"数据是否满强度\"的关键。\n- 栈位理论能解释海豚跳过、小鬼 1px 差异、ICE3 玄学、106cs 拦截 bug。\n- 脚本框架：**AvZ 是官方推荐，pyvz 已被作者弃用**（页面 6 年未更新）。已记录 pyvz 的时机计算公式表，迁移到 AvZ 时可复用思路。", "old_string": "5. 精确数据条目中大量表格为图片，未能提取（僵尸攻防判定全表、僵尸时间表 240826、减速波长表等）。已在 `05` 末尾列出待补清单。"}
+{"file_path": "D:\\PVZ endless\\.workbuddy\\memory\\2026-10-17.md", "new_string": "5. 精确数据条目中大量表格为图片，未能提取（僵尸攻防判定全表、僵尸时间表 240826、减速波长表等）。已在 `05` 末尾列出待补清单。\n\n---\n\n## 第二批资料（同日 16:06 后）\n\n**新增来源**：维基《节奏体系》《无炮研究》《出怪机制》《栈位理论》《内存基址》五篇 + pvz.tools 站（scripts / endless / 根导航）。\n\n**新增文件**：\n- `docs/知识库/08-维基-节奏体系与命名规范.md` —— **权威裁决篇**\n- `docs/知识库/09-维基-出怪机制.md`\n- `docs/知识库/10-维基-无炮研究.md`\n- `docs/知识库/11-维基-栈位理论.md`\n- `docs/知识库/12-工程-内存基址与脚本框架.md`\n- `练习/00` 追加 18 道进阶自测（理论层+工程层）及答案\n\n**这次推翻了第一批笔记的三处说法（已回改）**：\n1. **C 系参数用\"过怪量\"，不是\"加速×1+减速×2\"**。后者只适用于 P/S/ch/Cxu/I 系。已在 `04` §2.4 修正并说明成因（2010 年代炮阵体系规范化，无炮沿用旧口径）。\n2. **A/A' 的约定其实已统一**：A=樱桃、A'=辣椒、a=窝瓜、N=核、N'=复制核。旧读本的 `A1=辣椒` 是历史写法。已把 `03` 里的\"约定不统一\"警告改为说明。\n3. **节奏例的波长不是定义的一部分**。维基给 S3=(25|10)/S4=(18|9|9)，读本给 24/12、20/7.5/7.5，是各自阵型的取值，不是矛盾。已在 `04` 单冰变奏表下加注。\n\n**其他要点**：\n- `ch6` 默认指\"对 ch6\"（减加|减加）；`ch7`→邻C7u，`ch9`→C9u 独立，`ch8`→拖长的邻C8u。\n- `Cxu` 的 `u` 是分类名的一部分，无含义。\n- `Ixi` 参数 = 最接近 3475 的循环节数量。\n- 出怪四个饱和阈值 47/85/109/126f，是判断\"数据是否满强度\"的关键。\n- 栈位理论能解释海豚跳过、小鬼 1px 差异、ICE3 玄学、106cs 拦截 bug。\n- 脚本框架：**AvZ 是官方推荐，pyvz 已被作者弃用**（页面 6 年未更新）。已记录 pyvz 的时机计算公式表，迁移到 AvZ 时可复用思路。", "old_string": "5. 精确数据条目中大量表格为图片，未能提取（僵尸攻防判定全表、僵尸时间表 240826、减速波长表等）。已在 `05` 末尾列出待补清单。"}
 ```
 
 **📤 工具结果** `call_00_ET_ZiTTX9NMl6JHM4oh5c8m5502`
@@ -7086,7 +7086,7 @@ Let me write.
 **📤 工具结果** `call_00_ET_g3EYAQpbbxoLECFHfa4Y6353`
 
 ```
-[{"type": "input_text", "text": "{\"type\":\"present_files_result\",\"files\":[\"D:/PVZ endless/知识库/08-维基-节奏体系与命名规范.md\",\"D:/PVZ endless/知识库/09-维基-出怪机制.md\",\"D:/PVZ endless/知识库/11-维基-栈位理论.md\",\"D:/PVZ endless/知识库/10-维基-无炮研究.md\",\"D:/PVZ endless/知识库/12-工程-内存基址与脚本框架.md\",\"D:/PVZ endless/README.md\",\"D:/PVZ endless/练习/00-训练路线与自测.md\"],\"previewed\":[],\"explanation\":\"第二批资料已并入知识库：新增五篇（节奏体系权威版、出怪机制、无炮研究、栈位理论、内存基址与脚本框架），并回改了旧笔记中被新版资料推翻的三处说法。\",\"message\":\"Successfully presented 7 file(s).\"}"}]
+[{"type": "input_text", "text": "{\"type\":\"present_files_result\",\"files\":[\"D:/PVZ endless/docs/知识库/08-维基-节奏体系与命名规范.md\",\"D:/PVZ endless/docs/知识库/09-维基-出怪机制.md\",\"D:/PVZ endless/docs/知识库/11-维基-栈位理论.md\",\"D:/PVZ endless/docs/知识库/10-维基-无炮研究.md\",\"D:/PVZ endless/docs/知识库/12-工程-内存基址与脚本框架.md\",\"D:/PVZ endless/README.md\",\"D:/PVZ endless/练习/00-训练路线与自测.md\"],\"previewed\":[],\"explanation\":\"第二批资料已并入知识库：新增五篇（节奏体系权威版、出怪机制、无炮研究、栈位理论、内存基址与脚本框架），并回改了旧笔记中被新版资料推翻的三处说法。\",\"message\":\"Successfully presented 7 file(s).\"}"}]
 ```
 
 这批资料比第一批更关键，因为它**推翻了我上次笔记里的三处说法**。我已经完成回改，并新增五篇。
@@ -7154,7 +7154,7 @@ Let me do:
 1. Bash ls of the game dir (read-only, safe).
 2. WebFetch Replanted wiki page for differences.
 
-Then write `知识库/13-版本差异与运行环境.md` and update README + MEMORY.md + daily log.
+Then write `docs/知识库/13-版本差异与运行环境.md` and update README + MEMORY.md + daily log.
 
 Let me be careful: D:\Program Files\... — just listing is safe.
 
@@ -7364,7 +7364,7 @@ Also: 加速按钮 up to 2.5x — that changes game speed, which affects 波长/
 
 Also Harder? toggle changes plant fire rate and zombie HP — that breaks the 精确数据 baseline.
 
-Now let me write a version-differences file: `知识库/13-版本差异与运行环境.md`.
+Now let me write a version-differences file: `docs/知识库/13-版本差异与运行环境.md`.
 
 Content:
 1. 本机环境（confirmed paths, files, PvZ Tools 2.3.4, windowed reg）
@@ -7559,7 +7559,7 @@ Successfully edited file: D:\PVZ endless\.workbuddy\memory\MEMORY.md
 **🔧 工具调用：`Edit`**
 
 ```json
-{"file_path": "D:\\PVZ endless\\.workbuddy\\memory\\2026-10-17.md", "new_string": "- 脚本框架：**AvZ 是官方推荐，pyvz 已被作者弃用**（页面 6 年未更新）。已记录 pyvz 的时机计算公式表，迁移到 AvZ 时可复用思路。\n\n---\n\n## 第三批：版本与运行环境（16:18）\n\n**用户提供的关键约束**：\n1. 玩 **PvZ 1.0.0.1051 EN**，装在 `D:\\Program Files\\Plants vs. Zombies 1.0.0.1051 EN`（已 ls 核实：`PlantsVsZombies.exe` 3.83MB、`main.pak` 2009-04-20、同目录有 `PvZ_Tools_v2.3.4.exe`、`窗口化运行.reg`）。\n2. 同时玩 **EA app 上的 PvZ: Replanted**，用户明确表示重制版质量差。\n3. 国际 wiki（wiki.gg）可作为一般性参考资料，但\"有用的东西不多\"。\n\n**新增** `知识库/13-版本差异与运行环境.md`：本机环境核实、两版本能力对照、Replanted 已知差异、待核清单。\n**回改**：`12` 顶部加注\"本机 1.0.0.1051，取第一组地址\"；`README` 顶部加版本横幅 + 三条硬规矩；来源表加 wiki.gg 两行。\n\n**这次查到的重要事实（会影响后续所有建议）**：\n- **Replanted 的 Survival Endless 迟至 1.5.0（2025-12-10）才加入**，官方列出的场地是 Day/Night/Fog/Roof/**Cloudy Day**，**未提 Pool**。而本库国民阵大半是 PE 场地 → 若真无 Pool，这套体系在重制版上大半不可复现。已标 🚩 最高优先级待实测。\n- Replanted 有**关卡加速键（最高 2.5x）**，会破坏\"cs 时钟\"与墙钟的对应，节奏训练必须关掉。\n- Replanted 有隐藏 **\"Harder?\" 开关**（1.4.0），改植物射速+僵尸血量。而且**关掉 Harder 后豌豆射速 1.15s 仍与原版 1.36~1.50s 不同** → 重制版植物数值本来就不是原版数值，不只是 Harder 的问题。\n- Replanted 是 Unity，**读内存/ AvZ / 修改器全部失效**，只能手打 + 录像复盘。\n- 存档/Mod 兼容性 wiki 未记载，不可假设。\n\n**已定的讨论规矩**：未声明版本按 1.0.0.1051；提 Replanted 必须开头标注；跨版本推断标 `⚠️待核`。", "old_string": "- 脚本框架：**AvZ 是官方推荐，pyvz 已被作者弃用**（页面 6 年未更新）。已记录 pyvz 的时机计算公式表，迁移到 AvZ 时可复用思路。"}
+{"file_path": "D:\\PVZ endless\\.workbuddy\\memory\\2026-10-17.md", "new_string": "- 脚本框架：**AvZ 是官方推荐，pyvz 已被作者弃用**（页面 6 年未更新）。已记录 pyvz 的时机计算公式表，迁移到 AvZ 时可复用思路。\n\n---\n\n## 第三批：版本与运行环境（16:18）\n\n**用户提供的关键约束**：\n1. 玩 **PvZ 1.0.0.1051 EN**，装在 `D:\\Program Files\\Plants vs. Zombies 1.0.0.1051 EN`（已 ls 核实：`PlantsVsZombies.exe` 3.83MB、`main.pak` 2009-04-20、同目录有 `PvZ_Tools_v2.3.4.exe`、`窗口化运行.reg`）。\n2. 同时玩 **EA app 上的 PvZ: Replanted**，用户明确表示重制版质量差。\n3. 国际 wiki（wiki.gg）可作为一般性参考资料，但\"有用的东西不多\"。\n\n**新增** `docs/知识库/13-版本差异与运行环境.md`：本机环境核实、两版本能力对照、Replanted 已知差异、待核清单。\n**回改**：`12` 顶部加注\"本机 1.0.0.1051，取第一组地址\"；`README` 顶部加版本横幅 + 三条硬规矩；来源表加 wiki.gg 两行。\n\n**这次查到的重要事实（会影响后续所有建议）**：\n- **Replanted 的 Survival Endless 迟至 1.5.0（2025-12-10）才加入**，官方列出的场地是 Day/Night/Fog/Roof/**Cloudy Day**，**未提 Pool**。而本库国民阵大半是 PE 场地 → 若真无 Pool，这套体系在重制版上大半不可复现。已标 🚩 最高优先级待实测。\n- Replanted 有**关卡加速键（最高 2.5x）**，会破坏\"cs 时钟\"与墙钟的对应，节奏训练必须关掉。\n- Replanted 有隐藏 **\"Harder?\" 开关**（1.4.0），改植物射速+僵尸血量。而且**关掉 Harder 后豌豆射速 1.15s 仍与原版 1.36~1.50s 不同** → 重制版植物数值本来就不是原版数值，不只是 Harder 的问题。\n- Replanted 是 Unity，**读内存/ AvZ / 修改器全部失效**，只能手打 + 录像复盘。\n- 存档/Mod 兼容性 wiki 未记载，不可假设。\n\n**已定的讨论规矩**：未声明版本按 1.0.0.1051；提 Replanted 必须开头标注；跨版本推断标 `⚠️待核`。", "old_string": "- 脚本框架：**AvZ 是官方推荐，pyvz 已被作者弃用**（页面 6 年未更新）。已记录 pyvz 的时机计算公式表，迁移到 AvZ 时可复用思路。"}
 ```
 
 **📤 工具结果** `call_00_ET_TsjVIhpei8fZOufK0n3k5880`
@@ -7678,7 +7678,7 @@ Successfully edited file: D:\PVZ endless\README.md
 **📤 工具结果** `call_00_ET_FvHVQmkqsPKzFfYnfzT10653`
 
 ```
-[{"type": "input_text", "text": "{\"type\":\"present_files_result\",\"files\":[\"D:/PVZ endless/知识库/13-版本差异与运行环境.md\",\"D:/PVZ endless/README.md\"],\"previewed\":[],\"explanation\":\"新增版本差异档案，并把版本基准提到 README 最顶部作为长期提醒；同时回改了工程篇的地址适用说明。\",\"message\":\"Successfully presented 2 file(s).\"}"}]
+[{"type": "input_text", "text": "{\"type\":\"present_files_result\",\"files\":[\"D:/PVZ endless/docs/知识库/13-版本差异与运行环境.md\",\"D:/PVZ endless/README.md\"],\"previewed\":[],\"explanation\":\"新增版本差异档案，并把版本基准提到 README 最顶部作为长期提醒；同时回改了工程篇的地址适用说明。\",\"message\":\"Successfully presented 2 file(s).\"}"}]
 ```
 
 版本这条我已经当成**硬性约束**记录下来了：`README` 最顶部加了版本横幅和三条硬规矩，长期记忆里也放在了第一位。
@@ -7862,7 +7862,7 @@ Let me do these in parallel: wiki fetch, ls the directory + Read image, bilibili
 
 Then write a discussion document. The user wants a研讨 — a substantive discussion covering: 阵, 类型, 开局布阵, 设计小巧思, 各植物作用, 解各僵尸, 经济, 不同组合的运阵(选卡/轨道/操作/失误应对), plus other teaching content.
 
-Deliverable: a detailed markdown file in 练习/PE.电波钟无炮/ or 知识库/阵型研讨/. Plus a structured chat reply. Probably create `练习/PE.电波钟无炮/研讨笔记.md`.
+Deliverable: a detailed markdown file in 练习/PE.电波钟无炮/ or docs/知识库/阵型研讨/. Plus a structured chat reply. Probably create `练习/PE.电波钟无炮/研讨笔记.md`.
 
 Let me gather data first.
 
@@ -12810,7 +12810,7 @@ Successfully edited file: D:\PVZ endless\.workbuddy\memory\2026-10-17.md
 **🔧 工具调用：`Edit`**
 
 ```json
-{"file_path": "D:\\PVZ endless\\.workbuddy\\memory\\MEMORY.md", "new_string": "## 写作约定\n- 任何数值必须注明来源（维基 / 新读本第几篇 / 旧读本第几章 / 帖号）。\n- 存疑标 `⚠️待核`，不静默改数。\n- 原始资料的纯文本提取件在 `原始资料/`，可直接 grep 定位原文。\n- 练习复盘记在 `练习/日志.md`，只写\"崩在哪/为什么崩/下次改什么\"。\n\n## 分析阵型的固定框架（每次都要走一遍）\n1. 结构：逐格读阵（有 PvZ Tools 阵型代码就解码，**代码 > 肉眼看图**）\n2. 类型：炮数 / IO 占比 / 规则-不规则 / 精度 / 极限与否\n3. 谱系：它在修上一代的什么缺陷\n4. 设计巧思：格子零和、资源分配、因果链（改一格会连锁到哪）\n5. 僵尸应对矩阵\n6. 节奏（三档出怪分别怎么打）\n7. **收尾**（w9/w19 止损 + w20 清账）——**最容易漏，且必须预先设计**\n8. 经济（建阵成本 + 日常收支）\n9. 开局布阵顺序（含栈位）\n10. 崩阵应对 + 训练路线", "old_string": "## 写作约定\n- 任何数值必须注明来源（维基 / 新读本第几篇 / 旧读本第几章 / 帖号）。\n- 存疑标 `⚠️待核`，不静默改数。\n- 原始资料的纯文本提取件在 `原始资料/`，可直接 grep 定位原文。\n- 练习复盘记在 `练习/日志.md`，只写\"崩在哪/为什么崩/下次改什么\"。"}
+{"file_path": "D:\\PVZ endless\\.workbuddy\\memory\\MEMORY.md", "new_string": "## 写作约定\n- 任何数值必须注明来源（维基 / 新读本第几篇 / 旧读本第几章 / 帖号）。\n- 存疑标 `⚠️待核`，不静默改数。\n- 原始资料的纯文本提取件在 `docs/原始资料/`，可直接 grep 定位原文。\n- 练习复盘记在 `练习/日志.md`，只写\"崩在哪/为什么崩/下次改什么\"。\n\n## 分析阵型的固定框架（每次都要走一遍）\n1. 结构：逐格读阵（有 PvZ Tools 阵型代码就解码，**代码 > 肉眼看图**）\n2. 类型：炮数 / IO 占比 / 规则-不规则 / 精度 / 极限与否\n3. 谱系：它在修上一代的什么缺陷\n4. 设计巧思：格子零和、资源分配、因果链（改一格会连锁到哪）\n5. 僵尸应对矩阵\n6. 节奏（三档出怪分别怎么打）\n7. **收尾**（w9/w19 止损 + w20 清账）——**最容易漏，且必须预先设计**\n8. 经济（建阵成本 + 日常收支）\n9. 开局布阵顺序（含栈位）\n10. 崩阵应对 + 训练路线", "old_string": "## 写作约定\n- 任何数值必须注明来源（维基 / 新读本第几篇 / 旧读本第几章 / 帖号）。\n- 存疑标 `⚠️待核`，不静默改数。\n- 原始资料的纯文本提取件在 `docs/原始资料/`，可直接 grep 定位原文。\n- 练习复盘记在 `练习/日志.md`，只写\"崩在哪/为什么崩/下次改什么\"。"}
 ```
 
 **📤 工具结果** `call_00_ET_7JIOFaWzmU7HOP47I80v4881`
@@ -14956,7 +14956,7 @@ Also add 绿卡 table with the ones relevant + full list? Full 40-item list woul
 
 Compromise: full table of the 40 green cards (compact, 2 columns of name+price) — actually a table with 40 rows is fine in a reference doc. But it bloats the 经济 section which should be about THIS 阵.
 
-Better: put the full price table in `知识库/05-数据-精确数值手册.md` (it's a data reference), and keep 经济 section with only the relevant plants + pointer.
+Better: put the full price table in `docs/知识库/05-数据-精确数值手册.md` (it's a data reference), and keep 经济 section with only the relevant plants + pointer.
 
 That's cleaner: 05 是数据手册，价格表属于那里。And 经济 篇 references it and computes.
 
@@ -15213,7 +15213,7 @@ Let me write.
 **🔧 工具调用：`Edit`**
 
 ```json
-{"file_path": "D:\\PVZ endless\\练习\\PE.电波钟无炮\\研讨笔记.md", "new_string": "### 9.1 价目表（绿卡 + 紫卡，已校准）\n\n> 完整 40 张绿卡 + 8 张紫卡见 `知识库/05-数据-精确数值手册.md` 第十二节。这里只列本阵用到的。\n\n**绿卡（非升级，价格固定）**\n\n| 植物 | 阳光 | | 植物 | 阳光 |\n|---|---|---|---|---|\n| **荷叶** | **25** | | **窝瓜** | **50** |\n| **大喷菇** | **75** | | **寒冰菇** | **75** |\n| **咖啡豆** | **75** | | **大蒜** | **50** |\n| **南瓜头** | **125** | | **叶子保护伞** | **100** |\n| **毁灭菇** | **125** | | **火爆辣椒** | **125** |\n| **樱桃炸弹** | **150** | | **西瓜投手** | **300** |\n| **向日葵** | 50 | | 小喷菇 | **0** |\n| 花盆 | 25 | | 三叶草 | 100 |\n\n**紫卡（升级型：基础价 ≠ 实际单株价）**\n\n| 紫卡 | 升级费 | 前置基座 | **实际单株总价** |\n|---|---|---|---|\n| **忧郁菇** | **150** | 大喷菇 75 | **225** |\n| **香蒲** | **225** | 荷叶 25 | **250** |\n| **冰瓜** | **200** | 西瓜投手 300 | **500** |\n| **双子向日葵** | **150** | 向日葵 50 | **200** |\n| 机枪射手 | 250 | 双发射手 200 | 450 |\n| 地刺王 | 125 | 地刺 100 | 225 |\n| 玉米加农炮 | 500 | 玉米投手 ×2 = 200 | 700 |\n| 吸金磁 | 50 | 磁力菇 100 | 150 |\n\n> **三个最容易记错的**：窝瓜是 **50**（不是 75）、大喷菇是 **75**（不是 100）、双发是 **200**（不是 175）。\n> 我上一版把忧郁菇记成 75、香蒲记成 175 —— 那是把\"升级费\"和\"单株总价\"搞混了。", "old_string": "### 9.1 我上一版的价目表是错的\n\n我把忧郁菇记成 75、香蒲记成 175、双子记成\"50+150 但按 1200 算\"——**全错**。\n正确的是（已用 wiki.gg《Upgrade plants》核实）：\n\n| 紫卡 | **基础阳光** | 升级自（基座费另计） |\n|---|---|---|\n| **忧郁菇** | **150** | 大喷菇（75） |\n| **香蒲** | **225** | 荷叶（25） |\n| **冰瓜** | **200** | 西瓜投手（300） |\n| **双子向日葵** | **150** | 向日葵（50） |\n| 机枪射手 | 250 | 双发射手 |\n| 地刺王 | 125 | 地刺 |\n| 玉米加农炮 | 500 | 玉米投手 ×2 |\n| 吸金磁 | 50 | 磁力菇 |"}
+{"file_path": "D:\\PVZ endless\\练习\\PE.电波钟无炮\\研讨笔记.md", "new_string": "### 9.1 价目表（绿卡 + 紫卡，已校准）\n\n> 完整 40 张绿卡 + 8 张紫卡见 `docs/知识库/05-数据-精确数值手册.md` 第十二节。这里只列本阵用到的。\n\n**绿卡（非升级，价格固定）**\n\n| 植物 | 阳光 | | 植物 | 阳光 |\n|---|---|---|---|---|\n| **荷叶** | **25** | | **窝瓜** | **50** |\n| **大喷菇** | **75** | | **寒冰菇** | **75** |\n| **咖啡豆** | **75** | | **大蒜** | **50** |\n| **南瓜头** | **125** | | **叶子保护伞** | **100** |\n| **毁灭菇** | **125** | | **火爆辣椒** | **125** |\n| **樱桃炸弹** | **150** | | **西瓜投手** | **300** |\n| **向日葵** | 50 | | 小喷菇 | **0** |\n| 花盆 | 25 | | 三叶草 | 100 |\n\n**紫卡（升级型：基础价 ≠ 实际单株价）**\n\n| 紫卡 | 升级费 | 前置基座 | **实际单株总价** |\n|---|---|---|---|\n| **忧郁菇** | **150** | 大喷菇 75 | **225** |\n| **香蒲** | **225** | 荷叶 25 | **250** |\n| **冰瓜** | **200** | 西瓜投手 300 | **500** |\n| **双子向日葵** | **150** | 向日葵 50 | **200** |\n| 机枪射手 | 250 | 双发射手 200 | 450 |\n| 地刺王 | 125 | 地刺 100 | 225 |\n| 玉米加农炮 | 500 | 玉米投手 ×2 = 200 | 700 |\n| 吸金磁 | 50 | 磁力菇 100 | 150 |\n\n> **三个最容易记错的**：窝瓜是 **50**（不是 75）、大喷菇是 **75**（不是 100）、双发是 **200**（不是 175）。\n> 我上一版把忧郁菇记成 75、香蒲记成 175 —— 那是把\"升级费\"和\"单株总价\"搞混了。", "old_string": "### 9.1 我上一版的价目表是错的\n\n我把忧郁菇记成 75、香蒲记成 175、双子记成\"50+150 但按 1200 算\"——**全错**。\n正确的是（已用 wiki.gg《Upgrade plants》核实）：\n\n| 紫卡 | **基础阳光** | 升级自（基座费另计） |\n|---|---|---|\n| **忧郁菇** | **150** | 大喷菇（75） |\n| **香蒲** | **225** | 荷叶（25） |\n| **冰瓜** | **200** | 西瓜投手（300） |\n| **双子向日葵** | **150** | 向日葵（50） |\n| 机枪射手 | 250 | 双发射手 |\n| 地刺王 | 125 | 地刺 |\n| 玉米加农炮 | 500 | 玉米投手 ×2 |\n| 吸金磁 | 50 | 磁力菇 |"}
 ```
 
 **📤 工具结果** `call_00_lRUpryDtB57AegnSsvpi0631`
@@ -15387,7 +15387,7 @@ Successfully edited file: D:\PVZ endless\.workbuddy\memory\MEMORY.md
 **🔧 工具调用：`Edit`**
 
 ```json
-{"file_path": "D:\\PVZ endless\\.workbuddy\\memory\\2026-10-17.md", "new_string": "**方法论新增**：读轨道先读**卡 CD**，再读运算量；判断位置要区分\"在场外\"与\"判定域完整\"。\n\n---\n\n## 第十批：绿卡价目全量校准（19:06）\n\n**新增** `知识库/05-数据-精确数值手册.md` 第十二节：**40 张绿卡 + 8 张紫卡完整价目表 + 无尽涨价公式 + 模仿者说明**。\n\n**校准后确认的关键价（易错项已标）**：\n- 绿卡：窝瓜 **50**（不是75）、大喷菇 **75**（不是100）、双发 **200**（不是175）、咖啡豆 **75**、毁灭菇 **125**、火爆辣椒 **125**、樱桃 **150**、南瓜 **125**、叶子保护伞 **100**、荷叶 **25**、大蒜 **50**、小喷菇 **0**、花盆 **25**、三叶草 **100**、西瓜投手 **300**、向日葵 **50**、寒冰菇 **75**。\n- 紫卡升级费 vs 实际单株价：忧郁菇 150/**225**、香蒲 225/**250**、冰瓜 200/**500**、双子 150/**200**、机枪 250/**450**、地刺王 125/**225**、玉米炮 500/**700**、吸金磁 50/**150**。\n- 模仿者不是紫卡；变身后按被模仿植物价格支付（**待核**：部分资料标 75 固定）。本阵作模仿者南瓜 → 按 125 计。\n\n**结论：建阵成本 ≈19875 阳光的数字不变**（绿卡价本来就对，之前错在紫卡价和涨价机制）。\n\n**新增「单次使用成本」表**（写进研讨笔记 9.4 + 运阵手册第二节）：\n核 200（125+75咖啡）、樱桃 150、辣椒 125、窝瓜 50、点冰 75、补冰 75、小喷垫材 0、补南瓜 125、**补曾 ≈900**。\n→ **一个 C4io 循环约烧 775，6 双子花 4 波只产约 600 → 靠天降阳光才不亏**，这解释了 PE 场地与 6 花的意义。", "old_string": "**方法论新增**：读轨道先读**卡 CD**，再读运算量；判断位置要区分\"在场外\"与\"判定域完整\"。"}
+{"file_path": "D:\\PVZ endless\\.workbuddy\\memory\\2026-10-17.md", "new_string": "**方法论新增**：读轨道先读**卡 CD**，再读运算量；判断位置要区分\"在场外\"与\"判定域完整\"。\n\n---\n\n## 第十批：绿卡价目全量校准（19:06）\n\n**新增** `docs/知识库/05-数据-精确数值手册.md` 第十二节：**40 张绿卡 + 8 张紫卡完整价目表 + 无尽涨价公式 + 模仿者说明**。\n\n**校准后确认的关键价（易错项已标）**：\n- 绿卡：窝瓜 **50**（不是75）、大喷菇 **75**（不是100）、双发 **200**（不是175）、咖啡豆 **75**、毁灭菇 **125**、火爆辣椒 **125**、樱桃 **150**、南瓜 **125**、叶子保护伞 **100**、荷叶 **25**、大蒜 **50**、小喷菇 **0**、花盆 **25**、三叶草 **100**、西瓜投手 **300**、向日葵 **50**、寒冰菇 **75**。\n- 紫卡升级费 vs 实际单株价：忧郁菇 150/**225**、香蒲 225/**250**、冰瓜 200/**500**、双子 150/**200**、机枪 250/**450**、地刺王 125/**225**、玉米炮 500/**700**、吸金磁 50/**150**。\n- 模仿者不是紫卡；变身后按被模仿植物价格支付（**待核**：部分资料标 75 固定）。本阵作模仿者南瓜 → 按 125 计。\n\n**结论：建阵成本 ≈19875 阳光的数字不变**（绿卡价本来就对，之前错在紫卡价和涨价机制）。\n\n**新增「单次使用成本」表**（写进研讨笔记 9.4 + 运阵手册第二节）：\n核 200（125+75咖啡）、樱桃 150、辣椒 125、窝瓜 50、点冰 75、补冰 75、小喷垫材 0、补南瓜 125、**补曾 ≈900**。\n→ **一个 C4io 循环约烧 775，6 双子花 4 波只产约 600 → 靠天降阳光才不亏**，这解释了 PE 场地与 6 花的意义。", "old_string": "**方法论新增**：读轨道先读**卡 CD**，再读运算量；判断位置要区分\"在场外\"与\"判定域完整\"。"}
 ```
 
 **📤 工具结果** `call_00_ET_tgFVTZtxoeW2yZNIiQn67164`
@@ -15409,7 +15409,7 @@ Successfully edited file: D:\PVZ endless\.workbuddy\memory\2026-10-17.md
 **📤 工具结果** `call_00_ET_qL3bVV8kDh7mR87cBSr30279`
 
 ```
-[{"type": "input_text", "text": "{\"type\":\"present_files_result\",\"files\":[\"D:/PVZ endless/知识库/05-数据-精确数值手册.md\",\"D:/PVZ endless/练习/PE.电波钟无炮/研讨笔记.md\",\"D:/PVZ endless/练习/PE.电波钟无炮/运阵手册.md\"],\"previewed\":[],\"explanation\":\"绿卡价目已全量校准：数据手册新增完整价目表（40绿卡+8紫卡+涨价公式），经济篇与运阵手册同步改用校准值，并新增单次使用成本表。\",\"message\":\"Successfully presented 3 file(s).\"}"}]
+[{"type": "input_text", "text": "{\"type\":\"present_files_result\",\"files\":[\"D:/PVZ endless/docs/知识库/05-数据-精确数值手册.md\",\"D:/PVZ endless/练习/PE.电波钟无炮/研讨笔记.md\",\"D:/PVZ endless/练习/PE.电波钟无炮/运阵手册.md\"],\"previewed\":[],\"explanation\":\"绿卡价目已全量校准：数据手册新增完整价目表（40绿卡+8紫卡+涨价公式），经济篇与运阵手册同步改用校准值，并新增单次使用成本表。\",\"message\":\"Successfully presented 3 file(s).\"}"}]
 ```
 
 绿卡价目已全量校准，并把完整价目表补进了数据手册，以后不用再靠记忆。
@@ -16011,7 +16011,7 @@ Successfully edited file: D:\PVZ endless\.workbuddy\memory\2026-10-17.md
 **📤 工具结果** `call_00_ET_MgF9xhElr2RypTaLYU2G8250`
 
 ```
-[{"type": "input_text", "text": "{\"type\":\"present_files_result\",\"files\":[\"D:/PVZ endless/知识库/13-版本差异与运行环境.md\",\"D:/PVZ endless/练习/PE.电波钟无炮/研讨笔记.md\",\"D:/PVZ endless/README.md\",\"D:/PVZ endless/练习/PE.电波钟无炮/运阵手册.md\"],\"previewed\":[],\"explanation\":\"按 RE 版实测结果更正版本档案：确认有 Pool 无尽、电波钟 400+F 且更稳，并给出\\\"射速红利\\\"解释与需要重测的 cs 项；README、研讨笔记、运阵手册同步更新。\",\"message\":\"Successfully presented 4 file(s).\"}"}]
+[{"type": "input_text", "text": "{\"type\":\"present_files_result\",\"files\":[\"D:/PVZ endless/docs/知识库/13-版本差异与运行环境.md\",\"D:/PVZ endless/练习/PE.电波钟无炮/研讨笔记.md\",\"D:/PVZ endless/README.md\",\"D:/PVZ endless/练习/PE.电波钟无炮/运阵手册.md\"],\"previewed\":[],\"explanation\":\"按 RE 版实测结果更正版本档案：确认有 Pool 无尽、电波钟 400+F 且更稳，并给出\\\"射速红利\\\"解释与需要重测的 cs 项；README、研讨笔记、运阵手册同步更新。\",\"message\":\"Successfully presented 4 file(s).\"}"}]
 ```
 
 这条让我之前的判断错得很明确，而且是**方向性**的。
@@ -16921,7 +16921,7 @@ Let me present files first.
 **📤 工具结果** `call_00_u6PE3lNMzLCRpcygWAa94349`
 
 ```
-[{"type": "input_text", "text": "{\"type\":\"present_files_result\",\"files\":[\"D:/PVZ endless/知识库/13-版本差异与运行环境.md\",\"D:/PVZ endless/练习/PE.电波钟无炮/研讨笔记.md\",\"D:/PVZ endless/练习/PE.电波钟无炮/运阵手册.md\",\"D:/PVZ endless/README.md\"],\"previewed\":[],\"explanation\":\"已把 Replanted 实测结论写进版本档案、两份阵型文档和 README：RE 版存在 Pool 无尽，电波钟可直接使用且更稳（400+F）。\",\"message\":\"Successfully presented 4 file(s).\"}"}]
+[{"type": "input_text", "text": "{\"type\":\"present_files_result\",\"files\":[\"D:/PVZ endless/docs/知识库/13-版本差异与运行环境.md\",\"D:/PVZ endless/练习/PE.电波钟无炮/研讨笔记.md\",\"D:/PVZ endless/练习/PE.电波钟无炮/运阵手册.md\",\"D:/PVZ endless/README.md\"],\"previewed\":[],\"explanation\":\"已把 Replanted 实测结论写进版本档案、两份阵型文档和 README：RE 版存在 Pool 无尽，电波钟可直接使用且更稳（400+F）。\",\"message\":\"Successfully presented 4 file(s).\"}"}]
 ```
 
 这条实测直接推翻了我上一轮自己提的那个“最高优先级待核项”，而且是我判断方向错了。
@@ -19938,7 +19938,7 @@ Let me read lines 238-262 to find the end of 第十二批 block.
  243→
  244→## 第十批：绿卡价目全量校准（19:06）
  245→
- 246→**新增** `知识库/05-数据-精确数值手册.md` 第十二节：**40 张绿卡 + 8 张紫卡完整价目表 + 无尽涨价公式 + 模仿者说明**。
+ 246→**新增** `docs/知识库/05-数据-精确数值手册.md` 第十二节：**40 张绿卡 + 8 张紫卡完整价目表 + 无尽涨价公式 + 模仿者说明**。
  247→
  248→**校准后确认的关键价（易错项已标）**：
  249→- 绿卡：窝瓜 **50**（不是75）、大喷菇 **75**（不是100）、双发 **200**（不是175）、咖啡豆 **75**、毁灭菇 **125**、火爆辣椒 **125**、樱桃 **150**、南瓜 **125**、叶子保护伞 **100**、荷叶 **25**、大蒜 **50**、小喷菇 **0**、花盆 **25**、三叶草 **100**、西瓜投手 **300**、向日葵 **50**、寒冰菇 **75**。
@@ -20093,7 +20093,7 @@ Stdout:    - 补充：**水路铁桶在"没有 I 的波"有概率磨损 3-9、4-
 
 ## 第十批：绿卡价目全量校准（19:06）
 
-**新增** `知识库/05-数据-精确数值手册.md` 第十二节：**40 张绿卡 + 8 张紫卡完整价目表 + 无尽涨价公式 + 模仿者说明**。
+**新增** `docs/知识库/05-数据-精确数值手册.md` 第十二节：**40 张绿卡 + 8 张紫卡完整价目表 + 无尽涨价公式 + 模仿者说明**。
 
 Stderr: (empty)
 Exit Code: 0
@@ -21536,13 +21536,13 @@ Now, deliverables:
 2. Update 电波钟's 开局布阵 section with the 前期发育 correction (种花 → 蒜 → 临时曾 → 铲花布阵).
 3. Update DE.双冰六炮's 开局 section with the full 搭梯 plan.
 
-Let me think about where the 搭梯 doc goes: `知识库/14-技术-搭梯与前期发育.md`. That's a general technique doc — good.
+Let me think about where the 搭梯 doc goes: `docs/知识库/14-技术-搭梯与前期发育.md`. That's a general technique doc — good.
 
 Also update README tree.
 
 Let me write:
 
-**知识库/14-技术-搭梯与前期发育.md**
+**docs/知识库/14-技术-搭梯与前期发育.md**
 - 为什么要搭梯（省南瓜维护）
 - 通用原则（满屏种花、控制拖时间、搭梯计划）
 - 大蒜引导原理（朝向确定）
@@ -21597,7 +21597,7 @@ For 电波钟 4 梯子南瓜 at 1-2, 1-3, 2-2, 2-3 (upper half only). Hmm, 5 路
 
 OK let me write the docs.
 
-Let me draft 知识库/14-技术-搭梯与前期发育.md.
+Let me draft docs/知识库/14-技术-搭梯与前期发育.md.
 
 Content plan:
 1. 搭梯是什么、为什么
@@ -21823,7 +21823,7 @@ Signal: (none)
 **🔧 工具调用：`Edit`**
 
 ```json
-{"file_path": "D:\\PVZ endless\\练习\\PE.电波钟无炮\\运阵手册.md", "new_string": "## 七、开局：先发育，再布阵，最后搭梯\n\n> **纠正**：以前我把开局写成\"直接按顺序摆阵\"，那是错的。\n> **所有阵（包括本阵）前期都是\"满屏种花\"起步，布阵时有计划地铲花。**\n> 通用原理见 `知识库/14-技术-搭梯与前期发育.md`。\n\n### 阶段 A：纯发育\n```\n① 能种的地方全种花（水上先铺荷叶 → 花）\n② 1~2 个临时输出点：放在能收杂的位置（收除铁桶外的一切）\n③ 铁桶 → 窝瓜 / 地雷\n④ 用蒜把僵尸往别路赶，保护种花区\n```\n**目标：经济起来 + 阵里的伞、曾就位 + 阳光攒够。**\n\n### 阶段 B：布阵（边布边铲花）\n```\n① 水上铺荷叶 16 张\n② 水路 6~9 列：忧郁菇 + 南瓜（骨架先立）\n③ 2 路：瓜(1)、伞(2)、瓜(3)、瓜(4)、曾(5)、曾(6)\n④ 边路：1路 曾-曾-瓜-喷-喷；6路 瓜-曾-瓜-喷-喷\n⑤ 5 路：伞(1)、曾(2)、冰(3)、瓜(4)、曾(5)、曾(6)\n⑥ 香蒲：3-4 裸放、4-6 套南瓜\n⑦ 最后补 6 朵双子花（花是最后才升级的，前期先用普通花顶）\n```\n> **每布一格，就铲掉一格的花** —— 花是脚手架，阵是建筑。\n\n### 阶段 C：搭梯（只有 4 个，很简单）\n```\n⑧ 1-2 / 1-3 / 2-2 / 2-3 换成模仿者南瓜\n⑨ 5 路全程不搭梯\n```\n> PE 是后院，1、2 和 5、6 都是陆路，扶梯去向清楚 → **比前院好搭得多**。\n> 只有 4 个梯子，是本库里最轻松的搭梯任务。\n\n**四个坑**\n1. **5 路别搭梯**（辣椒要烧梯，辣椒路必须无梯）\n2. 别让冰道盖住 **2-8**（樱桃位）—— 2 路杀车快，一般能保住；5-8 保不住是正常的\n3. 梯子南瓜用**模仿者南瓜**（约定 + 便于交流）\n4. **先花后曾**，否则经济锁死", "old_string": "## 七、开局布阵顺序\n\n```\n① 水上铺荷叶 16 张 → 种 6 朵双子花（先立经济）\n② 水路 6~9 列：忧郁菇 + 南瓜（骨架先立）\n③ 2 路：瓜(1)、伞(2)、瓜(3)、瓜(4)、曾(5)、曾(6)\n④ 边路：1路 曾-曾-瓜-喷-喷；6路 瓜-曾-瓜-喷-喷\n⑤ 5 路：伞(1)、曾(2)、冰(3)、瓜(4)、曾(5)、曾(6)\n⑥ 香蒲：3-4 裸放、4-6 套南瓜\n⑦ 1-2 / 1-3 / 2-2 / 2-3 换成**模仿者南瓜**（搭梯）\n⑧ 5 路全程**不搭梯**\n```\n\n**四个坑**\n1. 5 路别搭梯（辣椒要烧梯，辣椒路必须无梯）\n2. 别让冰道盖住 **2-8**（樱桃位）—— 2 路杀车快，一般能保住；5-8 保不住是正常的\n3. 梯子南瓜用**模仿者南瓜**（约定 + 便于交流）\n4. **先花后曾**，否则经济锁死"}
+{"file_path": "D:\\PVZ endless\\练习\\PE.电波钟无炮\\运阵手册.md", "new_string": "## 七、开局：先发育，再布阵，最后搭梯\n\n> **纠正**：以前我把开局写成\"直接按顺序摆阵\"，那是错的。\n> **所有阵（包括本阵）前期都是\"满屏种花\"起步，布阵时有计划地铲花。**\n> 通用原理见 `docs/知识库/14-技术-搭梯与前期发育.md`。\n\n### 阶段 A：纯发育\n```\n① 能种的地方全种花（水上先铺荷叶 → 花）\n② 1~2 个临时输出点：放在能收杂的位置（收除铁桶外的一切）\n③ 铁桶 → 窝瓜 / 地雷\n④ 用蒜把僵尸往别路赶，保护种花区\n```\n**目标：经济起来 + 阵里的伞、曾就位 + 阳光攒够。**\n\n### 阶段 B：布阵（边布边铲花）\n```\n① 水上铺荷叶 16 张\n② 水路 6~9 列：忧郁菇 + 南瓜（骨架先立）\n③ 2 路：瓜(1)、伞(2)、瓜(3)、瓜(4)、曾(5)、曾(6)\n④ 边路：1路 曾-曾-瓜-喷-喷；6路 瓜-曾-瓜-喷-喷\n⑤ 5 路：伞(1)、曾(2)、冰(3)、瓜(4)、曾(5)、曾(6)\n⑥ 香蒲：3-4 裸放、4-6 套南瓜\n⑦ 最后补 6 朵双子花（花是最后才升级的，前期先用普通花顶）\n```\n> **每布一格，就铲掉一格的花** —— 花是脚手架，阵是建筑。\n\n### 阶段 C：搭梯（只有 4 个，很简单）\n```\n⑧ 1-2 / 1-3 / 2-2 / 2-3 换成模仿者南瓜\n⑨ 5 路全程不搭梯\n```\n> PE 是后院，1、2 和 5、6 都是陆路，扶梯去向清楚 → **比前院好搭得多**。\n> 只有 4 个梯子，是本库里最轻松的搭梯任务。\n\n**四个坑**\n1. **5 路别搭梯**（辣椒要烧梯，辣椒路必须无梯）\n2. 别让冰道盖住 **2-8**（樱桃位）—— 2 路杀车快，一般能保住；5-8 保不住是正常的\n3. 梯子南瓜用**模仿者南瓜**（约定 + 便于交流）\n4. **先花后曾**，否则经济锁死", "old_string": "## 七、开局布阵顺序\n\n```\n① 水上铺荷叶 16 张 → 种 6 朵双子花（先立经济）\n② 水路 6~9 列：忧郁菇 + 南瓜（骨架先立）\n③ 2 路：瓜(1)、伞(2)、瓜(3)、瓜(4)、曾(5)、曾(6)\n④ 边路：1路 曾-曾-瓜-喷-喷；6路 瓜-曾-瓜-喷-喷\n⑤ 5 路：伞(1)、曾(2)、冰(3)、瓜(4)、曾(5)、曾(6)\n⑥ 香蒲：3-4 裸放、4-6 套南瓜\n⑦ 1-2 / 1-3 / 2-2 / 2-3 换成**模仿者南瓜**（搭梯）\n⑧ 5 路全程**不搭梯**\n```\n\n**四个坑**\n1. 5 路别搭梯（辣椒要烧梯，辣椒路必须无梯）\n2. 别让冰道盖住 **2-8**（樱桃位）—— 2 路杀车快，一般能保住；5-8 保不住是正常的\n3. 梯子南瓜用**模仿者南瓜**（约定 + 便于交流）\n4. **先花后曾**，否则经济锁死"}
 ```
 
 **📤 工具结果** `call_00_ET_GtgxjP4rAwJdRMS6HHvP3492`
@@ -21873,7 +21873,7 @@ Let me write it.
 **🔧 工具调用：`Edit`**
 
 ```json
-{"file_path": "D:\\PVZ endless\\练习\\DE.双冰六炮\\研讨笔记.md", "new_string": "## 十二、开局：14 个梯子，两天时间【你】\n\n> **这是本阵最大的门槛，不是操作难度，是搭梯。**\n> 14 个梯子全在后场，数量大、强依赖运气 —— 你说\"花了两天废寝忘食，太难了\"。\n> 通用原理见 `知识库/14-技术-搭梯与前期发育.md`；本节是本阵的具体方案。\n\n### 阶段 A：0 ~ 2F 纯发育\n\n**选卡**：花、蒜、伞、南瓜、南瓜（复制）、窝瓜、地雷、曾哥套件\n\n```\n① 一直种花 —— 1、3、5 路种满花（全场能不被啃到的地方全放花）\n② 1、3、5 路的 8、9 列放蒜 —— 把僵尸往 2、4 路赶，保护种花区\n③ 3-7 放一个曾哥：收掉除铁桶外的所有僵尸\n④ 铁桶 → 地雷或窝瓜\n```\n\n**本阶段交付**：\n```\n□ 阵里的曾、伞全部摆好\n□ 南瓜除 1/3/5 路第 4 列外全部按阵摆好\n□ 阳光 ≥ 4000\n```\n\n> **为什么留空 1-4 / 3-4 / 5-4？**\n> 那里是**大蒜位 + 扶梯过道**。占了就没法引导扶梯，也没法让它穿过去。\n> 【推】这也解释了为什么这三个格子在这套阵里\"看起来是空的\"却不种东西。\n\n### 阶段 B：2 ~ 4F 布阵与前期生存\n\n**选卡**：蒜、双子葵、炮套件、冰瓜套件、火炬、高坚果（按预估压力选）、双向（有扶梯时可能用到），其余对症选。\n\n```\n① 布底线炮（3-1）、2/4 路的前场炮\n② 布 2/4 路冰瓜\n③ 布双子葵（发育阶段 1-1、5-1 也先放双子葵）\n④ 1、3、5 路第 4 列放蒜，并持续维护\n⑤ 有扶梯 → 把 1、3、5 路「第 4 列大蒜之前的所有植物」全部清除，给扶梯让道\n⑥ 此时场上 3 炮 + 2 冰瓜 → 已具备前期生存能力，可以开始搭梯\n```\n\n### 阶段 C：搭梯\n\n**通道为什么选 1、3、5 路**【你】：\n> 1、5 路僵尸吃蒜后的去处是**确定的**（各去 2 路 / 4 路），\n> 这样可以尽可能减少\"**因换行随机错导致浪费扶梯**\"。\n> 3 路是二选一（去 2 或 4），所以放到最后处理。\n\n**搭梯次序（关键）**：\n```\n① 前场放大蒜，引导扶梯前往 1、3、5 路\n② 2、4 路中任一路搭完\n   → 把 3-4 的蒜换成「南瓜 + 双向」，准备搭 3 路\n③ 2 路（或 4 路）搭完\n   → 铲除 1-4（或 5-4）的大蒜，准备搭本行\n④ 1 路、5 路的冰瓜是本行最后搭的\n   → 等扶梯接近时，快速下「西瓜 → 冰瓜」\n```\n\n**为什么冰瓜必须最后**【你】：\n> **格子如果被炸、或者\"刷新\"（种植物、铲植物、种紫卡）都会导致扶梯消失。**\n> 所以才要有这样的搭梯次序 —— **把\"需要卡时机\"的那一步放到最后**。\n\n### 阶段 D：风险与放弃【你】\n\n| 风险 | 表现 | 对策 |\n|---|---|---|\n| **小丑** | 搭梯\"非常刺激\"，技术不行就是**毁阵** | 看实力**放弃搭梯、转向压制** |\n| **跳跳** | 会偷家 | 带冰，合适时机点冰，让底线曾收掉 |\n| **冰车** | 碾通道 | 带地刺；压力大可以布**两路刚地刺** |\n| 其它快速僵尸 | 容易从扶梯里分离 | 靠蒜与节奏控制 |\n| 慢速僵尸 | 基本不是问题 | — |\n\n> **准则：搭梯是锦上添花，阵是命。** 一旦威胁到阵的完整，立刻放弃搭梯。\n\n### 阶段 E：什么时候重开【你】\n\n```\n前 10F 都见不着一个扶梯  → 重开\n20F 都还没搭完          → 重开\n```\n\n> 【推】14 个梯子要十几次扶梯。若 20F（约 10 个选卡）还搭不完，\n> 这一局的出怪结构就不适合搭梯，继续投入只会把经济耗空。\n\n### 本阵开局最容易犯的三个错【推】\n1. **太早摆阵**。不种花就没有钱摆阵，前期必须忍受\"花占着格子\"。\n2. **不留通道**。1-4 / 3-4 / 5-4 一旦种了东西，扶梯就进不来。\n3. **顺序颠倒**。先搭梯再补冰瓜 → 一补就把扶梯弄没了，白费一次。", "old_string": "## 十二、开局布阵顺序【推】\n\n```\n① 2 朵双花 + 后场南瓜（经济先立）\n② 先立 1 路、5 路的炮（炮要早，不然前期没输出）\n③ 补齐第 5 列五门炮 + 3-1 第六门\n④ 后场 4 曾、4 冰瓜\n⑤ 4 把伞（先补能罩住双花和存冰的）\n⑥ 3-3 火炬、3-4 裂荚\n⑦ 2 个存冰、14 个南瓜搭梯\n```\n\n**三个坑**\n1. **炮要早**，前期全靠它。\n2. **双花别放在伞罩不到的地方**（蹦极偷花最亏）。\n3. **存冰放角落**（1-1、5-1），别放中间。"}
+{"file_path": "D:\\PVZ endless\\练习\\DE.双冰六炮\\研讨笔记.md", "new_string": "## 十二、开局：14 个梯子，两天时间【你】\n\n> **这是本阵最大的门槛，不是操作难度，是搭梯。**\n> 14 个梯子全在后场，数量大、强依赖运气 —— 你说\"花了两天废寝忘食，太难了\"。\n> 通用原理见 `docs/知识库/14-技术-搭梯与前期发育.md`；本节是本阵的具体方案。\n\n### 阶段 A：0 ~ 2F 纯发育\n\n**选卡**：花、蒜、伞、南瓜、南瓜（复制）、窝瓜、地雷、曾哥套件\n\n```\n① 一直种花 —— 1、3、5 路种满花（全场能不被啃到的地方全放花）\n② 1、3、5 路的 8、9 列放蒜 —— 把僵尸往 2、4 路赶，保护种花区\n③ 3-7 放一个曾哥：收掉除铁桶外的所有僵尸\n④ 铁桶 → 地雷或窝瓜\n```\n\n**本阶段交付**：\n```\n□ 阵里的曾、伞全部摆好\n□ 南瓜除 1/3/5 路第 4 列外全部按阵摆好\n□ 阳光 ≥ 4000\n```\n\n> **为什么留空 1-4 / 3-4 / 5-4？**\n> 那里是**大蒜位 + 扶梯过道**。占了就没法引导扶梯，也没法让它穿过去。\n> 【推】这也解释了为什么这三个格子在这套阵里\"看起来是空的\"却不种东西。\n\n### 阶段 B：2 ~ 4F 布阵与前期生存\n\n**选卡**：蒜、双子葵、炮套件、冰瓜套件、火炬、高坚果（按预估压力选）、双向（有扶梯时可能用到），其余对症选。\n\n```\n① 布底线炮（3-1）、2/4 路的前场炮\n② 布 2/4 路冰瓜\n③ 布双子葵（发育阶段 1-1、5-1 也先放双子葵）\n④ 1、3、5 路第 4 列放蒜，并持续维护\n⑤ 有扶梯 → 把 1、3、5 路「第 4 列大蒜之前的所有植物」全部清除，给扶梯让道\n⑥ 此时场上 3 炮 + 2 冰瓜 → 已具备前期生存能力，可以开始搭梯\n```\n\n### 阶段 C：搭梯\n\n**通道为什么选 1、3、5 路**【你】：\n> 1、5 路僵尸吃蒜后的去处是**确定的**（各去 2 路 / 4 路），\n> 这样可以尽可能减少\"**因换行随机错导致浪费扶梯**\"。\n> 3 路是二选一（去 2 或 4），所以放到最后处理。\n\n**搭梯次序（关键）**：\n```\n① 前场放大蒜，引导扶梯前往 1、3、5 路\n② 2、4 路中任一路搭完\n   → 把 3-4 的蒜换成「南瓜 + 双向」，准备搭 3 路\n③ 2 路（或 4 路）搭完\n   → 铲除 1-4（或 5-4）的大蒜，准备搭本行\n④ 1 路、5 路的冰瓜是本行最后搭的\n   → 等扶梯接近时，快速下「西瓜 → 冰瓜」\n```\n\n**为什么冰瓜必须最后**【你】：\n> **格子如果被炸、或者\"刷新\"（种植物、铲植物、种紫卡）都会导致扶梯消失。**\n> 所以才要有这样的搭梯次序 —— **把\"需要卡时机\"的那一步放到最后**。\n\n### 阶段 D：风险与放弃【你】\n\n| 风险 | 表现 | 对策 |\n|---|---|---|\n| **小丑** | 搭梯\"非常刺激\"，技术不行就是**毁阵** | 看实力**放弃搭梯、转向压制** |\n| **跳跳** | 会偷家 | 带冰，合适时机点冰，让底线曾收掉 |\n| **冰车** | 碾通道 | 带地刺；压力大可以布**两路刚地刺** |\n| 其它快速僵尸 | 容易从扶梯里分离 | 靠蒜与节奏控制 |\n| 慢速僵尸 | 基本不是问题 | — |\n\n> **准则：搭梯是锦上添花，阵是命。** 一旦威胁到阵的完整，立刻放弃搭梯。\n\n### 阶段 E：什么时候重开【你】\n\n```\n前 10F 都见不着一个扶梯  → 重开\n20F 都还没搭完          → 重开\n```\n\n> 【推】14 个梯子要十几次扶梯。若 20F（约 10 个选卡）还搭不完，\n> 这一局的出怪结构就不适合搭梯，继续投入只会把经济耗空。\n\n### 本阵开局最容易犯的三个错【推】\n1. **太早摆阵**。不种花就没有钱摆阵，前期必须忍受\"花占着格子\"。\n2. **不留通道**。1-4 / 3-4 / 5-4 一旦种了东西，扶梯就进不来。\n3. **顺序颠倒**。先搭梯再补冰瓜 → 一补就把扶梯弄没了，白费一次。", "old_string": "## 十二、开局布阵顺序【推】\n\n```\n① 2 朵双花 + 后场南瓜（经济先立）\n② 先立 1 路、5 路的炮（炮要早，不然前期没输出）\n③ 补齐第 5 列五门炮 + 3-1 第六门\n④ 后场 4 曾、4 冰瓜\n⑤ 4 把伞（先补能罩住双花和存冰的）\n⑥ 3-3 火炬、3-4 裂荚\n⑦ 2 个存冰、14 个南瓜搭梯\n```\n\n**三个坑**\n1. **炮要早**，前期全靠它。\n2. **双花别放在伞罩不到的地方**（蹦极偷花最亏）。\n3. **存冰放角落**（1-1、5-1），别放中间。"}
 ```
 
 **📤 工具结果** `call_00_rh63A9JDkAgnPKdOi6WS8966`
@@ -21919,7 +21919,7 @@ Let me write.
 **🔧 工具调用：`Edit`**
 
 ```json
-{"file_path": "D:\\PVZ endless\\练习\\DE.双冰六炮\\运阵手册.md", "new_string": "## 六、开局：先发育 → 再布阵 → 最后搭梯\n\n> 14 个梯子是本阵最大门槛。通用原理见 `知识库/14-技术-搭梯与前期发育.md`。\n\n### A · 0~2F：纯发育\n```\n选卡：花、蒜、伞、南瓜、南瓜(复制)、窝瓜、地雷、曾哥套件\n① 1、3、5 路种满花（能不被啃到的地方全放花）\n② 1、3、5 路的 8、9 列放蒜 → 把僵尸赶去 2、4 路\n③ 3-7 放临时曾：收除铁桶外一切\n④ 铁桶 → 地雷 / 窝瓜\n交付：曾和伞全部就位｜南瓜除 1-4/3-4/5-4 外就位｜阳光 ≥ 4000\n```\n\n### B · 2~4F：布阵 + 前期生存\n```\n选卡：蒜、双子葵、炮套件、冰瓜套件、火炬、高坚果(按压力)、双向(有扶梯时)\n① 底线炮(3-1) + 2/4 路前场炮\n② 2/4 路冰瓜\n③ 双子葵（发育期 1-1、5-1 也先放双子葵）\n④ 1、3、5 路第 4 列放蒜并维护\n⑤ 有扶梯 → 清空 1/3/5 路第 4 列蒜之前的所有植物，给扶梯让道\n⑥ 3 炮 + 2 冰瓜 = 具备前期生存能力，开始搭梯\n```\n\n### C · 搭梯（通道 = 1/3/5 路）\n```\n1、5 路吃蒜后去向确定（各去 2 / 4 路）→ 先搭\n3 路吃蒜后二选一 → 最后搭（减少浪费扶梯）\n\n次序：\n① 前场放蒜引导\n② 2 或 4 路搭完 → 3-4 蒜换成「南瓜+双向」，准备搭 3 路\n③ 2(4) 路搭完 → 铲 1-4(5-4) 蒜，准备搭本行\n④ 1、5 路冰瓜最后搭：扶梯接近时快速下「西瓜→冰瓜」\n```\n\n> **为什么冰瓜最后**：格子被炸、或\"刷新\"（种植物/铲植物/种紫卡）都会让扶梯消失。\n> **把要卡时机的那一步放到最后。**\n\n### 风险与放弃\n| 风险 | 对策 |\n|---|---|\n| 小丑 | \"非常刺激\"，技术不行就毁阵 → **放弃搭梯转压制** |\n| 跳跳 | 带冰，合适时机点冰让底线曾收 |\n| 冰车 | 带地刺；压力大可布**两路刚地刺** |\n\n**收手**：前 10F 见不到扶梯 → 重开；20F 还没搭完 → 重开。\n\n**三个坑**\n1. 太早摆阵（不种花就没钱）\n2. 不留通道（1-4/3-4/5-4 种了东西，扶梯进不来）\n3. 顺序颠倒（先搭梯再补冰瓜 = 白费一次）", "old_string": "## 六、开局顺序\n\n```\n① 2 朵双花 + 后场南瓜（经济先立）\n② 先立 1 路、5 路的炮（炮要早，不然前期没输出）\n③ 补齐第 5 列五门炮 + 3-1 第六门\n④ 后场 4 曾、4 冰瓜\n⑤ 4 把伞（先补能罩住双花和存冰的）\n⑥ 3-3 火炬、3-4 裂荚\n⑦ 2 个存冰、14 个南瓜搭梯\n```\n\n**三个坑**\n1. **炮要早**，前期全靠它。\n2. **双花别放在伞罩不到的地方**（蹦极偷花最亏）。\n3. **存冰放角落**（1-1、5-1），别放中间。"}
+{"file_path": "D:\\PVZ endless\\练习\\DE.双冰六炮\\运阵手册.md", "new_string": "## 六、开局：先发育 → 再布阵 → 最后搭梯\n\n> 14 个梯子是本阵最大门槛。通用原理见 `docs/知识库/14-技术-搭梯与前期发育.md`。\n\n### A · 0~2F：纯发育\n```\n选卡：花、蒜、伞、南瓜、南瓜(复制)、窝瓜、地雷、曾哥套件\n① 1、3、5 路种满花（能不被啃到的地方全放花）\n② 1、3、5 路的 8、9 列放蒜 → 把僵尸赶去 2、4 路\n③ 3-7 放临时曾：收除铁桶外一切\n④ 铁桶 → 地雷 / 窝瓜\n交付：曾和伞全部就位｜南瓜除 1-4/3-4/5-4 外就位｜阳光 ≥ 4000\n```\n\n### B · 2~4F：布阵 + 前期生存\n```\n选卡：蒜、双子葵、炮套件、冰瓜套件、火炬、高坚果(按压力)、双向(有扶梯时)\n① 底线炮(3-1) + 2/4 路前场炮\n② 2/4 路冰瓜\n③ 双子葵（发育期 1-1、5-1 也先放双子葵）\n④ 1、3、5 路第 4 列放蒜并维护\n⑤ 有扶梯 → 清空 1/3/5 路第 4 列蒜之前的所有植物，给扶梯让道\n⑥ 3 炮 + 2 冰瓜 = 具备前期生存能力，开始搭梯\n```\n\n### C · 搭梯（通道 = 1/3/5 路）\n```\n1、5 路吃蒜后去向确定（各去 2 / 4 路）→ 先搭\n3 路吃蒜后二选一 → 最后搭（减少浪费扶梯）\n\n次序：\n① 前场放蒜引导\n② 2 或 4 路搭完 → 3-4 蒜换成「南瓜+双向」，准备搭 3 路\n③ 2(4) 路搭完 → 铲 1-4(5-4) 蒜，准备搭本行\n④ 1、5 路冰瓜最后搭：扶梯接近时快速下「西瓜→冰瓜」\n```\n\n> **为什么冰瓜最后**：格子被炸、或\"刷新\"（种植物/铲植物/种紫卡）都会让扶梯消失。\n> **把要卡时机的那一步放到最后。**\n\n### 风险与放弃\n| 风险 | 对策 |\n|---|---|\n| 小丑 | \"非常刺激\"，技术不行就毁阵 → **放弃搭梯转压制** |\n| 跳跳 | 带冰，合适时机点冰让底线曾收 |\n| 冰车 | 带地刺；压力大可布**两路刚地刺** |\n\n**收手**：前 10F 见不到扶梯 → 重开；20F 还没搭完 → 重开。\n\n**三个坑**\n1. 太早摆阵（不种花就没钱）\n2. 不留通道（1-4/3-4/5-4 种了东西，扶梯进不来）\n3. 顺序颠倒（先搭梯再补冰瓜 = 白费一次）", "old_string": "## 六、开局顺序\n\n```\n① 2 朵双花 + 后场南瓜（经济先立）\n② 先立 1 路、5 路的炮（炮要早，不然前期没输出）\n③ 补齐第 5 列五门炮 + 3-1 第六门\n④ 后场 4 曾、4 冰瓜\n⑤ 4 把伞（先补能罩住双花和存冰的）\n⑥ 3-3 火炬、3-4 裂荚\n⑦ 2 个存冰、14 个南瓜搭梯\n```\n\n**三个坑**\n1. **炮要早**，前期全靠它。\n2. **双花别放在伞罩不到的地方**（蹦极偷花最亏）。\n3. **存冰放角落**（1-1、5-1），别放中间。"}
 ```
 
 **📤 工具结果** `call_00_4gDeXdwzDQmFXGasxzzA9615`
@@ -22028,7 +22028,7 @@ Let me do that.
 **🔧 工具调用：`Edit`**
 
 ```json
-{"file_path": "D:\\PVZ endless\\练习\\DE.双冰六炮\\运阵手册.md", "new_string": "## 六、开局：先发育 → 再布阵 → 最后搭梯\n\n> 14 个梯子是本阵最大门槛。通用原理见 `知识库/14-技术-搭梯与前期发育.md`。\n\n### A · 0~2F：纯发育\n```\n选卡：花、蒜、伞、南瓜、南瓜(复制)、窝瓜、地雷、曾哥套件\n① 1、3、5 路种满花（能不被啃到的地方全放花）\n② 1、3、5 路的 8、9 列放蒜 → 把僵尸赶去 2、4 路\n③ 3-7 放临时曾：收除铁桶外一切\n④ 铁桶 → 地雷 / 窝瓜\n交付：曾和伞全部就位｜南瓜除 1-4/3-4/5-4 外就位｜阳光 ≥ 4000\n```\n\n### B · 2~4F：布阵 + 前期生存\n```\n选卡：蒜、双子葵、炮套件、冰瓜套件、火炬、高坚果(按压力)、双向(有扶梯时)\n① 底线炮(3-1) + 2/4 路前场炮\n② 2/4 路冰瓜\n③ 双子葵（发育期 1-1、5-1 也先放双子葵）\n④ 1、3、5 路第 4 列放蒜并维护\n⑤ 有扶梯 → 清空 1/3/5 路第 4 列蒜之前的所有植物，给扶梯让道\n⑥ 3 炮 + 2 冰瓜 = 具备前期生存能力，开始搭梯\n```\n\n### C · 搭梯（通道 = 1/3/5 路）\n```\n1、5 路吃蒜后去向确定（各去 2 / 4 路）→ 先搭\n3 路吃蒜后二选一 → 最后搭（减少浪费扶梯）\n\n次序：\n① 前场放蒜引导\n② 2 或 4 路搭完 → 3-4 蒜换成「南瓜+双向」，准备搭 3 路\n③ 2(4) 路搭完 → 铲 1-4(5-4) 蒜，准备搭本行\n④ 1、5 路冰瓜最后搭：扶梯接近时快速下「西瓜→冰瓜」\n```\n\n> **为什么冰瓜最后**：格子被炸、或\"刷新\"（种植物/铲植物/种紫卡）都会让扶梯消失。\n> **把要卡时机的那一步放到最后。**\n\n### 风险与放弃\n| 风险 | 对策 |\n|---|---|\n| 小丑 | \"非常刺激\"，技术不行就毁阵 → **放弃搭梯转压制** |\n| 跳跳 | 带冰，合适时机点冰让底线曾收 |\n| 冰车 | 带地刺；压力大可布**两路刚地刺** |\n\n**收手**：前 10F 见不到扶梯 → 重开；20F 还没搭完 → 重开。\n\n**三个坑**\n1. 太早摆阵（不种花就没钱）\n2. 不留通道（1-4/3-4/5-4 种了东西，扶梯进不来）\n3. 顺序颠倒（先搭梯再补冰瓜 = 白费一次）\n\n---\n\n## 七、收尾：压血 + **故意留一路**【你】", "old_string": "## 六、收尾：压血 + **故意留一路**【你】"}
+{"file_path": "D:\\PVZ endless\\练习\\DE.双冰六炮\\运阵手册.md", "new_string": "## 六、开局：先发育 → 再布阵 → 最后搭梯\n\n> 14 个梯子是本阵最大门槛。通用原理见 `docs/知识库/14-技术-搭梯与前期发育.md`。\n\n### A · 0~2F：纯发育\n```\n选卡：花、蒜、伞、南瓜、南瓜(复制)、窝瓜、地雷、曾哥套件\n① 1、3、5 路种满花（能不被啃到的地方全放花）\n② 1、3、5 路的 8、9 列放蒜 → 把僵尸赶去 2、4 路\n③ 3-7 放临时曾：收除铁桶外一切\n④ 铁桶 → 地雷 / 窝瓜\n交付：曾和伞全部就位｜南瓜除 1-4/3-4/5-4 外就位｜阳光 ≥ 4000\n```\n\n### B · 2~4F：布阵 + 前期生存\n```\n选卡：蒜、双子葵、炮套件、冰瓜套件、火炬、高坚果(按压力)、双向(有扶梯时)\n① 底线炮(3-1) + 2/4 路前场炮\n② 2/4 路冰瓜\n③ 双子葵（发育期 1-1、5-1 也先放双子葵）\n④ 1、3、5 路第 4 列放蒜并维护\n⑤ 有扶梯 → 清空 1/3/5 路第 4 列蒜之前的所有植物，给扶梯让道\n⑥ 3 炮 + 2 冰瓜 = 具备前期生存能力，开始搭梯\n```\n\n### C · 搭梯（通道 = 1/3/5 路）\n```\n1、5 路吃蒜后去向确定（各去 2 / 4 路）→ 先搭\n3 路吃蒜后二选一 → 最后搭（减少浪费扶梯）\n\n次序：\n① 前场放蒜引导\n② 2 或 4 路搭完 → 3-4 蒜换成「南瓜+双向」，准备搭 3 路\n③ 2(4) 路搭完 → 铲 1-4(5-4) 蒜，准备搭本行\n④ 1、5 路冰瓜最后搭：扶梯接近时快速下「西瓜→冰瓜」\n```\n\n> **为什么冰瓜最后**：格子被炸、或\"刷新\"（种植物/铲植物/种紫卡）都会让扶梯消失。\n> **把要卡时机的那一步放到最后。**\n\n### 风险与放弃\n| 风险 | 对策 |\n|---|---|\n| 小丑 | \"非常刺激\"，技术不行就毁阵 → **放弃搭梯转压制** |\n| 跳跳 | 带冰，合适时机点冰让底线曾收 |\n| 冰车 | 带地刺；压力大可布**两路刚地刺** |\n\n**收手**：前 10F 见不到扶梯 → 重开；20F 还没搭完 → 重开。\n\n**三个坑**\n1. 太早摆阵（不种花就没钱）\n2. 不留通道（1-4/3-4/5-4 种了东西，扶梯进不来）\n3. 顺序颠倒（先搭梯再补冰瓜 = 白费一次）\n\n---\n\n## 七、收尾：压血 + **故意留一路**【你】", "old_string": "## 六、收尾：压血 + **故意留一路**【你】"}
 ```
 
 **📤 工具结果** `call_00_OA4GP1PmvW91VKLuZsIV2101`
@@ -22124,7 +22124,7 @@ Successfully edited file: D:\PVZ endless\README.md
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless/.workbuddy/memory\" && cat >> 2026-10-17.md <<'EOF'\n\n---\n\n## 第十五批：搭梯与前期发育（22:52）—— 催生通用技术文档\n\n**用户给出 DE 双冰六炮（14 个梯子）的完整搭梯流程，并纠正了一个跨阵型的认知：前期发育不是\"按顺序摆阵\"，而是\"满屏种花 → 铲花布阵\"。**\n\n**新增** `知识库/14-技术-搭梯与前期发育.md`（跨阵型通用技术）。\n\n**核心内容**：\n- **为什么搭梯**：扶梯架梯就走不啃 → 南瓜永免维护（对应 `06` 磨损表\"扶梯零磨损\"）。DE 双冰六炮要搭 **14 个**，全在后场，用户花了两天。\n- **三原则**：① 前期满屏种花涨经济，布阵时**有计划铲花**（花是脚手架）② 熬前期靠 临时曾/控制（寒冰射手、冰瓜）/坚果 拖时间 ③ 搭梯要\"计划\"：分离扶梯 → 保护 → 大蒜引导。\n- **大蒜是唯一定向输送工具**：1 路吃蒜必去 2 路、5 路必去 4 路（**确定**）；3 路二选一会浪费扶梯。**这就是通道选 1/3/5 路的原因。**\n- **三阶段**：A(0~2F) 纯发育 → B(2~4F) 布阵+前期生存 → C 搭梯。\n- **次序铁律**：**先把阵布完，最后才搭梯；冰瓜（紫卡）最后搭** —— 因为种/铲/种紫卡都会让**扶梯消失**。\n- **风险**：小丑（可能毁阵→放弃搭梯转压制）、跳跳（带冰让底线曾收）、冰车（地刺，必要时两路刚地刺）。\n- **收手**：前 10F 无扶梯 / 20F 未搭完 → 重开。\n- **场地差异**：后院 PE/FE 比前院简单（1,2;5,6 皆陆路，去向清楚）。\n\n**DE 双冰六炮具体方案（已写入其研讨笔记 §十二 + 运阵手册 §六）**：\n- 0~2F 选卡：花、蒜、伞、南瓜、南瓜(复制)、窝瓜、地雷、曾哥套件；1/3/5 路 8-9 列放蒜，3-7 临时曾收杂（铁桶用雷/窝瓜）；交付：曾伞全就位、南瓜除 1-4/3-4/5-4 外就位、阳光 ≥4000。\n- 2~4F 选卡：蒜、双子葵、炮套件、冰瓜套件、火炬、高坚果、双向(有扶梯时)。\n- 搭梯次序：2/4 路搭完→3-4 蒜换「南瓜+双向」搭 3 路；再搭完→铲 1-4/5-4 蒜搭本行；1/5 路冰瓜最后。\n- **留空 1-4/3-4/5-4 的原因**：那是大蒜位 + 扶梯过道。\n\n**已同步更正**：`PE.电波钟无炮/运阵手册` 的开局段改成\"先发育→再布阵→最后搭梯\"，并注明电波钟只有 4 个梯子（1-2/1-3/2-2/2-3），PE 是后院更好搭。`README` 目录树加 `14`。\nEOF\necho ok", "description": "追加第十五批日志"}
+{"command": "cd \"D:/PVZ endless/.workbuddy/memory\" && cat >> 2026-10-17.md <<'EOF'\n\n---\n\n## 第十五批：搭梯与前期发育（22:52）—— 催生通用技术文档\n\n**用户给出 DE 双冰六炮（14 个梯子）的完整搭梯流程，并纠正了一个跨阵型的认知：前期发育不是\"按顺序摆阵\"，而是\"满屏种花 → 铲花布阵\"。**\n\n**新增** `docs/知识库/14-技术-搭梯与前期发育.md`（跨阵型通用技术）。\n\n**核心内容**：\n- **为什么搭梯**：扶梯架梯就走不啃 → 南瓜永免维护（对应 `06` 磨损表\"扶梯零磨损\"）。DE 双冰六炮要搭 **14 个**，全在后场，用户花了两天。\n- **三原则**：① 前期满屏种花涨经济，布阵时**有计划铲花**（花是脚手架）② 熬前期靠 临时曾/控制（寒冰射手、冰瓜）/坚果 拖时间 ③ 搭梯要\"计划\"：分离扶梯 → 保护 → 大蒜引导。\n- **大蒜是唯一定向输送工具**：1 路吃蒜必去 2 路、5 路必去 4 路（**确定**）；3 路二选一会浪费扶梯。**这就是通道选 1/3/5 路的原因。**\n- **三阶段**：A(0~2F) 纯发育 → B(2~4F) 布阵+前期生存 → C 搭梯。\n- **次序铁律**：**先把阵布完，最后才搭梯；冰瓜（紫卡）最后搭** —— 因为种/铲/种紫卡都会让**扶梯消失**。\n- **风险**：小丑（可能毁阵→放弃搭梯转压制）、跳跳（带冰让底线曾收）、冰车（地刺，必要时两路刚地刺）。\n- **收手**：前 10F 无扶梯 / 20F 未搭完 → 重开。\n- **场地差异**：后院 PE/FE 比前院简单（1,2;5,6 皆陆路，去向清楚）。\n\n**DE 双冰六炮具体方案（已写入其研讨笔记 §十二 + 运阵手册 §六）**：\n- 0~2F 选卡：花、蒜、伞、南瓜、南瓜(复制)、窝瓜、地雷、曾哥套件；1/3/5 路 8-9 列放蒜，3-7 临时曾收杂（铁桶用雷/窝瓜）；交付：曾伞全就位、南瓜除 1-4/3-4/5-4 外就位、阳光 ≥4000。\n- 2~4F 选卡：蒜、双子葵、炮套件、冰瓜套件、火炬、高坚果、双向(有扶梯时)。\n- 搭梯次序：2/4 路搭完→3-4 蒜换「南瓜+双向」搭 3 路；再搭完→铲 1-4/5-4 蒜搭本行；1/5 路冰瓜最后。\n- **留空 1-4/3-4/5-4 的原因**：那是大蒜位 + 扶梯过道。\n\n**已同步更正**：`PE.电波钟无炮/运阵手册` 的开局段改成\"先发育→再布阵→最后搭梯\"，并注明电波钟只有 4 个梯子（1-2/1-3/2-2/2-3），PE 是后院更好搭。`README` 目录树加 `14`。\nEOF\necho ok", "description": "追加第十五批日志"}
 ```
 
 **📤 工具结果** `call_00_ET_kkHzQeFLL3g0UM90KAaE0942`
@@ -22138,7 +22138,7 @@ Command: cd "D:/PVZ endless/.workbuddy/memory" && cat >> 2026-10-17.md <<'EOF'
 
 **用户给出 DE 双冰六炮（14 个梯子）的完整搭梯流程，并纠正了一个跨阵型的认知：前期发育不是"按顺序摆阵"，而是"满屏种花 → 铲花布阵"。**
 
-**新增** `知识库/14-技术-搭梯与前期发育.md`（跨阵型通用技术）。
+**新增** `docs/知识库/14-技术-搭梯与前期发育.md`（跨阵型通用技术）。
 
 **核心内容**：
 - **为什么搭梯**：扶梯架梯就走不啃 → 南瓜永免维护（对应 `06` 磨损表"扶梯零磨损"）。DE 双冰六炮要搭 **14 个**，全在后场，用户花了两天。
@@ -22179,10 +22179,10 @@ Signal: (none)
 **📤 工具结果** `call_00_ET_zjh3z8RMAi6ixsi8e4Y69004`
 
 ```
-[{"type": "input_text", "text": "{\"type\":\"present_files_result\",\"files\":[\"D:/PVZ endless/知识库/14-技术-搭梯与前期发育.md\",\"D:/PVZ endless/练习/DE.双冰六炮/研讨笔记.md\",\"D:/PVZ endless/练习/DE.双冰六炮/运阵手册.md\",\"D:/PVZ endless/练习/PE.电波钟无炮/运阵手册.md\"],\"previewed\":[],\"explanation\":\"搭梯与前期发育独立成通用技术文档，并回填：DE双冰六炮的14梯完整方案、PE电波钟的开局段更正。\",\"message\":\"Successfully presented 4 file(s).\"}"}]
+[{"type": "input_text", "text": "{\"type\":\"present_files_result\",\"files\":[\"D:/PVZ endless/docs/知识库/14-技术-搭梯与前期发育.md\",\"D:/PVZ endless/练习/DE.双冰六炮/研讨笔记.md\",\"D:/PVZ endless/练习/DE.双冰六炮/运阵手册.md\",\"D:/PVZ endless/练习/PE.电波钟无炮/运阵手册.md\"],\"previewed\":[],\"explanation\":\"搭梯与前期发育独立成通用技术文档，并回填：DE双冰六炮的14梯完整方案、PE电波钟的开局段更正。\",\"message\":\"Successfully presented 4 file(s).\"}"}]
 ```
 
-你这段内容其实已经是一套**独立技术**，不限于这一个阵型。我把它单独抽成 `知识库/14-技术-搭梯与前期发育.md`，再分别补充到两份阵型笔记里。
+你这段内容其实已经是一套**独立技术**，不限于这一个阵型。我把它单独抽成 `docs/知识库/14-技术-搭梯与前期发育.md`，再分别补充到两份阵型笔记里。
 
 ## 你纠正的那个认知，比搭梯流程本身更重要
 
@@ -22222,7 +22222,7 @@ Signal: (none)
 
 | 文件 | 改动 |
 |---|---|
-| **`知识库/14-技术-搭梯与前期发育.md`**（新） | 为什么搭梯、三原则、大蒜引导原理、三阶段流程、次序铁律、风险与放弃、收手线、场地差异、检查清单 |
+| **`docs/知识库/14-技术-搭梯与前期发育.md`**（新） | 为什么搭梯、三原则、大蒜引导原理、三阶段流程、次序铁律、风险与放弃、收手线、场地差异、检查清单 |
 | `DE.双冰六炮/研讨笔记` §十二 | 完整 A~E 五个阶段 + 风险表 + 三个易犯错 |
 | `DE.双冰六炮/运阵手册` §六（新） | 压缩版速查 |
 | `PE.电波钟无炮/运阵手册` §七 | 改成三阶段，注明只有 4 梯、后院好搭 |
@@ -23346,7 +23346,7 @@ Now, the deliverables:
 
 4. **Update `README`** — add a 命名双轨 convention note.
 
-5. **Create a 速查表 markdown** — transcribe the image into a table (since images aren't searchable). That's valuable: `知识库/08` appendix or a separate `节奏命名对照表.md`.
+5. **Create a 速查表 markdown** — transcribe the image into a table (since images aren't searchable). That's valuable: `docs/知识库/08` appendix or a separate `节奏命名对照表.md`.
 
 Given the volume, I'll:
 - Rewrite/extend `08` with a big new section (§十 26版) + a full 对照表.
@@ -23871,7 +23871,7 @@ Let me edit.
 **🔧 工具调用：`Edit`**
 
 ```json
-{"file_path": "D:\\PVZ endless\\练习\\PE.电波钟无炮\\研讨笔记.md", "new_string": "## 七、节奏：三档出怪，三种打法【稿】\n\n> **双轨记录**：慢速关的 `C4io` 在 26 版里**名字不变**（C 系作为历史遗留保留，\n> 只是分类上归入 P 大类）。C 系的参数仍用**过怪量**，不是\"加速1减速2\"。\n> 详见 `知识库/08-维基-节奏体系与命名规范`。\n", "old_string": "## 七、节奏：三档出怪，三种打法【稿】\n"}
+{"file_path": "D:\\PVZ endless\\练习\\PE.电波钟无炮\\研讨笔记.md", "new_string": "## 七、节奏：三档出怪，三种打法【稿】\n\n> **双轨记录**：慢速关的 `C4io` 在 26 版里**名字不变**（C 系作为历史遗留保留，\n> 只是分类上归入 P 大类）。C 系的参数仍用**过怪量**，不是\"加速1减速2\"。\n> 详见 `docs/知识库/08-维基-节奏体系与命名规范`。\n", "old_string": "## 七、节奏：三档出怪，三种打法【稿】\n"}
 ```
 
 **📤 工具结果** `call_00_u41esbUXTg1C3deflAFe2564`
@@ -23899,7 +23899,7 @@ Let me edit.
 **🔧 工具调用：`Edit`**
 
 ```json
-{"file_path": "D:\\PVZ endless\\README.md", "new_string": "## 五、本库的维护约定\n\n- **节奏命名双轨制（2026 起）**：所有文档提到节奏时，默认写 `新名（旧名）`。\n  - 26 版：`D4/D5/D6`（原 ch4/ch5/ch6）、`N4~N9`（原 C4u~C9u）、`F6~F8`、`A3~A7`\n  - 2021 版：ch / Cxu / S / I / P / C\n  - 两者对照见 `知识库/08-维基-节奏体系与命名规范.md`；速查原图在 `26版节奏速查表.png`\n- 新增数值/结论请注明**来源**（维基 / 新读本第几篇 / 旧读本第几章 / 贴吧帖号）。\n- 存疑处标 `⚠️待核`，不要静默改数。维基\"精确数据\"条明确要求\"除非确信有误，请勿修改\"。\n- 实战录像与阵图建议放 `练习\\`，文件名带日期与波数（如 `2026-10-20_经典八炮_137f.mp4`）。", "old_string": "## 五、本库的维护约定\n\n- 新增数值/结论请注明**来源**（维基 / 新读本第几篇 / 旧读本第几章 / 贴吧帖号）。\n- 存疑处标 `⚠️待核`，不要静默改数。维基\"精确数据\"条明确要求\"除非确信有误，请勿修改\"。\n- 实战录像与阵图建议放 `练习\\`，文件名带日期与波数（如 `2026-10-20_经典八炮_137f.mp4`）。"}
+{"file_path": "D:\\PVZ endless\\README.md", "new_string": "## 五、本库的维护约定\n\n- **节奏命名双轨制（2026 起）**：所有文档提到节奏时，默认写 `新名（旧名）`。\n  - 26 版：`D4/D5/D6`（原 ch4/ch5/ch6）、`N4~N9`（原 C4u~C9u）、`F6~F8`、`A3~A7`\n  - 2021 版：ch / Cxu / S / I / P / C\n  - 两者对照见 `docs/知识库/08-维基-节奏体系与命名规范.md`；速查原图在 `26版节奏速查表.png`\n- 新增数值/结论请注明**来源**（维基 / 新读本第几篇 / 旧读本第几章 / 贴吧帖号）。\n- 存疑处标 `⚠️待核`，不要静默改数。维基\"精确数据\"条明确要求\"除非确信有误，请勿修改\"。\n- 实战录像与阵图建议放 `练习\\`，文件名带日期与波数（如 `2026-10-20_经典八炮_137f.mp4`）。", "old_string": "## 五、本库的维护约定\n\n- 新增数值/结论请注明**来源**（维基 / 新读本第几篇 / 旧读本第几章 / 贴吧帖号）。\n- 存疑处标 `⚠️待核`，不要静默改数。维基\"精确数据\"条明确要求\"除非确信有误，请勿修改\"。\n- 实战录像与阵图建议放 `练习\\`，文件名带日期与波数（如 `2026-10-20_经典八炮_137f.mp4`）。"}
 ```
 
 **📤 工具结果** `call_00_3bVSW9nKb14ie3pr7IKq4021`
@@ -23954,7 +23954,7 @@ Signal: (none)
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless/.workbuddy/memory\" && cat >> 2026-10-17.md <<'EOF'\n\n---\n\n## 第十六批：节奏命名升级为「双轨制」（10-18 09:34）\n\n用户告知 B 站发布 **25/26 版节奏命名方案**（继 2021 版之后，更细化），要求**所有文档同时采用传统 + 最新两套记录**。给了两份 opus 链接 + 速查表图片。\n\n**已抓取两份原文全文**：\n- 2021 版：`opus/580182543329947502`（Crescebdo，六类：C/P/S/ch/Cxu/I）\n- **25/26 版：`opus/1106643953578409990`**（长棍法包糕点坊_P2，20250830，最新 20260213）\n\n**26 版核心（已写入 `知识库/08` 全文重写）**：\n- **七个字头，且只在开头出现**：P（无冰波）｜S（白天单冰）｜D（白天双冰）｜I（连续冰波）｜F（50s三冰，=D+2）｜A（夜晚单冰）｜N（夜晚双冰）\n- `ch4/ch5/ch6 → D4/D5/D6`；`C4u~C9u → N4~N9`；`c6i → I6`；`c6x/c7i/c8x → F6/F7n/F8`\n- **参数统一 = 减速×2 + 加速×1**（白天 2~6，夜晚 4~8）；C 系例外仍用**过怪量**\n- **三类后缀**：复用无变化（io / d / c / -xi / -xn）｜时长不变（s 缩短 / u 一长一短）｜时长变化（xxxx / `#`升 / `b`降）\n- 规则：**前后缀拆掉后必须仍是节奏**；不分大小写；加速波代奏冰写 `PPI`，减速波变奏冰写 `IPP-PP`\n- **C 系没废止**，归入 P 大类，`C2/C3/C4io` 照用\n- 历史沿革：二(2011)→三→四→六(邻间对)→七(2021 S系)→**八(2025/26 本版)**\n\n**已完成的文档改动**：\n1. `知识库/08` **全文重写** → 双轨制权威篇：26 版体系 + 七系完整对照表（26版/2021版/更早）+ 迁移速查 + 对两阵的影响 + 2021 版折叠备查 + 八代沿革 + 五个坑。\n2. `知识库/04` 顶部加双轨声明；§2.3 双冰变奏表改成 `新名(旧名)` 双栏，并修正 ch7/ch8/ch9 的错误归属。\n3. `DE.双冰六炮` 两份：节奏章标题改 **D5（旧称 ch5）**，加换算说明（本库 `PP` ≡ 速查表 `P`）。\n4. `PE.电波钟无炮` 研讨笔记：注明 C4io 在 26 版**名字不变**（C 系归入 P 大类）。\n5. `README` 维护约定新增「节奏命名双轨制」。\n\n**五个坑（已写进 08 §七）**：\n1. **S4 改名错位**：新 S4 = 旧 S4*；新 S4s = 旧 S4。\n2. **D5# 的旧称「I5」不是 I 系的 I5**（后者 14×2.5、5 炮）。\n3. **「邻」在 26 版成为默认**：N7 即旧 邻C7u。\n4. **`PP` vs `P`**：本库 PP = 一对炮，速查表 P = 一对炮，换算别把 12 炮写成 6 炮。\n5. **C 系没死**：C2/C3/C4io 照用。\nEOF\necho ok", "description": "追加第十六批日志"}
+{"command": "cd \"D:/PVZ endless/.workbuddy/memory\" && cat >> 2026-10-17.md <<'EOF'\n\n---\n\n## 第十六批：节奏命名升级为「双轨制」（10-18 09:34）\n\n用户告知 B 站发布 **25/26 版节奏命名方案**（继 2021 版之后，更细化），要求**所有文档同时采用传统 + 最新两套记录**。给了两份 opus 链接 + 速查表图片。\n\n**已抓取两份原文全文**：\n- 2021 版：`opus/580182543329947502`（Crescebdo，六类：C/P/S/ch/Cxu/I）\n- **25/26 版：`opus/1106643953578409990`**（长棍法包糕点坊_P2，20250830，最新 20260213）\n\n**26 版核心（已写入 `docs/知识库/08` 全文重写）**：\n- **七个字头，且只在开头出现**：P（无冰波）｜S（白天单冰）｜D（白天双冰）｜I（连续冰波）｜F（50s三冰，=D+2）｜A（夜晚单冰）｜N（夜晚双冰）\n- `ch4/ch5/ch6 → D4/D5/D6`；`C4u~C9u → N4~N9`；`c6i → I6`；`c6x/c7i/c8x → F6/F7n/F8`\n- **参数统一 = 减速×2 + 加速×1**（白天 2~6，夜晚 4~8）；C 系例外仍用**过怪量**\n- **三类后缀**：复用无变化（io / d / c / -xi / -xn）｜时长不变（s 缩短 / u 一长一短）｜时长变化（xxxx / `#`升 / `b`降）\n- 规则：**前后缀拆掉后必须仍是节奏**；不分大小写；加速波代奏冰写 `PPI`，减速波变奏冰写 `IPP-PP`\n- **C 系没废止**，归入 P 大类，`C2/C3/C4io` 照用\n- 历史沿革：二(2011)→三→四→六(邻间对)→七(2021 S系)→**八(2025/26 本版)**\n\n**已完成的文档改动**：\n1. `docs/知识库/08` **全文重写** → 双轨制权威篇：26 版体系 + 七系完整对照表（26版/2021版/更早）+ 迁移速查 + 对两阵的影响 + 2021 版折叠备查 + 八代沿革 + 五个坑。\n2. `docs/知识库/04` 顶部加双轨声明；§2.3 双冰变奏表改成 `新名(旧名)` 双栏，并修正 ch7/ch8/ch9 的错误归属。\n3. `DE.双冰六炮` 两份：节奏章标题改 **D5（旧称 ch5）**，加换算说明（本库 `PP` ≡ 速查表 `P`）。\n4. `PE.电波钟无炮` 研讨笔记：注明 C4io 在 26 版**名字不变**（C 系归入 P 大类）。\n5. `README` 维护约定新增「节奏命名双轨制」。\n\n**五个坑（已写进 08 §七）**：\n1. **S4 改名错位**：新 S4 = 旧 S4*；新 S4s = 旧 S4。\n2. **D5# 的旧称「I5」不是 I 系的 I5**（后者 14×2.5、5 炮）。\n3. **「邻」在 26 版成为默认**：N7 即旧 邻C7u。\n4. **`PP` vs `P`**：本库 PP = 一对炮，速查表 P = 一对炮，换算别把 12 炮写成 6 炮。\n5. **C 系没死**：C2/C3/C4io 照用。\nEOF\necho ok", "description": "追加第十六批日志"}
 ```
 
 **📤 工具结果** `call_00_ET_A9cT0kgdbIH9i5WauVHT7158`
@@ -23972,7 +23972,7 @@ Command: cd "D:/PVZ endless/.workbuddy/memory" && cat >> 2026-10-17.md <<'EOF'
 - 2021 版：`opus/580182543329947502`（Crescebdo，六类：C/P/S/ch/Cxu/I）
 - **25/26 版：`opus/1106643953578409990`**（长棍法包糕点坊_P2，20250830，最新 20260213）
 
-**26 版核心（已写入 `知识库/08` 全文重写）**：
+**26 版核心（已写入 `docs/知识库/08` 全文重写）**：
 - **七个字头，且只在开头出现**：P（无冰波）｜S（白天单冰）｜D（白天双冰）｜I（连续冰波）｜F（50s三冰，=D+2）｜A（夜晚单冰）｜N（夜晚双冰）
 - `ch4/ch5/ch6 → D4/D5/D6`；`C4u~C9u → N4~N9`；`c6i → I6`；`c6x/c7i/c8x → F6/F7n/F8`
 - **参数统一 = 减速×2 + 加速×1**（白天 2~6，夜晚 4~8）；C 系例外仍用**过怪量**
@@ -23982,8 +23982,8 @@ Command: cd "D:/PVZ endless/.workbuddy/memory" && cat >> 2026-10-17.md <<'EOF'
 - 历史沿革：二(2011)→三→四→六(邻间对)→七(2021 S系)→**八(2025/26 本版)**
 
 **已完成的文档改动**：
-1. `知识库/08` **全文重写** → 双轨制权威篇：26 版体系 + 七系完整对照表（26版/2021版/更早）+ 迁移速查 + 对两阵的影响 + 2021 版折叠备查 + 八代沿革 + 五个坑。
-2. `知识库/04` 顶部加双轨声明；§2.3 双冰变奏表改成 `新名(旧名)` 双栏，并修正 ch7/ch8/ch9 的错误归属。
+1. `docs/知识库/08` **全文重写** → 双轨制权威篇：26 版体系 + 七系完整对照表（26版/2021版/更早）+ 迁移速查 + 对两阵的影响 + 2021 版折叠备查 + 八代沿革 + 五个坑。
+2. `docs/知识库/04` 顶部加双轨声明；§2.3 双冰变奏表改成 `新名(旧名)` 双栏，并修正 ch7/ch8/ch9 的错误归属。
 3. `DE.双冰六炮` 两份：节奏章标题改 **D5（旧称 ch5）**，加换算说明（本库 `PP` ≡ 速查表 `P`）。
 4. `PE.电波钟无炮` 研讨笔记：注明 C4io 在 26 版**名字不变**（C 系归入 P 大类）。
 5. `README` 维护约定新增「节奏命名双轨制」。
@@ -24010,7 +24010,7 @@ Signal: (none)
 **🔧 工具调用：`Edit`**
 
 ```json
-{"file_path": "D:\\PVZ endless\\.workbuddy\\memory\\MEMORY.md", "new_string": "## 写作约定\n- **节奏命名双轨制（2026 起）**：所有文档提到节奏默认写 `新名（旧名）`。\n  26 版（20250830/20260213）：`D4/D5/D6`（原 ch4/5/6）、`N4~N9`（原 C4u~C9u）、`F6~F8`、`A3~A7`、`S3~S6`、`I4~I6`、`P3~P6`。\n  **C 系未废止**（`C2/C3/C4io` 照用，归入 P 大类）。对照表见 `知识库/08`，原图 `26版节奏速查表.png`。\n- 任何数值必须注明来源（维基 / 新读本第几篇 / 旧读本第几章 / 帖号）。\n- 存疑标 `⚠️待核`，不静默改数。\n- 原始资料的纯文本提取件在 `原始资料/`，可直接 grep 定位原文。\n- 练习复盘记在 `练习/日志.md`，只写\"崩在哪/为什么崩/下次改什么\"。", "old_string": "## 写作约定\n- 任何数值必须注明来源（维基 / 新读本第几篇 / 旧读本第几章 / 帖号）。\n- 存疑标 `⚠️待核`，不静默改数。\n- 原始资料的纯文本提取件在 `原始资料/`，可直接 grep 定位原文。\n- 练习复盘记在 `练习/日志.md`，只写\"崩在哪/为什么崩/下次改什么\"。"}
+{"file_path": "D:\\PVZ endless\\.workbuddy\\memory\\MEMORY.md", "new_string": "## 写作约定\n- **节奏命名双轨制（2026 起）**：所有文档提到节奏默认写 `新名（旧名）`。\n  26 版（20250830/20260213）：`D4/D5/D6`（原 ch4/5/6）、`N4~N9`（原 C4u~C9u）、`F6~F8`、`A3~A7`、`S3~S6`、`I4~I6`、`P3~P6`。\n  **C 系未废止**（`C2/C3/C4io` 照用，归入 P 大类）。对照表见 `docs/知识库/08`，原图 `26版节奏速查表.png`。\n- 任何数值必须注明来源（维基 / 新读本第几篇 / 旧读本第几章 / 帖号）。\n- 存疑标 `⚠️待核`，不静默改数。\n- 原始资料的纯文本提取件在 `docs/原始资料/`，可直接 grep 定位原文。\n- 练习复盘记在 `练习/日志.md`，只写\"崩在哪/为什么崩/下次改什么\"。", "old_string": "## 写作约定\n- 任何数值必须注明来源（维基 / 新读本第几篇 / 旧读本第几章 / 帖号）。\n- 存疑标 `⚠️待核`，不静默改数。\n- 原始资料的纯文本提取件在 `docs/原始资料/`，可直接 grep 定位原文。\n- 练习复盘记在 `练习/日志.md`，只写\"崩在哪/为什么崩/下次改什么\"。"}
 ```
 
 **📤 工具结果** `call_00_ET_zs9Bq9kdmZJAVouAvXnA7238`
@@ -24032,7 +24032,7 @@ Successfully edited file: D:\PVZ endless\.workbuddy\memory\MEMORY.md
 **📤 工具结果** `call_00_ET_KXCa69NSoXr5qa3ESh6Q3198`
 
 ```
-[{"type": "input_text", "text": "{\"type\":\"present_files_result\",\"files\":[\"D:/PVZ endless/知识库/08-维基-节奏体系与命名规范.md\",\"D:/PVZ endless/知识库/04-核心-节奏体系全谱.md\",\"D:/PVZ endless/练习/DE.双冰六炮/研讨笔记.md\",\"D:/PVZ endless/练习/PE.电波钟无炮/研讨笔记.md\",\"D:/PVZ endless/README.md\"],\"previewed\":[],\"explanation\":\"命名体系升级为双轨制：08 全文重写为 26 版权威篇（七系 + 完整对照表 + 迁移速查），04 与两份阵型笔记同步标注新名，README 增加双轨约定。\",\"message\":\"Successfully presented 5 file(s).\"}"}]
+[{"type": "input_text", "text": "{\"type\":\"present_files_result\",\"files\":[\"D:/PVZ endless/docs/知识库/08-维基-节奏体系与命名规范.md\",\"D:/PVZ endless/docs/知识库/04-核心-节奏体系全谱.md\",\"D:/PVZ endless/练习/DE.双冰六炮/研讨笔记.md\",\"D:/PVZ endless/练习/PE.电波钟无炮/研讨笔记.md\",\"D:/PVZ endless/README.md\"],\"previewed\":[],\"explanation\":\"命名体系升级为双轨制：08 全文重写为 26 版权威篇（七系 + 完整对照表 + 迁移速查），04 与两份阵型笔记同步标注新名，README 增加双轨约定。\",\"message\":\"Successfully presented 5 file(s).\"}"}]
 ```
 
 两篇原文和速查表都拿到了。26 版确实是一次**结构改动**，不属于小修。
@@ -24098,8 +24098,8 @@ Successfully edited file: D:\PVZ endless\.workbuddy\memory\MEMORY.md
 
 | 文件 | 改动 |
 |---|---|
-| **`知识库/08`** | **全文重写**为双轨权威篇：26 版体系（七系/参数/三类后缀/四条规则）+ 七系完整对照表（26版↔2021版↔更早）+ 迁移速查 + 对两阵影响 + 2021 版折叠备查 + 八代沿革 + 五个坑 |
-| `知识库/04` | 顶部加双轨声明；§2.3 双冰变奏表改双栏，并修正 ch7/ch8/ch9 的归属错误 |
+| **`docs/知识库/08`** | **全文重写**为双轨权威篇：26 版体系（七系/参数/三类后缀/四条规则）+ 七系完整对照表（26版↔2021版↔更早）+ 迁移速查 + 对两阵影响 + 2021 版折叠备查 + 八代沿革 + 五个坑 |
+| `docs/知识库/04` | 顶部加双轨声明；§2.3 双冰变奏表改双栏，并修正 ch7/ch8/ch9 的归属错误 |
 | `DE.双冰六炮` ×2 | 节奏章改 **D5（旧称 ch5）** + 换算说明 |
 | `PE.电波钟无炮` | 注明 C4io 新名不变及原因 |
 | `README` | 维护约定新增「节奏命名双轨制」 |
@@ -25174,7 +25174,7 @@ Let me write 研讨笔记.
 **🔧 工具调用：`Write`**
 
 ```json
-{"content": "# FE. 雾四炮 · 研讨笔记\n\n> **版本**：基准 PvZ 1.0.0.1051 EN。\n> **来源**：`【码】`阵型代码解码｜`【图】`阵图｜`【维】`wiki 词条｜`【你】`你的说明｜`【推】`我的推算\n> **配套**：实战看 `运阵手册.md`\n> **节奏命名**：按本库双轨制，写 `新名（旧名）`。详见 `知识库/08`。\n\n---\n\n## 一、档案\n\n| 项 | 内容 |\n|---|---|\n| 全名 | FE. 雾四炮 |\n| 场地 | **FE（雾夜无尽，后院，六行）** |\n| 作者 | 风花镜月（阵图 + 阵解同一人） |\n| 创作 | **2010-08-05** |\n| 类别 | **少炮阵型**（4 炮） |\n| 标签 | **重 IO 炮阵**、**单冰变奏** |\n| 评价 | 【维】\"早期小丑压制理论应用的代表作，**阵型自然抗爆的极致体现**。最大特色是不开雾'盲打'，**堪称最稳 4 炮阵型**\" |\n\n### 它的研究价值在哪【你】\n\n> 这个阵\"看起来很简单\"（盲打都能打），但它有**多种同名阵改**和**多种不同阵解**，\n> 而**不同阵解与不同阵改的适配性各不相同** —— 这才是它的核心。\n\n所以本文的重点不是\"怎么打\"，而是**\"为什么这个改配这个解\"**。\n\n---\n\n## 二、阵型逐格【码】【图】\n\n`∩` = 套南瓜；`模` = 模仿者南瓜（梯子）；`荷` = 荷叶（水路基座）\n\n### 原阵\n\n| 列 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |\n|---|---|---|---|---|---|---|---|---|---|\n| **1 路** | 曾∩ | 伞∩模 | 冰瓜∩模 | 大喷∩ | 大喷 | · | · | · | · |\n| **2 路** | 双花∩ | 曾∩模 | 冰瓜∩模 | 大喷∩ | 大喷 | · | · | · | · |\n| **3 路（水）** | 荷+**炮** | 荷（炮身） | 荷+**炮** | 荷（炮身） | 荷+曾∩ | 荷+曾∩ | · | · | · |\n| **4 路（水）** | 荷+**炮** | 荷（炮身） | 荷+**炮** | 荷（炮身） | 荷+曾∩ | 荷+曾∩ | · | · | · |\n| **5 路** | 双花∩ | 曾∩模 | 冰瓜∩模 | 大喷∩ | 大喷 | · | · | · | · |\n| **6 路** | 曾∩ | 伞∩模 | 冰瓜∩模 | 大喷∩ | 大喷 | · | · | · | · |\n\n**统计**：炮 **4**｜曾 **8**｜大喷 **8**｜冰瓜 **4**｜双花 **2**｜伞 **2**｜荷叶 **12**｜南瓜 **20**（含 8 梯子）\n\n**结构一眼看懂**：\n```\n水路 1~4 列 —— 四门炮（两两并排，各占 1×2）\n水路 5~6 列 —— 双曾（水上前场的绞肉机）\n陆路 1~3 列 —— 曾 / 伞 / 冰瓜 的\"三件套\"\n陆路 4~5 列 —— 大喷菇 ×2（每路两个，共 8 个）\n第 7~9 列 —— 全空（核/樱桃/辣椒位）\n```\n\n> **注意**：炮占 **1×2** 格。`(3,1)` 那门实际占 3-1、3-2；`(3,3)` 那门占 3-3、3-4。\n> 所以水路 1~4 列**已经满了**，不是\"1 列和 3 列各有一门炮 + 两个空格\"。\n\n---\n\n## 三、现代常用改：只动了两格【码】\n\n| 格 | 原阵 | **现代改** |\n|---|---|---|\n| **3-5** | 荷 + 南瓜 + **曾** | 荷 + **南瓜（空壳）** |\n| **4-5** | 荷 + 南瓜 + **曾** | 荷 + **双花** + 南瓜 |\n\n**统计变化**：曾 **8 → 6**｜双花 **2 → 3**\n\n### 这个改在干什么【推】\n\n两件事，一次做完：\n\n**① 降 IO（拆两个水上曾）**\n```\n8 曾 → 6 曾，水上前场的绞肉机少两台\n→ 整阵的 IO 强度下降一档\n```\n\n**② 加经济（补一朵双花）**\n```\n2 双花 → 3 双花，收入 +50%\n```\n\n**为什么这两件事要一起做**：因为它们服务同一个目的 —— **让这个阵能跑\"炮主导\"的节奏**。\n\n```\nIO 太强 → IO 会\"代替炮\"提前激活刷新 → 节奏失控（这就是\"重 IO 炮阵\"的通病）\n→ 想跑规则节奏（P3-n / N6s），就必须先把 IO 压下去\n→ 压 IO 后输出变薄 → 需要更多卡（冰、核）→ 需要更多钱\n→ 所以\"拆曾\"和\"加花\"是配套的\n```\n\n> `⚠️待核`：这是我从阵型逻辑推的。也可能现代改只是为了**冲关时的经济续航**，\n> 与节奏无关。**这条要向你确认。**\n\n### 3-5 那个\"空南瓜壳\"是什么\n\n改版把 3-5 的曾拆了，只留一个**空南瓜**（在荷叶上）。\n【推】三种可能：\n1. **缓冲垫**：挡住水路的推进，给 4 路腾时间；\n2. **临时位**：留着随时种核/冰/樱桃；\n3. **对称性残留**：4-5 放了双花，3-5 空着难看，套个南瓜保平。\n\n> 我倾向 2（临时位）—— 因为水路 7-9 列本来就空，不缺位置；\n> 而 3-5 这个位置**卡在水路正中间**，最适合当\"临时核位\"。\n\n---\n\n## 四、类型判定\n\n| 维度 | 判定 |\n|---|---|\n| 炮数 | **少炮**（4 炮） |\n| IO 占比 | **重 IO 炮阵**（8 曾 + 8 大喷 + 4 冰瓜） |\n| 节奏性质 | **看阵解**：C4io 走不规则（IO 主导），S3/P3-n/N6s 走规则 |\n| 精度 | 波动体系 → 精准体系的**过渡带**（取决于阵解） |\n| 定位 | **稳定阵**；\"最稳 4 炮\"，非极限阵 |\n| 特殊 | **不开雾盲打**也能过 → 容错极高 |\n\n---\n\n## 五、四个阵解【维】+ 双轨命名\n\n| 26 版 | 2021 版 | 轨道 | 波长 | 循环 | 冰波 | 参数 |\n|---|---|---|---|---|---|---|\n| **C4io** | C4io | `N \\| PP \\| PP \\| I` | 50s | 50s | 1 | **4（过怪量）** |\n| **S3** | S3 | `I-PP \\| PP` | 24, 12 | 36s | 1 | 3 |\n| **P3-n** | P3-n | `PP \\| PP \\| N` | 12,12,12 | 36s | 0 | 3 |\n| **N6s** | 邻C6u | `I-PP \\| I-PP \\| N \\| PP` | 18,18,9,9 | 54s | 2 | 6 |\n\n> ⚠️ 维基把第三个写作 `c6u`。按 26 版对照表，`c6u` = **N6s**（18,18,9×2），\n> **不是 N6**（20,20,7.5×2）。这两个差 2 秒，别搞混。\n>\n> ⚠️ `P3-n` 是 P3 用核代一炮（`-xn` 后缀，x=1 可省）。wiki 写作 `P3: PP|PP|N`。\n\n### 5.1 逐个拆\n\n**① `C4io: N|PP|PP|I` —— 无炮打法披着炮阵的皮**\n```\n4 波 = 8 个运算量需求\n卡给：N(2) + PP(2) + PP(2) = 6\n缺口 2 → 由 IO 补\n```\n> **这是唯一需要 IO 补缺口的解**，也正因为此，它才叫 `-io` 后缀。\n> 原阵那 8 曾 + 8 大喷，就是为了这个缺口而生的。\n\n**② `S3: I-PP|PP (24,12)` —— 最省心的单冰变奏**\n```\n2 波：1 减速（24s）+ 1 加速（12s）\n4 炮：每波 2 炮，一轮刚好用完 4 炮\n36s = 炮 CD ✔ 无需复用\n参数 3 = 2×1 + 1 ✔\n```\n> **4 炮刚好够，一门不多一门不少** —— 这是它\"稳\"的结构原因。\n\n**③ `P3-n: PP|PP|N (12,12,12)` —— 纯炮主导**\n```\n3 波全加速，12s 一波，36s 循环\n4 炮：0s 一对、12s 一对 → 24s 后全部空闲到 36s 再装填\n第三个 12s 用核顶掉 → 正好填补炮的装填空档\n```\n> **核在这里不是\"代奏\"，是\"填缝\"** —— 补上第 3 波没有炮可用的空档。\n> 这也是为什么它要 `-n`：没有核这个解根本不存在。\n\n**④ `N6s: I-PP|I-PP|N|PP (18,18,9,9)` —— 双冰变奏的夜间版**\n```\n4 波：2 减速（18,18）+ 2 加速（9,9）\n54s 循环，参数 6\n4 炮要覆盖 6 个 P → 必须有炮复用\n```\n【推】4 炮 / 54s / 6 P：每炮平均 1.5 发，复用间隔要 ≥34.75s。\n18+18 = 36 > 34.75 ✔ 所以\"第一个冰波的炮\"和\"第三个冰波的炮\"可以复用同一门。\n\n---\n\n## 六、核心：**阵解 × 阵改 的适配矩阵**\n\n> 这是本阵真正的研究重点。**同一个阵，换解就要换改；换改才能跑新的解。**\n\n| | **C4io** | **S3** | **P3-n** | **N6s** |\n|---|---|---|---|---|\n| 循环 | 50s | 36s | 36s | 54s |\n| 冰波数 | 1 | 1 | **0** | 2 |\n| 需要 IO 补缺口 | **2 个运算量** | 少 | **0** | 少 |\n| 对 IO 强度的要求 | **越高越好** | 中 | **越低越好** | 中 |\n| 适用阵改 | **原阵** | 原阵 / 改 | **改** | **改** |\n| 主要消耗 | 冰 | 冰 | **核（200/次）** | 冰 ×2 |\n| 经济压力 | 中 | 低 | **高** | 中高 |\n\n### 三条因果链\n\n**链 A：重 IO 阵 → 只能跑 C4io**\n```\n8 曾 + 8 大喷 → IO 极强 → IO 会\"抢\"刷新\n→ 规则节奏（P3-n/N6s）会被 IO 打乱 → 只能打不规则的 C4io\n```\n\n**链 B：想跑规则节奏 → 必须拆曾**\n```\n拆 2 曾 → IO 下降 → 炮重新掌控刷新\n→ P3-n / N6s 才能成立\n```\n\n**链 C：拆曾后输出变薄 → 必须加花**\n```\nIO 少了 → 更多依赖卡（核、冰）→ 卡很贵（核 200/次）\n→ 加一朵双花补经济\n```\n\n> **三条链串起来就是一句话**：\n> **阵改不是\"优化外观\"，是\"给阵解让路\"。**\n\n---\n\n## 七、FE 场地的三个特殊性\n\n### 1. 没有天降阳光\nDE 有天上掉的阳光，FE 没有。\n> **所以 2~3 朵双花就是唯一的收入来源** —— 这也解释了为什么现代改要加花。\n\n### 2. 雾 + \"不开雾盲打\"\n【维】\"最大特色是不开雾'盲打'\"。\n> 雾遮住前场，看不见僵尸位置 → 靠**记忆 + 声音 + 节奏**打。\n> 这也是它\"最稳\"的原因之一：**你根本没法临时操作，只能按轨道走**。\n\n### 3. 珊瑚三人组\n`w20` 后，水路 **6~9 列**会钻出珊瑚三人组。\n- 本阵水路 **6 列有曾 + 南瓜** → **珊瑚会啃**\n- 7~9 列空 → 珊瑚会从这里走向 6 列\n\n**处理选项**（⚠️待你确认实际用哪种）：\n| 方案 | 做法 | 代价 |\n|---|---|---|\n| **炮消珊瑚** | 红字后等炮闪若干下，发炮炸 6~9 列 | 占一发炮 |\n| **冰消珊瑚** | 红字后约 5.5s 点咖啡豆，冻结水面 3s | 占一个冰 |\n| **不管** | 让珊瑚啃南瓜，结束后补 | 南瓜磨损 |\n\n> 【推】4 炮阵的炮很闲（S3 一轮才用 4 发），**炮消珊瑚最划算** —— 但要看炮 CD 排得开不开。\n\n---\n\n## 八、僵尸应对（逐项）\n\n| 僵尸 | 威胁 | 解法 |\n|---|---|---|\n| **小丑** | 炸曾/炮 | 本阵是\"**早期小丑压制理论**\"的代表作，靠**自然抗爆**（曾的密度 + 南瓜）；具体打法看阵解 |\n| **红眼** | 6000 血 | 4 炮才死；靠 IO 磨 + 冰拖 |\n| **冰车** | 碾**陆路**植物（水路不会出冰车） | 陆路大喷 + 曾输出；必要时灰烬 |\n| **海豚 / 潜水** | 水路 1~3 列的**炮**是活靶 | 水路 5~6 列双曾拦；炮在后面反而安全 |\n| **珊瑚** | 水路 6 列南瓜 | 见第七节 |\n| **矿工** | 后场钻出 | 陆路曾 + 大喷 |\n| **小鬼** | 落 3 列 | 陆路 3 列有冰瓜；水路 5-6 曾 |\n| **气球** | 无猫！ | **三叶草**（选卡必备） |\n| **蹦极** | 偷伞/曾/花 | 伞覆盖 1-2、6-2；其余靠冰杀 |\n| **舞王** | 7 列召伴舞 | 靠轨道压制 |\n| **投篮** | 砸后场 | 伞 |\n\n> ⚠️ **本阵没有猫**，气球只能靠三叶草 —— 这是选卡里必须有它的原因。\n\n---\n\n## 九、收尾（w9 / w19 / w20）\n\n> 【推】wiki 没写收尾，以下是按框架推的，待你校验。\n\n### 关键差异：这个阵**只有 4 炮**\n```\nw20 残血红眼：4 炮才杀一只\n→ 收尾能力比 6 炮/12 炮阵弱得多\n→ 必须靠\"拖\"：用冰 + 垫材，把白字拖满（49s）\n→ 49s 里炮能再装填一轮（34.75s）→ 再打一只\n```\n\n**w9/w19**：冰拖 + 灰烬，别把炮打空（下一波要 PP）。\n**w20**：先算红眼数 → 4 炮/只 → 不够就拖，等装填。\n\n---\n\n## 十、经济\n\n### 建阵成本【推，价目见 `05` 第十二节】\n\n| 项 | 算法 | 小计 |\n|---|---|---|\n| **炮 ×4** | 玉米投手 ×2 = 200/门 → `4×200=800`；升级 `4×500+50×6=2300` | **3100** |\n| **曾 ×8**（原阵） | 基座 `8×75=600`；升级 `8×150+50×28=2600` | **3200** |\n| **大喷 ×8** | `8×75` | 600 |\n| **冰瓜 ×4** | 基座 `4×300=1200`；升级 `4×200+50×6=1100` | 2300 |\n| **双花 ×2**（原阵） | `2×50 + (2×150+50)` | 450 |\n| 伞 ×2 | `2×100` | 200 |\n| 荷叶 ×12 | `12×25` | 300 |\n| 南瓜 ×20 | `20×125` | 2500 |\n| **合计（原阵）** | | **≈ 12650** |\n\n**现代改**：曾 −2（约 −700）、双花 +1（约 +250）→ **≈ 12200**，且**日常收入 +50%**。\n\n> 曾 8 个是原阵最贵的单项之一（3200）。这也是\"拆曾\"能省钱的另一面。\n\n### 日常\n- **产**：2~3 双花（**无天降阳光**）\n- **耗**：冰（150/次）、核（200/次，仅 P3-n）、补南瓜、灰烬\n- **判断**：FE 收入薄，**P3-n 那种每循环一个核的打法最烧钱** → 必须 3 花\n\n---\n\n## 十一、开局与搭梯\n\n沿用 `知识库/14-技术-搭梯与前期发育.md` 的三阶段。\n\n**本阵要搭的梯子：8 个**（模仿者南瓜在 1-2、1-3、2-2、2-3、5-2、5-3、6-2、6-3）\n\n```\n① 满屏种花（陆路 1~5 列 + 水路荷叶上）\n② 1~2 个临时输出点，铁桶用窝瓜/地雷\n③ 布 4 门炮（水路 1~4 列）—— 炮要早，前期全靠它\n④ 布陆路 曾/伞/冰瓜/大喷\n⑤ 水陆各列补南瓜\n⑥ 最后给 8 个位置换模仿者南瓜（搭梯）\n```\n\n**注意**：`(3,1)` 和 `(3,3)` 的炮各占两格，**荷叶也要铺两格**，别只铺一格。\n\n---\n\n## 十二、训练路线与自测\n\n| 阶段 | 目标 |\n|---|---|\n| 1. 认得它 | 不看图说出 4 门炮占哪 8 格、8 个曾在哪 |\n| 2. C4io | 用原阵跑 C4io，体会\"IO 补缺口\" |\n| 3. S3 | 换 S3，体会\"4 炮刚好一轮\" |\n| 4. 盲打 | 关雾打一局，练\"不看前场也能走轨道\" |\n| 5. P3-n / N6s | 用现代改跑，体会\"拆曾之后炮才控得住节奏\" |\n| 6. 收尾 | 练 4 炮阵的拖时间 |\n\n### 自测\n1. 炮占几格？水路 1~4 列到底有几门炮？\n2. 现代改动了哪两格？分别变成什么？\n3. 为什么要\"拆曾 + 加花\"一起做？\n4. `C4io` 的缺口是多少个运算量？谁补？\n5. 为什么 `P3-n` 必须有核？核在里面的角色是什么？\n6. `c6u` 按 26 版叫什么？它和 `N6` 差在哪？\n7. 为什么\"重 IO 阵\"跑不了规则节奏？\n8. 本阵没有猫，气球怎么办？\n9. FE 相比 DE 少了什么资源？\n\n---\n\n## 十三、待确认\n\n| # | 问题 | 影响 |\n|---|---|---|\n| 1 | **现代改拆两曾，是为了控刷新还是为了经济？** | 决定第六节\"链 B\"是否成立 |\n| 2 | **3-5 那个空南瓜壳是干什么的？**（缓冲 / 临时位 / 对称） | 操作细节 |\n| 3 | **珊瑚怎么处理？**（炮消 / 冰消 / 不管） | 每选卡固定动作 |\n| 4 | 四个阵解各自的**实际手感与适用出怪** | 矩阵的实战校准 |\n| 5 | 贴吧原帖抓不到（反爬），里面有阵改的原始思路 | 补齐设计意图 |\n", "file_path": "D:\\PVZ endless\\练习\\FE.雾四炮\\研讨笔记.md"}
+{"content": "# FE. 雾四炮 · 研讨笔记\n\n> **版本**：基准 PvZ 1.0.0.1051 EN。\n> **来源**：`【码】`阵型代码解码｜`【图】`阵图｜`【维】`wiki 词条｜`【你】`你的说明｜`【推】`我的推算\n> **配套**：实战看 `运阵手册.md`\n> **节奏命名**：按本库双轨制，写 `新名（旧名）`。详见 `docs/知识库/08`。\n\n---\n\n## 一、档案\n\n| 项 | 内容 |\n|---|---|\n| 全名 | FE. 雾四炮 |\n| 场地 | **FE（雾夜无尽，后院，六行）** |\n| 作者 | 风花镜月（阵图 + 阵解同一人） |\n| 创作 | **2010-08-05** |\n| 类别 | **少炮阵型**（4 炮） |\n| 标签 | **重 IO 炮阵**、**单冰变奏** |\n| 评价 | 【维】\"早期小丑压制理论应用的代表作，**阵型自然抗爆的极致体现**。最大特色是不开雾'盲打'，**堪称最稳 4 炮阵型**\" |\n\n### 它的研究价值在哪【你】\n\n> 这个阵\"看起来很简单\"（盲打都能打），但它有**多种同名阵改**和**多种不同阵解**，\n> 而**不同阵解与不同阵改的适配性各不相同** —— 这才是它的核心。\n\n所以本文的重点不是\"怎么打\"，而是**\"为什么这个改配这个解\"**。\n\n---\n\n## 二、阵型逐格【码】【图】\n\n`∩` = 套南瓜；`模` = 模仿者南瓜（梯子）；`荷` = 荷叶（水路基座）\n\n### 原阵\n\n| 列 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |\n|---|---|---|---|---|---|---|---|---|---|\n| **1 路** | 曾∩ | 伞∩模 | 冰瓜∩模 | 大喷∩ | 大喷 | · | · | · | · |\n| **2 路** | 双花∩ | 曾∩模 | 冰瓜∩模 | 大喷∩ | 大喷 | · | · | · | · |\n| **3 路（水）** | 荷+**炮** | 荷（炮身） | 荷+**炮** | 荷（炮身） | 荷+曾∩ | 荷+曾∩ | · | · | · |\n| **4 路（水）** | 荷+**炮** | 荷（炮身） | 荷+**炮** | 荷（炮身） | 荷+曾∩ | 荷+曾∩ | · | · | · |\n| **5 路** | 双花∩ | 曾∩模 | 冰瓜∩模 | 大喷∩ | 大喷 | · | · | · | · |\n| **6 路** | 曾∩ | 伞∩模 | 冰瓜∩模 | 大喷∩ | 大喷 | · | · | · | · |\n\n**统计**：炮 **4**｜曾 **8**｜大喷 **8**｜冰瓜 **4**｜双花 **2**｜伞 **2**｜荷叶 **12**｜南瓜 **20**（含 8 梯子）\n\n**结构一眼看懂**：\n```\n水路 1~4 列 —— 四门炮（两两并排，各占 1×2）\n水路 5~6 列 —— 双曾（水上前场的绞肉机）\n陆路 1~3 列 —— 曾 / 伞 / 冰瓜 的\"三件套\"\n陆路 4~5 列 —— 大喷菇 ×2（每路两个，共 8 个）\n第 7~9 列 —— 全空（核/樱桃/辣椒位）\n```\n\n> **注意**：炮占 **1×2** 格。`(3,1)` 那门实际占 3-1、3-2；`(3,3)` 那门占 3-3、3-4。\n> 所以水路 1~4 列**已经满了**，不是\"1 列和 3 列各有一门炮 + 两个空格\"。\n\n---\n\n## 三、现代常用改：只动了两格【码】\n\n| 格 | 原阵 | **现代改** |\n|---|---|---|\n| **3-5** | 荷 + 南瓜 + **曾** | 荷 + **南瓜（空壳）** |\n| **4-5** | 荷 + 南瓜 + **曾** | 荷 + **双花** + 南瓜 |\n\n**统计变化**：曾 **8 → 6**｜双花 **2 → 3**\n\n### 这个改在干什么【推】\n\n两件事，一次做完：\n\n**① 降 IO（拆两个水上曾）**\n```\n8 曾 → 6 曾，水上前场的绞肉机少两台\n→ 整阵的 IO 强度下降一档\n```\n\n**② 加经济（补一朵双花）**\n```\n2 双花 → 3 双花，收入 +50%\n```\n\n**为什么这两件事要一起做**：因为它们服务同一个目的 —— **让这个阵能跑\"炮主导\"的节奏**。\n\n```\nIO 太强 → IO 会\"代替炮\"提前激活刷新 → 节奏失控（这就是\"重 IO 炮阵\"的通病）\n→ 想跑规则节奏（P3-n / N6s），就必须先把 IO 压下去\n→ 压 IO 后输出变薄 → 需要更多卡（冰、核）→ 需要更多钱\n→ 所以\"拆曾\"和\"加花\"是配套的\n```\n\n> `⚠️待核`：这是我从阵型逻辑推的。也可能现代改只是为了**冲关时的经济续航**，\n> 与节奏无关。**这条要向你确认。**\n\n### 3-5 那个\"空南瓜壳\"是什么\n\n改版把 3-5 的曾拆了，只留一个**空南瓜**（在荷叶上）。\n【推】三种可能：\n1. **缓冲垫**：挡住水路的推进，给 4 路腾时间；\n2. **临时位**：留着随时种核/冰/樱桃；\n3. **对称性残留**：4-5 放了双花，3-5 空着难看，套个南瓜保平。\n\n> 我倾向 2（临时位）—— 因为水路 7-9 列本来就空，不缺位置；\n> 而 3-5 这个位置**卡在水路正中间**，最适合当\"临时核位\"。\n\n---\n\n## 四、类型判定\n\n| 维度 | 判定 |\n|---|---|\n| 炮数 | **少炮**（4 炮） |\n| IO 占比 | **重 IO 炮阵**（8 曾 + 8 大喷 + 4 冰瓜） |\n| 节奏性质 | **看阵解**：C4io 走不规则（IO 主导），S3/P3-n/N6s 走规则 |\n| 精度 | 波动体系 → 精准体系的**过渡带**（取决于阵解） |\n| 定位 | **稳定阵**；\"最稳 4 炮\"，非极限阵 |\n| 特殊 | **不开雾盲打**也能过 → 容错极高 |\n\n---\n\n## 五、四个阵解【维】+ 双轨命名\n\n| 26 版 | 2021 版 | 轨道 | 波长 | 循环 | 冰波 | 参数 |\n|---|---|---|---|---|---|---|\n| **C4io** | C4io | `N \\| PP \\| PP \\| I` | 50s | 50s | 1 | **4（过怪量）** |\n| **S3** | S3 | `I-PP \\| PP` | 24, 12 | 36s | 1 | 3 |\n| **P3-n** | P3-n | `PP \\| PP \\| N` | 12,12,12 | 36s | 0 | 3 |\n| **N6s** | 邻C6u | `I-PP \\| I-PP \\| N \\| PP` | 18,18,9,9 | 54s | 2 | 6 |\n\n> ⚠️ 维基把第三个写作 `c6u`。按 26 版对照表，`c6u` = **N6s**（18,18,9×2），\n> **不是 N6**（20,20,7.5×2）。这两个差 2 秒，别搞混。\n>\n> ⚠️ `P3-n` 是 P3 用核代一炮（`-xn` 后缀，x=1 可省）。wiki 写作 `P3: PP|PP|N`。\n\n### 5.1 逐个拆\n\n**① `C4io: N|PP|PP|I` —— 无炮打法披着炮阵的皮**\n```\n4 波 = 8 个运算量需求\n卡给：N(2) + PP(2) + PP(2) = 6\n缺口 2 → 由 IO 补\n```\n> **这是唯一需要 IO 补缺口的解**，也正因为此，它才叫 `-io` 后缀。\n> 原阵那 8 曾 + 8 大喷，就是为了这个缺口而生的。\n\n**② `S3: I-PP|PP (24,12)` —— 最省心的单冰变奏**\n```\n2 波：1 减速（24s）+ 1 加速（12s）\n4 炮：每波 2 炮，一轮刚好用完 4 炮\n36s = 炮 CD ✔ 无需复用\n参数 3 = 2×1 + 1 ✔\n```\n> **4 炮刚好够，一门不多一门不少** —— 这是它\"稳\"的结构原因。\n\n**③ `P3-n: PP|PP|N (12,12,12)` —— 纯炮主导**\n```\n3 波全加速，12s 一波，36s 循环\n4 炮：0s 一对、12s 一对 → 24s 后全部空闲到 36s 再装填\n第三个 12s 用核顶掉 → 正好填补炮的装填空档\n```\n> **核在这里不是\"代奏\"，是\"填缝\"** —— 补上第 3 波没有炮可用的空档。\n> 这也是为什么它要 `-n`：没有核这个解根本不存在。\n\n**④ `N6s: I-PP|I-PP|N|PP (18,18,9,9)` —— 双冰变奏的夜间版**\n```\n4 波：2 减速（18,18）+ 2 加速（9,9）\n54s 循环，参数 6\n4 炮要覆盖 6 个 P → 必须有炮复用\n```\n【推】4 炮 / 54s / 6 P：每炮平均 1.5 发，复用间隔要 ≥34.75s。\n18+18 = 36 > 34.75 ✔ 所以\"第一个冰波的炮\"和\"第三个冰波的炮\"可以复用同一门。\n\n---\n\n## 六、核心：**阵解 × 阵改 的适配矩阵**\n\n> 这是本阵真正的研究重点。**同一个阵，换解就要换改；换改才能跑新的解。**\n\n| | **C4io** | **S3** | **P3-n** | **N6s** |\n|---|---|---|---|---|\n| 循环 | 50s | 36s | 36s | 54s |\n| 冰波数 | 1 | 1 | **0** | 2 |\n| 需要 IO 补缺口 | **2 个运算量** | 少 | **0** | 少 |\n| 对 IO 强度的要求 | **越高越好** | 中 | **越低越好** | 中 |\n| 适用阵改 | **原阵** | 原阵 / 改 | **改** | **改** |\n| 主要消耗 | 冰 | 冰 | **核（200/次）** | 冰 ×2 |\n| 经济压力 | 中 | 低 | **高** | 中高 |\n\n### 三条因果链\n\n**链 A：重 IO 阵 → 只能跑 C4io**\n```\n8 曾 + 8 大喷 → IO 极强 → IO 会\"抢\"刷新\n→ 规则节奏（P3-n/N6s）会被 IO 打乱 → 只能打不规则的 C4io\n```\n\n**链 B：想跑规则节奏 → 必须拆曾**\n```\n拆 2 曾 → IO 下降 → 炮重新掌控刷新\n→ P3-n / N6s 才能成立\n```\n\n**链 C：拆曾后输出变薄 → 必须加花**\n```\nIO 少了 → 更多依赖卡（核、冰）→ 卡很贵（核 200/次）\n→ 加一朵双花补经济\n```\n\n> **三条链串起来就是一句话**：\n> **阵改不是\"优化外观\"，是\"给阵解让路\"。**\n\n---\n\n## 七、FE 场地的三个特殊性\n\n### 1. 没有天降阳光\nDE 有天上掉的阳光，FE 没有。\n> **所以 2~3 朵双花就是唯一的收入来源** —— 这也解释了为什么现代改要加花。\n\n### 2. 雾 + \"不开雾盲打\"\n【维】\"最大特色是不开雾'盲打'\"。\n> 雾遮住前场，看不见僵尸位置 → 靠**记忆 + 声音 + 节奏**打。\n> 这也是它\"最稳\"的原因之一：**你根本没法临时操作，只能按轨道走**。\n\n### 3. 珊瑚三人组\n`w20` 后，水路 **6~9 列**会钻出珊瑚三人组。\n- 本阵水路 **6 列有曾 + 南瓜** → **珊瑚会啃**\n- 7~9 列空 → 珊瑚会从这里走向 6 列\n\n**处理选项**（⚠️待你确认实际用哪种）：\n| 方案 | 做法 | 代价 |\n|---|---|---|\n| **炮消珊瑚** | 红字后等炮闪若干下，发炮炸 6~9 列 | 占一发炮 |\n| **冰消珊瑚** | 红字后约 5.5s 点咖啡豆，冻结水面 3s | 占一个冰 |\n| **不管** | 让珊瑚啃南瓜，结束后补 | 南瓜磨损 |\n\n> 【推】4 炮阵的炮很闲（S3 一轮才用 4 发），**炮消珊瑚最划算** —— 但要看炮 CD 排得开不开。\n\n---\n\n## 八、僵尸应对（逐项）\n\n| 僵尸 | 威胁 | 解法 |\n|---|---|---|\n| **小丑** | 炸曾/炮 | 本阵是\"**早期小丑压制理论**\"的代表作，靠**自然抗爆**（曾的密度 + 南瓜）；具体打法看阵解 |\n| **红眼** | 6000 血 | 4 炮才死；靠 IO 磨 + 冰拖 |\n| **冰车** | 碾**陆路**植物（水路不会出冰车） | 陆路大喷 + 曾输出；必要时灰烬 |\n| **海豚 / 潜水** | 水路 1~3 列的**炮**是活靶 | 水路 5~6 列双曾拦；炮在后面反而安全 |\n| **珊瑚** | 水路 6 列南瓜 | 见第七节 |\n| **矿工** | 后场钻出 | 陆路曾 + 大喷 |\n| **小鬼** | 落 3 列 | 陆路 3 列有冰瓜；水路 5-6 曾 |\n| **气球** | 无猫！ | **三叶草**（选卡必备） |\n| **蹦极** | 偷伞/曾/花 | 伞覆盖 1-2、6-2；其余靠冰杀 |\n| **舞王** | 7 列召伴舞 | 靠轨道压制 |\n| **投篮** | 砸后场 | 伞 |\n\n> ⚠️ **本阵没有猫**，气球只能靠三叶草 —— 这是选卡里必须有它的原因。\n\n---\n\n## 九、收尾（w9 / w19 / w20）\n\n> 【推】wiki 没写收尾，以下是按框架推的，待你校验。\n\n### 关键差异：这个阵**只有 4 炮**\n```\nw20 残血红眼：4 炮才杀一只\n→ 收尾能力比 6 炮/12 炮阵弱得多\n→ 必须靠\"拖\"：用冰 + 垫材，把白字拖满（49s）\n→ 49s 里炮能再装填一轮（34.75s）→ 再打一只\n```\n\n**w9/w19**：冰拖 + 灰烬，别把炮打空（下一波要 PP）。\n**w20**：先算红眼数 → 4 炮/只 → 不够就拖，等装填。\n\n---\n\n## 十、经济\n\n### 建阵成本【推，价目见 `05` 第十二节】\n\n| 项 | 算法 | 小计 |\n|---|---|---|\n| **炮 ×4** | 玉米投手 ×2 = 200/门 → `4×200=800`；升级 `4×500+50×6=2300` | **3100** |\n| **曾 ×8**（原阵） | 基座 `8×75=600`；升级 `8×150+50×28=2600` | **3200** |\n| **大喷 ×8** | `8×75` | 600 |\n| **冰瓜 ×4** | 基座 `4×300=1200`；升级 `4×200+50×6=1100` | 2300 |\n| **双花 ×2**（原阵） | `2×50 + (2×150+50)` | 450 |\n| 伞 ×2 | `2×100` | 200 |\n| 荷叶 ×12 | `12×25` | 300 |\n| 南瓜 ×20 | `20×125` | 2500 |\n| **合计（原阵）** | | **≈ 12650** |\n\n**现代改**：曾 −2（约 −700）、双花 +1（约 +250）→ **≈ 12200**，且**日常收入 +50%**。\n\n> 曾 8 个是原阵最贵的单项之一（3200）。这也是\"拆曾\"能省钱的另一面。\n\n### 日常\n- **产**：2~3 双花（**无天降阳光**）\n- **耗**：冰（150/次）、核（200/次，仅 P3-n）、补南瓜、灰烬\n- **判断**：FE 收入薄，**P3-n 那种每循环一个核的打法最烧钱** → 必须 3 花\n\n---\n\n## 十一、开局与搭梯\n\n沿用 `docs/知识库/14-技术-搭梯与前期发育.md` 的三阶段。\n\n**本阵要搭的梯子：8 个**（模仿者南瓜在 1-2、1-3、2-2、2-3、5-2、5-3、6-2、6-3）\n\n```\n① 满屏种花（陆路 1~5 列 + 水路荷叶上）\n② 1~2 个临时输出点，铁桶用窝瓜/地雷\n③ 布 4 门炮（水路 1~4 列）—— 炮要早，前期全靠它\n④ 布陆路 曾/伞/冰瓜/大喷\n⑤ 水陆各列补南瓜\n⑥ 最后给 8 个位置换模仿者南瓜（搭梯）\n```\n\n**注意**：`(3,1)` 和 `(3,3)` 的炮各占两格，**荷叶也要铺两格**，别只铺一格。\n\n---\n\n## 十二、训练路线与自测\n\n| 阶段 | 目标 |\n|---|---|\n| 1. 认得它 | 不看图说出 4 门炮占哪 8 格、8 个曾在哪 |\n| 2. C4io | 用原阵跑 C4io，体会\"IO 补缺口\" |\n| 3. S3 | 换 S3，体会\"4 炮刚好一轮\" |\n| 4. 盲打 | 关雾打一局，练\"不看前场也能走轨道\" |\n| 5. P3-n / N6s | 用现代改跑，体会\"拆曾之后炮才控得住节奏\" |\n| 6. 收尾 | 练 4 炮阵的拖时间 |\n\n### 自测\n1. 炮占几格？水路 1~4 列到底有几门炮？\n2. 现代改动了哪两格？分别变成什么？\n3. 为什么要\"拆曾 + 加花\"一起做？\n4. `C4io` 的缺口是多少个运算量？谁补？\n5. 为什么 `P3-n` 必须有核？核在里面的角色是什么？\n6. `c6u` 按 26 版叫什么？它和 `N6` 差在哪？\n7. 为什么\"重 IO 阵\"跑不了规则节奏？\n8. 本阵没有猫，气球怎么办？\n9. FE 相比 DE 少了什么资源？\n\n---\n\n## 十三、待确认\n\n| # | 问题 | 影响 |\n|---|---|---|\n| 1 | **现代改拆两曾，是为了控刷新还是为了经济？** | 决定第六节\"链 B\"是否成立 |\n| 2 | **3-5 那个空南瓜壳是干什么的？**（缓冲 / 临时位 / 对称） | 操作细节 |\n| 3 | **珊瑚怎么处理？**（炮消 / 冰消 / 不管） | 每选卡固定动作 |\n| 4 | 四个阵解各自的**实际手感与适用出怪** | 矩阵的实战校准 |\n| 5 | 贴吧原帖抓不到（反爬），里面有阵改的原始思路 | 补齐设计意图 |\n", "file_path": "D:\\PVZ endless\\练习\\FE.雾四炮\\研讨笔记.md"}
 ```
 
 **📤 工具结果** `call_00_K4Zs96P6GDA3tdm8AWeO3256`
@@ -25288,7 +25288,7 @@ Successfully created and wrote to new file: D:\PVZ endless\.workbuddy\memory\202
 **🔧 工具调用：`Edit`**
 
 ```json
-{"file_path": "D:\\PVZ endless\\.workbuddy\\memory\\MEMORY.md", "new_string": "## 已知资料坑\n- 维基 `id=技术` 不是有效页面（技术是命名空间）。\n- 旧读本 `参数×2=基础运算量` 与自身例子矛盾 → 逐波计数为准。\n- A / A' 已统一为 A=樱桃、A'=辣椒；旧读本的 `A1=辣椒` 是历史写法。\n- **命名与参数以 `知识库/08` 为准**（双轨制）：C 系用\"过怪量\"，其它系用\"加速×1+减速×2\"。\n- 节奏例的波长不是定义的一部分，不同文献给不同数字是各自阵型的取值。\n- 精确数据条目里约 8 张关键表格是图片，未提取。\n- pvz.tools 的 endless 页三大板块全标\"已废弃待删除\"，只当阵型名录用。\n- **脚本框架用 AvZ，不要用 pyvz**（作者已弃用，6 年未更新）。\n- **阵型代码 ID 是十六进制、按十进制常量解析**：`0x0A`=10=大喷菇（**不是荷叶**）、`0x10`=16=荷叶（**不是路灯**）、`0x1E`=30=南瓜、`0x25`=37=伞、`0x29`=41=双子向日葵、`0x2A`=42=忧郁菇、`0x2C`=44=冰瓜、`0x2F`=47=炮、`0x30`=48=模仿者。**解析前先用南瓜/炮反验一遍。**", "old_string": "## 已知资料坑\n- 维基 `id=技术` 不是有效页面（技术是命名空间）。\n- 旧读本 `参数×2=基础运算量` 与自身例子矛盾 → 逐波计数为准。\n- A / A' 已统一为 A=樱桃、A'=辣椒；旧读本的 `A1=辣椒` 是历史写法。\n- **命名与参数以维基《技术:节奏体系》为准**，C 系用\"过怪量\"，其它系用\"加速×1+减速×2\"。\n- 节奏例的波长不是定义的一部分，不同文献给不同数字是各自阵型的取值。\n- 精确数据条目里约 8 张关键表格是图片，未提取。\n- pvz.tools 的 endless 页三大板块全标\"已废弃待删除\"，只当阵型名录用。\n- **脚本框架用 AvZ，不要用 pyvz**（作者已弃用，6 年未更新）。"}
+{"file_path": "D:\\PVZ endless\\.workbuddy\\memory\\MEMORY.md", "new_string": "## 已知资料坑\n- 维基 `id=技术` 不是有效页面（技术是命名空间）。\n- 旧读本 `参数×2=基础运算量` 与自身例子矛盾 → 逐波计数为准。\n- A / A' 已统一为 A=樱桃、A'=辣椒；旧读本的 `A1=辣椒` 是历史写法。\n- **命名与参数以 `docs/知识库/08` 为准**（双轨制）：C 系用\"过怪量\"，其它系用\"加速×1+减速×2\"。\n- 节奏例的波长不是定义的一部分，不同文献给不同数字是各自阵型的取值。\n- 精确数据条目里约 8 张关键表格是图片，未提取。\n- pvz.tools 的 endless 页三大板块全标\"已废弃待删除\"，只当阵型名录用。\n- **脚本框架用 AvZ，不要用 pyvz**（作者已弃用，6 年未更新）。\n- **阵型代码 ID 是十六进制、按十进制常量解析**：`0x0A`=10=大喷菇（**不是荷叶**）、`0x10`=16=荷叶（**不是路灯**）、`0x1E`=30=南瓜、`0x25`=37=伞、`0x29`=41=双子向日葵、`0x2A`=42=忧郁菇、`0x2C`=44=冰瓜、`0x2F`=47=炮、`0x30`=48=模仿者。**解析前先用南瓜/炮反验一遍。**", "old_string": "## 已知资料坑\n- 维基 `id=技术` 不是有效页面（技术是命名空间）。\n- 旧读本 `参数×2=基础运算量` 与自身例子矛盾 → 逐波计数为准。\n- A / A' 已统一为 A=樱桃、A'=辣椒；旧读本的 `A1=辣椒` 是历史写法。\n- **命名与参数以维基《技术:节奏体系》为准**，C 系用\"过怪量\"，其它系用\"加速×1+减速×2\"。\n- 节奏例的波长不是定义的一部分，不同文献给不同数字是各自阵型的取值。\n- 精确数据条目里约 8 张关键表格是图片，未提取。\n- pvz.tools 的 endless 页三大板块全标\"已废弃待删除\"，只当阵型名录用。\n- **脚本框架用 AvZ，不要用 pyvz**（作者已弃用，6 年未更新）。"}
 ```
 
 **📤 工具结果** `call_00_ET_ZsiFWlRbrgXnuzjOvKP61418`
@@ -28182,7 +28182,7 @@ Signal: (none)
    3→> **版本**：基准 PvZ 1.0.0.1051 EN。
    4→> **来源**：`【码】`阵型代码解码｜`【图】`阵图｜`【维】`wiki 词条｜`【你】`你的说明｜`【推】`我的推算
    5→> **配套**：实战看 `运阵手册.md`
-   6→> **节奏命名**：按本库双轨制，写 `新名（旧名）`。详见 `知识库/08`。
+   6→> **节奏命名**：按本库双轨制，写 `新名（旧名）`。详见 `docs/知识库/08`。
    7→
    8→---
    9→
@@ -28679,7 +28679,7 @@ Signal: (none)
  500→
  501→## 十一、开局与搭梯
  502→
- 503→沿用 `知识库/14-技术-搭梯与前期发育.md` 的三阶段。
+ 503→沿用 `docs/知识库/14-技术-搭梯与前期发育.md` 的三阶段。
  504→
  505→**本阵要搭的梯子：8 个**（模仿者南瓜在 1-2、1-3、2-2、2-3、5-2、5-3、6-2、6-3）
  506→
@@ -29042,7 +29042,7 @@ Let me reconsider. I recall that Catapult Zombie's basketball hits a random plan
 
 Alternatively, maybe the key is that the catapult stops far away and its basketballs land on the plants nearest to it, i.e., the frontmost. Then in this阵, the frontmost plants are 大喷 at col 5 — cheap and replaceable. So "不怕投篮" because the frontmost is a 大喷 (75 sun) not something important.
 
-Hmm, but that's a different story. Let me check the wiki text I have in the workspace. Maybe 知识库/05 or 09 has catapult details. Let me grep.
+Hmm, but that's a different story. Let me check the wiki text I have in the workspace. Maybe docs/知识库/05 or 09 has catapult details. Let me grep.
 
 Actually, the user's hint: "你问不怕投篮，你不妨看看后场有什么对策投篮" — "look at what's in the backfield to counter catapults". The answer is: 后场有伞 (two umbrellas). So the answer is the umbrellas.
 
@@ -29137,7 +29137,7 @@ Wait. Maybe "2 曾杀蹦极" doesn't mean damage-kill but means the bungee gets 
 
 Alternatively the trick: 蹦极 down-phase has it hovering at a target cell for a while; if two glooms hit it for 20×2 per 1.4s... still too slow.
 
-Hmm, maybe I'm wrong about gloom damage. Let me check 知识库/05 for 精确数值. Let me grep the local files for 蹦极 and 忧郁菇 damage.
+Hmm, maybe I'm wrong about gloom damage. Let me check docs/知识库/05 for 精确数值. Let me grep the local files for 蹦极 and 忧郁菇 damage.
 
 I should verify with local data instead of guessing. Let me grep.
 
@@ -29179,32 +29179,32 @@ Stdout: ./.workbuddy/memory/2026-10-17.md:110:5. 存冰跨水陆(3-2/3-3/4-3/5-3
 ./.workbuddy/memory/2026-10-17.md:285:**未解（已列进手册第十节）**：①"面瘫"何义 ②5列炮无伞覆盖，蹦极偷炮怎么防 ③DE有气球但无猫 ④RE为何改4-1为曾 ⑤原版1-1存冰的 f6=1 标记含义。
 ./.workbuddy/memory/2026-10-17.md:294:2. **炮在机制上不可能被蹦极选为目标**（偷炮只能靠栈位 bug）→ 所以我"伞够不到炮怎么办"的疑问不成立；四把伞全给后场植物是对的。
 ./README.md:43:│  ├─ 11-维基-栈位理论.md            海豚跳过、蹦极偷、垫材判定、106cs 拦截 bug
-./知识库/01-基础-场地坐标与术语.md:93:- w20 刷新 2.0s 后，蹦极从天空投下 3 只（普通 / 路障 / 铁桶）到 5~9 列。
-./知识库/05-数据-精确数值手册.md:279:### 11.4 蹦极偷曾概率（单僵尸）
-./知识库/05-数据-精确数值手册.md:286:- 蹦极停留 300cs，抓取 63cs；初始高度 3000~3150，每 cs 减 8。
-./知识库/06-专题-控丑与关键波长.md:126:- w20 刷新 **2.0s** 后空降三人组登场，下落用时同蹦极。
-./知识库/06-专题-控丑与关键波长.md:177:### 蹦极（小偷）
-./知识库/06-专题-控丑与关键波长.md:178:- 忧郁菇对蹦极攻击范围极大：落 **2-3** 的小偷，`1-1` 到 `3-5` 的 3×5 方框内都能打到。
-./知识库/09-维基-出怪机制.md:127:| 20 | 蹦极 | 3 | 1000 | **仅旗帜波生成** |
-./知识库/11-维基-栈位理论.md:41:仅在**蹦极**和**舞王**相关现象中用到，了解它不是必需的。
-./知识库/11-维基-栈位理论.md:45:- **重进关卡时计数器重置** → 可能导致蹦极抓取、舞王区分伴舞出错
-./知识库/11-维基-栈位理论.md:47:> 蹦极/舞王判定 = **栈位 + 序列号**，两者都匹配才误判。
-./知识库/11-维基-栈位理论.md:99:### 2.3 蹦极与"栈位偷"
-./知识库/11-维基-栈位理论.md:101:蹦极靠**栈位 + 序列号**确定要偷的植物。若能让目标植物拥有与蹦极所选植物**相同的栈位和序列号**，
-./知识库/11-维基-栈位理论.md:106:1. 在蹦极产生标靶到手开始收拢之间，退出重进一次，
-./知识库/11-维基-栈位理论.md:107:   在蹦极所在格种下任意植物；之后到蹦极手完全收拢前，再挑一时刻退出重进一次
-./知识库/11-维基-栈位理论.md:108:2. 在蹦极手开始收拢到完全收拢（摸到植物）间，铲除蹦极所在格植物，
-./知识库/11-维基-栈位理论.md:110:3. 此时计划被偷植物在所种格子仍存在，同时蹦极所在格也有该植物的贴图
-./知识库/11-维基-栈位理论.md:111:4. 蹦极手完全收拢后，计划被偷植物从所种格子消失，贴图随蹦极上升
-./知识库/11-维基-栈位理论.md:116:- 步骤 2：蹦极锁定该格植物的序号与序列号（0）；铲除 → 序号回栈顶 →
-./知识库/11-维基-栈位理论.md:121:- 蹦极偷炮、**炮后轮悬空**（实例：水母十四炮）
-./知识库/11-维基-栈位理论.md:127:1. 蹦极靠**自身所在格**决定偷猫后补种荷叶的格子（不是猫原来那格）
-./知识库/11-维基-栈位理论.md:148:### 3.2 空降僵尸（蹦极投下的三人组）
-./知识库/11-维基-栈位理论.md:150:僵尸啃食判定是"出生后时间每为 4 的倍数造成一次 4hp 伤害"，蹦极下落 **375~394cs**。
-./知识库/11-维基-栈位理论.md:155:| 着地时间是 4 的倍数，且空降僵尸栈位 **低于** 蹦极 | 过 4cs 才造成伤害 |
-./知识库/11-维基-栈位理论.md:156:| 着地时间是 4 的倍数，且栈位 **高于** 蹦极 | 落地时**立即**造成伤害 |
-./知识库/11-维基-栈位理论.md:216:| 蹦极偷了不该偷的植物 | 栈位偷 |
-./知识库/12-工程-内存基址与脚本框架.md:142:| `134` | **蹦极抓住状态**（0 没抓、1 抓到、2 抱走） |
+./docs/知识库/01-基础-场地坐标与术语.md:93:- w20 刷新 2.0s 后，蹦极从天空投下 3 只（普通 / 路障 / 铁桶）到 5~9 列。
+./docs/知识库/05-数据-精确数值手册.md:279:### 11.4 蹦极偷曾概率（单僵尸）
+./docs/知识库/05-数据-精确数值手册.md:286:- 蹦极停留 300cs，抓取 63cs；初始高度 3000~3150，每 cs 减 8。
+./docs/知识库/06-专题-控丑与关键波长.md:126:- w20 刷新 **2.0s** 后空降三人组登场，下落用时同蹦极。
+./docs/知识库/06-专题-控丑与关键波长.md:177:### 蹦极（小偷）
+./docs/知识库/06-专题-控丑与关键波长.md:178:- 忧郁菇对蹦极攻击范围极大：落 **2-3** 的小偷，`1-1` 到 `3-5` 的 3×5 方框内都能打到。
+./docs/知识库/09-维基-出怪机制.md:127:| 20 | 蹦极 | 3 | 1000 | **仅旗帜波生成** |
+./docs/知识库/11-维基-栈位理论.md:41:仅在**蹦极**和**舞王**相关现象中用到，了解它不是必需的。
+./docs/知识库/11-维基-栈位理论.md:45:- **重进关卡时计数器重置** → 可能导致蹦极抓取、舞王区分伴舞出错
+./docs/知识库/11-维基-栈位理论.md:47:> 蹦极/舞王判定 = **栈位 + 序列号**，两者都匹配才误判。
+./docs/知识库/11-维基-栈位理论.md:99:### 2.3 蹦极与"栈位偷"
+./docs/知识库/11-维基-栈位理论.md:101:蹦极靠**栈位 + 序列号**确定要偷的植物。若能让目标植物拥有与蹦极所选植物**相同的栈位和序列号**，
+./docs/知识库/11-维基-栈位理论.md:106:1. 在蹦极产生标靶到手开始收拢之间，退出重进一次，
+./docs/知识库/11-维基-栈位理论.md:107:   在蹦极所在格种下任意植物；之后到蹦极手完全收拢前，再挑一时刻退出重进一次
+./docs/知识库/11-维基-栈位理论.md:108:2. 在蹦极手开始收拢到完全收拢（摸到植物）间，铲除蹦极所在格植物，
+./docs/知识库/11-维基-栈位理论.md:110:3. 此时计划被偷植物在所种格子仍存在，同时蹦极所在格也有该植物的贴图
+./docs/知识库/11-维基-栈位理论.md:111:4. 蹦极手完全收拢后，计划被偷植物从所种格子消失，贴图随蹦极上升
+./docs/知识库/11-维基-栈位理论.md:116:- 步骤 2：蹦极锁定该格植物的序号与序列号（0）；铲除 → 序号回栈顶 →
+./docs/知识库/11-维基-栈位理论.md:121:- 蹦极偷炮、**炮后轮悬空**（实例：水母十四炮）
+./docs/知识库/11-维基-栈位理论.md:127:1. 蹦极靠**自身所在格**决定偷猫后补种荷叶的格子（不是猫原来那格）
+./docs/知识库/11-维基-栈位理论.md:148:### 3.2 空降僵尸（蹦极投下的三人组）
+./docs/知识库/11-维基-栈位理论.md:150:僵尸啃食判定是"出生后时间每为 4 的倍数造成一次 4hp 伤害"，蹦极下落 **375~394cs**。
+./docs/知识库/11-维基-栈位理论.md:155:| 着地时间是 4 的倍数，且空降僵尸栈位 **低于** 蹦极 | 过 4cs 才造成伤害 |
+./docs/知识库/11-维基-栈位理论.md:156:| 着地时间是 4 的倍数，且栈位 **高于** 蹦极 | 落地时**立即**造成伤害 |
+./docs/知识库/11-维基-栈位理论.md:216:| 蹦极偷了不该偷的植物 | 栈位偷 |
+./docs/知识库/12-工程-内存基址与脚本框架.md:142:| `134` | **蹦极抓住状态**（0 没抓、1 抓到、2 抱走） |
 ./练习/DE.双冰六炮/研讨笔记.md:14:| 2 | 问"炮在 5 列无伞，蹦极偷炮怎么办" | **炮在机制上不可能被蹦极选为目标**（偷炮只能靠栈位 bug） |
 ./练习/DE.双冰六炮/研讨笔记.md:308:| **蹦极** | **炮在机制上不可能被蹦极选为目标**（偷炮只能靠栈位 bug） |
 ./练习/DE.双冰六炮/研讨笔记.md:385:| **蹦极** | **偷不了炮**；只能偷后场植物 → 伞 + 冰杀 |
@@ -29239,23 +29239,23 @@ Stdout: ./.workbuddy/memory/2026-10-17.md:8:- 通读两份读本全文 + 抓取�
 ./.workbuddy/memory/2026-10-17.md:320:3. **投篮特例**：有投篮不能完全松弛，但**只要 3 路没出投篮**就能"忙里偷闲"——3-1 那门底线炮是全阵唯一没伞可罩的炮，3 路无投篮 = 它安全。
 ./.workbuddy/memory/2026-10-18.md:140:4. **关卡有紧有松 + 本阵不怕投篮 → 松弛机会更多 → 跑 N6s 冲关可行。**
 ./README.md:145:2. **波长决定生死。** 6s 是硬下限，7.46s 是加速波防投篮的上限，19.29s 是冰波防投篮的上限，
-./知识库/04-核心-节奏体系全谱.md:149:| **S4** | `I-PP \| PP \| PP` | (20, 7.5, 7.5) | 20s 冰波防晚爆丑，7.5s 加速波防丑防投篮 |
-./知识库/04-核心-节奏体系全谱.md:310:| **软波长** | 超过后会**概率**出问题 | 非致命伤害（投篮、啃食） |
-./知识库/04-核心-节奏体系全谱.md:316:| 投篮（无伤） | **7.46s** | **19.29s** |
-./知识库/04-核心-节奏体系全谱.md:320:| 完美预判冰下投篮最早投掷 | 1730 cs | — |
-./知识库/05-数据-精确数值手册.md:66:| 橄榄、冰车、投篮 | **−175** |
-./知识库/05-数据-精确数值手册.md:118:| 投篮：攻击间隔 | 300 |
-./知识库/06-专题-控丑与关键波长.md:182:### 投篮
-./知识库/06-专题-控丑与关键波长.md:198:| 1730 | 完美预判冰下投篮最早投掷 |
-./知识库/06-专题-控丑与关键波长.md:200:| 1929 | 冰波防投篮上限 |
-./知识库/06-专题-控丑与关键波长.md:203:**加速波硬波长**：投篮 746（7.46s）。
-./知识库/06-专题-控丑与关键波长.md:204:**冰波硬波长**：投篮 1929（19.29s）。
-./知识库/07-专题-炮位理论与阵型库.md:20:| **底线炮** | 全场地 1、2 列 | ★★★ | 前后院：矿工 + 投篮；屋顶：投篮 |
-./知识库/07-专题-炮位理论与阵型库.md:78:      四个伞叶（无视投篮小偷）
-./知识库/07-专题-炮位理论与阵型库.md:136:矿工在地下就被炸死；小丑无法开盒；投篮车无法投篮。**即使没有冰瓜，带些垫材也能稳定运行。**
-./知识库/09-维基-出怪机制.md:15:| 投篮 | 825~834 | — |
-./知识库/09-维基-出怪机制.md:129:| 22 | 投篮 | 5 | 1500 | |
-./知识库/09-维基-出怪机制.md:163:| 三阶 | 潜水、海豚、**冰车**、**小丑**、气球、矿工、跳跳、梯子、投篮 | **w10** |
+./docs/知识库/04-核心-节奏体系全谱.md:149:| **S4** | `I-PP \| PP \| PP` | (20, 7.5, 7.5) | 20s 冰波防晚爆丑，7.5s 加速波防丑防投篮 |
+./docs/知识库/04-核心-节奏体系全谱.md:310:| **软波长** | 超过后会**概率**出问题 | 非致命伤害（投篮、啃食） |
+./docs/知识库/04-核心-节奏体系全谱.md:316:| 投篮（无伤） | **7.46s** | **19.29s** |
+./docs/知识库/04-核心-节奏体系全谱.md:320:| 完美预判冰下投篮最早投掷 | 1730 cs | — |
+./docs/知识库/05-数据-精确数值手册.md:66:| 橄榄、冰车、投篮 | **−175** |
+./docs/知识库/05-数据-精确数值手册.md:118:| 投篮：攻击间隔 | 300 |
+./docs/知识库/06-专题-控丑与关键波长.md:182:### 投篮
+./docs/知识库/06-专题-控丑与关键波长.md:198:| 1730 | 完美预判冰下投篮最早投掷 |
+./docs/知识库/06-专题-控丑与关键波长.md:200:| 1929 | 冰波防投篮上限 |
+./docs/知识库/06-专题-控丑与关键波长.md:203:**加速波硬波长**：投篮 746（7.46s）。
+./docs/知识库/06-专题-控丑与关键波长.md:204:**冰波硬波长**：投篮 1929（19.29s）。
+./docs/知识库/07-专题-炮位理论与阵型库.md:20:| **底线炮** | 全场地 1、2 列 | ★★★ | 前后院：矿工 + 投篮；屋顶：投篮 |
+./docs/知识库/07-专题-炮位理论与阵型库.md:78:      四个伞叶（无视投篮小偷）
+./docs/知识库/07-专题-炮位理论与阵型库.md:136:矿工在地下就被炸死；小丑无法开盒；投篮车无法投篮。**即使没有冰瓜，带些垫材也能稳定运行。**
+./docs/知识库/09-维基-出怪机制.md:15:| 投篮 | 825~834 | — |
+./docs/知识库/09-维基-出怪机制.md:129:| 22 | 投篮 | 5 | 1500 | |
+./docs/知识库/09-维基-出怪机制.md:163:| 三阶 | 潜水、海豚、**冰车**、**小丑**、气球、矿工、跳跳、梯子、投篮 | **w10** |
 ./练习/00-训练路线与自测.md:114:20. 加速波想防投篮，波长上限是多少？冰波呢？
 ./练习/00-训练路线与自测.md:133:12. 20s 冰波防**晚爆丑**（13.2 + 4.0 + 1.1 ≈ 18.3，≤20.3 安全）；7.5s 加速波配合前置冰波防小丑，同时也控制在投篮软波长附近。20 + 7.5×2 = 35 ≈ 36，CD 刚好。
 ./练习/DE.双冰六炮/研讨笔记.md:202:**松弛的触发条件**【你】：**没有 冰车、红眼、舞王、投篮** 时可以适度松弛。
@@ -29281,7 +29281,7 @@ Signal: (none)
 
 <details><summary>💭 思考过程</summary>
 
-Let me read 知识库/06 sections on 蹦极 and 投篮, and 05 §11.4.
+Let me read docs/知识库/06 sections on 蹦极 and 投篮, and 05 §11.4.
 
 </details>
 
@@ -29292,7 +29292,7 @@ Let me read 知识库/06 sections on 蹦极 and 投篮, and 05 §11.4.
 **🔧 工具调用：`Read`**
 
 ```json
-{"file_path": "D:/PVZ endless/知识库/06-专题-控丑与关键波长.md", "offset": 165, "limit": 50}
+{"file_path": "D:/PVZ endless/docs/知识库/06-专题-控丑与关键波长.md", "offset": 165, "limit": 50}
 ```
 
 
@@ -29302,7 +29302,7 @@ Let me read 知识库/06 sections on 蹦极 and 投篮, and 05 §11.4.
 **🔧 工具调用：`Read`**
 
 ```json
-{"file_path": "D:/PVZ endless/知识库/05-数据-精确数值手册.md", "offset": 265, "limit": 40}
+{"file_path": "D:/PVZ endless/docs/知识库/05-数据-精确数值手册.md", "offset": 265, "limit": 40}
 ```
 
 **📤 工具结果** `call_00_aZepbLEmf9aLATRCgxY60959`
@@ -29486,7 +29486,7 @@ Let me read the 07 file.
 **🔧 工具调用：`Read`**
 
 ```json
-{"file_path": "D:/PVZ endless/知识库/07-专题-炮位理论与阵型库.md", "limit": 45, "offset": 10}
+{"file_path": "D:/PVZ endless/docs/知识库/07-专题-炮位理论与阵型库.md", "limit": 45, "offset": 10}
 ```
 
 
@@ -29557,19 +29557,19 @@ Command: cd "D:/PVZ endless" && grep -rn "底线" --include=*.md . | head -30
 Stdout: ./.workbuddy/memory/2026-10-17.md:297:5. **RE 版 4-1 改曾是为了防矿工**（RE 矿工出土眩晕疑似更短，原版在 3 路拦截已不够），不是补 4 路 IO。3 路后场凑成「4 曾」（2-1/2-2/4-1/4-2 都打得到 3 路）。但**仍会啃 3-1/3-2 底线炮**。
 ./.workbuddy/memory/2026-10-17.md:320:3. **投篮特例**：有投篮不能完全松弛，但**只要 3 路没出投篮**就能"忙里偷闲"——3-1 那门底线炮是全阵唯一没伞可罩的炮，3 路无投篮 = 它安全。
 ./.workbuddy/memory/2026-10-17.md:346:- **风险**：小丑（可能毁阵→放弃搭梯转压制）、跳跳（带冰让底线曾收）、冰车（地刺，必要时两路刚地刺）。
-./知识库/04-核心-节奏体系全谱.md:319:| 矿工啃底线植物 | 1616 cs | — |
-./知识库/04-核心-节奏体系全谱.md:352:| 中 | 底线炮、海豚炮、6/7 列炮 | 有硬性要求 |
-./知识库/06-专题-控丑与关键波长.md:151:- 守底线炮（搭梯）：减速小鬼配**双曾**，原速**三曾**（都放 2、3 列，否则四曾也有几率啃炮）。
-./知识库/06-专题-控丑与关键波长.md:152:- 天台：守底线炮减速小鬼**单曾**够；守 2、3 列炮减速小鬼**双曾**够；守 3、4 列炮需**三曾**。
-./知识库/06-专题-控丑与关键波长.md:159:- 后场喷死：**两个忧郁菇**；或一曾 + 冰住矿工；或空出底线（2 列单曾 / 1 列满地刺王）。
-./知识库/06-专题-控丑与关键波长.md:183:- 十炮以上可完收；四炮配冰也可。**任何阵型都建议用伞守好底线。**
-./知识库/06-专题-控丑与关键波长.md:196:| 1616 | 矿工最早啃底线植物 |
-./知识库/07-专题-炮位理论与阵型库.md:20:| **底线炮** | 全场地 1、2 列 | ★★★ | 前后院：矿工 + 投篮；屋顶：投篮 |
-./知识库/07-专题-炮位理论与阵型库.md:94:改进点 2：空出底线 → 无伤处理矿工
-./知识库/07-专题-炮位理论与阵型库.md:95:改进点 3：空出底线后双伞即可覆盖后场 → 冰瓜一个没少
-./知识库/14-技术-搭梯与前期发育.md:87:① 布底线炮、2/4 路前场炮
-./知识库/14-技术-搭梯与前期发育.md:121:| **跳跳** | 会偷家 | 带冰，合适时机点冰，让底线曾收掉 |
-./知识库/14-技术-搭梯与前期发育.md:156:□ 底线炮 + 2/4 路前场炮已布
+./docs/知识库/04-核心-节奏体系全谱.md:319:| 矿工啃底线植物 | 1616 cs | — |
+./docs/知识库/04-核心-节奏体系全谱.md:352:| 中 | 底线炮、海豚炮、6/7 列炮 | 有硬性要求 |
+./docs/知识库/06-专题-控丑与关键波长.md:151:- 守底线炮（搭梯）：减速小鬼配**双曾**，原速**三曾**（都放 2、3 列，否则四曾也有几率啃炮）。
+./docs/知识库/06-专题-控丑与关键波长.md:152:- 天台：守底线炮减速小鬼**单曾**够；守 2、3 列炮减速小鬼**双曾**够；守 3、4 列炮需**三曾**。
+./docs/知识库/06-专题-控丑与关键波长.md:159:- 后场喷死：**两个忧郁菇**；或一曾 + 冰住矿工；或空出底线（2 列单曾 / 1 列满地刺王）。
+./docs/知识库/06-专题-控丑与关键波长.md:183:- 十炮以上可完收；四炮配冰也可。**任何阵型都建议用伞守好底线。**
+./docs/知识库/06-专题-控丑与关键波长.md:196:| 1616 | 矿工最早啃底线植物 |
+./docs/知识库/07-专题-炮位理论与阵型库.md:20:| **底线炮** | 全场地 1、2 列 | ★★★ | 前后院：矿工 + 投篮；屋顶：投篮 |
+./docs/知识库/07-专题-炮位理论与阵型库.md:94:改进点 2：空出底线 → 无伤处理矿工
+./docs/知识库/07-专题-炮位理论与阵型库.md:95:改进点 3：空出底线后双伞即可覆盖后场 → 冰瓜一个没少
+./docs/知识库/14-技术-搭梯与前期发育.md:87:① 布底线炮、2/4 路前场炮
+./docs/知识库/14-技术-搭梯与前期发育.md:121:| **跳跳** | 会偷家 | 带冰，合适时机点冰，让底线曾收掉 |
+./docs/知识库/14-技术-搭梯与前期发育.md:156:□ 底线炮 + 2/4 路前场炮已布
 ./练习/DE.双冰六炮/研讨笔记.md:65:3 路 1~2 列 —— 第六门炮（底线中炮）
 ./练习/DE.双冰六炮/研讨笔记.md:73:2. **第六门炮退到 3-1（占 3-1、3-2）** —— 5 列只有 5 格，第 6 门只能另找地方；底线中路最安全。
 ./练习/DE.双冰六炮/研讨笔记.md:105:> 即便 3 路有 4 曾 + 火炬双向防矿工，RE 版**仍会有 3-1(2) 底线炮磨损**。
@@ -29592,7 +29592,7 @@ Signal: (none)
 
 <details><summary>💭 思考过程</summary>
 
-Very useful: 知识库/07 line 94-95: "改进点 2：空出底线 → 无伤处理矿工; 改进点 3：空出底线后双伞即可覆盖后场 → 冰瓜一个没少". So 双伞覆盖后场 is a known design point — and 空出底线 means emptying the back line (1 列).
+Very useful: docs/知识库/07 line 94-95: "改进点 2：空出底线 → 无伤处理矿工; 改进点 3：空出底线后双伞即可覆盖后场 → 冰瓜一个没少". So 双伞覆盖后场 is a known design point — and 空出底线 means emptying the back line (1 列).
 
 So in FE.雾四炮, the back line is NOT empty — 1 列 has 曾/双花. Hmm.
 
@@ -30113,7 +30113,7 @@ Let me read.
 **🔧 工具调用：`Read`**
 
 ```json
-{"file_path": "D:/PVZ endless/知识库/09-维基-出怪机制.md", "limit": 45, "offset": 105}
+{"file_path": "D:/PVZ endless/docs/知识库/09-维基-出怪机制.md", "limit": 45, "offset": 105}
 ```
 
 **📤 工具结果** `call_00_CHadahhgzjnnmPkssXcp1339`
@@ -30196,13 +30196,13 @@ Let me grep 射程.
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && sed -n '40,120p' 知识库/05-数据-精确数值手册.md", "description": "查看射程与判定数据"}
+{"command": "cd \"D:/PVZ endless\" && sed -n '40,120p' docs/知识库/05-数据-精确数值手册.md", "description": "查看射程与判定数据"}
 ```
 
 **📤 工具结果** `call_00_K7WnWNDUiiZHKz0MS4GW9992`
 
 ```
-Command: cd "D:/PVZ endless" && sed -n '40,120p' 知识库/05-数据-精确数值手册.md
+Command: cd "D:/PVZ endless" && sed -n '40,120p' docs/知识库/05-数据-精确数值手册.md
 Stdout: ---
 
 ## 二、场地坐标
@@ -30303,13 +30303,13 @@ Let me grep 射程 in 05.
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && grep -n \"射程\\|忧郁菇\\|大喷\" 知识库/05-数据-精确数值手册.md | head -20", "description": "查射程条目"}
+{"command": "cd \"D:/PVZ endless\" && grep -n \"射程\\|忧郁菇\\|大喷\" docs/知识库/05-数据-精确数值手册.md | head -20", "description": "查射程条目"}
 ```
 
 **📤 工具结果** `call_00_1XAZxoER2WSyjkB8fS4j6266`
 
 ```
-Command: cd "D:/PVZ endless" && grep -n "射程\|忧郁菇\|大喷" 知识库/05-数据-精确数值手册.md | head -20
+Command: cd "D:/PVZ endless" && grep -n "射程\|忧郁菇\|大喷" docs/知识库/05-数据-精确数值手册.md | head -20
 Stdout: 130:| 忧郁菇 | 1.86 ~ 2.00 s |
 142:| 大喷菇 | 49 |
 150:| **忧郁菇** | **74、102、130、158** |
@@ -30452,13 +30452,13 @@ I'll read 05 lines 120-175.
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && sed -n '122,180p' 知识库/05-数据-精确数值手册.md", "description": "查看植物攻击间隔与射程表"}
+{"command": "cd \"D:/PVZ endless\" && sed -n '122,180p' docs/知识库/05-数据-精确数值手册.md", "description": "查看植物攻击间隔与射程表"}
 ```
 
 **📤 工具结果** `call_00_2AwTQCrXJahoSD7vyNzJ2066`
 
 ```
-Command: cd "D:/PVZ endless" && sed -n '122,180p' 知识库/05-数据-精确数值手册.md
+Command: cd "D:/PVZ endless" && sed -n '122,180p' docs/知识库/05-数据-精确数值手册.md
 Stdout: ## 五、攻击间隔与命中延迟
 
 ### 5.1 攻击间隔
@@ -33332,7 +33332,7 @@ In 无尽, each 10 waves is a 旗帜波 (flag wave). "白字" appears... Hmm. Ac
 
 So 收尾 = finishing w20 cleanly, minimizing losses, so you start the next level with a healthy 阵 and good 阳光.
 
-The "白字" I mentioned earlier refers to... In 无尽, after the last zombie of w20 dies, there's a delay before level end. Hmm, "白字拖满（49s）" — 49s is the max wave duration? 从摘要: "49s+5s 白字" — the white flag text appears at 49s? Hmm, per 知识库/02: "6s 起手 / 45s+7.2s 红字 / 49s+5s 白字". So 白字 = the white "final wave" text. In 无尽, when the wave timer exceeds 49s, 白字 appears and the remaining zombies rush in? Hmm.
+The "白字" I mentioned earlier refers to... In 无尽, after the last zombie of w20 dies, there's a delay before level end. Hmm, "白字拖满（49s）" — 49s is the max wave duration? 从摘要: "49s+5s 白字" — the white flag text appears at 49s? Hmm, per docs/知识库/02: "6s 起手 / 45s+7.2s 红字 / 49s+5s 白字". So 白字 = the white "final wave" text. In 无尽, when the wave timer exceeds 49s, 白字 appears and the remaining zombies rush in? Hmm.
 
 Actually I think: 红字 = "A huge wave of zombies is approaching!" (red text) at 45s+7.2s; 白字 = "Final wave" white text at 49s+5s. Hmm, in 生存无尽 the last wave of a level shows "Final wave". 
 
@@ -33689,7 +33689,7 @@ Let me now focus: find the exact w20 start and watch the sequence second by seco
 
 Since 红字 at 350s (e_006), that's likely w20's red text ("A huge wave..."). Hmm, but 红字 appears at the START of a flag wave? In PvZ, "A huge wave of zombies is approaching!" appears when the flag wave spawns.
 
-So w20 spawns around 350s. Then the rest (350-423s) is the w20 fight. But 红字 at 45s+7.2s... hmm, the 红字 timing from 知识库/02: "49s+5s 白字" etc. Actually those are 波内时间 for the flag wave announcement.
+So w20 spawns around 350s. Then the rest (350-423s) is the w20 fight. But 红字 at 45s+7.2s... hmm, the 红字 timing from docs/知识库/02: "49s+5s 白字" etc. Actually those are 波内时间 for the flag wave announcement.
 
 Hmm, but actually in 无尽, w10 and w20 announcements: the 红字 appears at the beginning of a huge wave.
 
@@ -34800,20 +34800,20 @@ Let me add that to the text? I already wrote "炮的作用 = 伤害（一发 180
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && grep -rn \"1800\\|玉米炮.*伤害\\|红眼.*6000\\|6000\" 知识库/*.md | head -12", "description": "核对炮伤害与红眼血量"}
+{"command": "cd \"D:/PVZ endless\" && grep -rn \"1800\\|玉米炮.*伤害\\|红眼.*6000\\|6000\" docs/知识库/*.md | head -12", "description": "核对炮伤害与红眼血量"}
 ```
 
 **📤 工具结果** `call_00_LTBey4p1ZA17IOKvdT8r6067`
 
 ```
-Command: cd "D:/PVZ endless" && grep -rn "1800\|玉米炮.*伤害\|红眼.*6000\|6000" 知识库/*.md | head -12
-Stdout: 知识库/06-专题-控丑与关键波长.md:134:### 红眼（6000 血，一锤必杀）
-知识库/09-维基-出怪机制.md:139:| 32 | **红眼** | 10 | **6000**（非旗帜 **1000**） | |
-知识库/09-维基-出怪机制.md:141:> 权重读法：红眼在旗帜波权重 6000，是全场最高 —— **旗帜波就是红眼波**。
-知识库/10-维基-无炮研究.md:44:| **红眼** | **6000** | 可冰冻、减速、垫材拖延 | 主：IO、冰、灰烬；次：连续垫材（变相局部用冰） |
-知识库/10-维基-无炮研究.md:97:| **炸** | 窝瓜、樱桃、辣椒、核蘑菇，对范围内所有僵尸 **1800 伤害** |
-知识库/10-维基-无炮研究.md:100:> **1800 伤害**是无炮体系的基石数字：除红眼（6000）外，**几乎所有僵尸一击必杀**。
-知识库/10-维基-无炮研究.md:280:> 这套控丑定式，能不能同时扛住 6000 血的红眼、110cs 就炸的小丑、1350 血的冰车和 1670 血的橄榄。
+Command: cd "D:/PVZ endless" && grep -rn "1800\|玉米炮.*伤害\|红眼.*6000\|6000" docs/知识库/*.md | head -12
+Stdout: docs/知识库/06-专题-控丑与关键波长.md:134:### 红眼（6000 血，一锤必杀）
+docs/知识库/09-维基-出怪机制.md:139:| 32 | **红眼** | 10 | **6000**（非旗帜 **1000**） | |
+docs/知识库/09-维基-出怪机制.md:141:> 权重读法：红眼在旗帜波权重 6000，是全场最高 —— **旗帜波就是红眼波**。
+docs/知识库/10-维基-无炮研究.md:44:| **红眼** | **6000** | 可冰冻、减速、垫材拖延 | 主：IO、冰、灰烬；次：连续垫材（变相局部用冰） |
+docs/知识库/10-维基-无炮研究.md:97:| **炸** | 窝瓜、樱桃、辣椒、核蘑菇，对范围内所有僵尸 **1800 伤害** |
+docs/知识库/10-维基-无炮研究.md:100:> **1800 伤害**是无炮体系的基石数字：除红眼（6000）外，**几乎所有僵尸一击必杀**。
+docs/知识库/10-维基-无炮研究.md:280:> 这套控丑定式，能不能同时扛住 6000 血的红眼、110cs 就炸的小丑、1350 血的冰车和 1670 血的橄榄。
 
 Stderr: (empty)
 Exit Code: 0
@@ -34879,13 +34879,13 @@ Hmm. Let me check 05's price table for 寒冰菇.
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && grep -n \"寒冰菇\\|毁灭菇\\|Ice-shroom\\|Doom\" 知识库/05-数据-精确数值手册.md | head", "description": "核对寒冰菇与毁灭菇价格"}
+{"command": "cd \"D:/PVZ endless\" && grep -n \"寒冰菇\\|毁灭菇\\|Ice-shroom\\|Doom\" docs/知识库/05-数据-精确数值手册.md | head", "description": "核对寒冰菇与毁灭菇价格"}
 ```
 
 **📤 工具结果** `call_00_r4XW3Bbf2KtfVJfg6Pit4224`
 
 ```
-Command: cd "D:/PVZ endless" && grep -n "寒冰菇\|毁灭菇\|Ice-shroom\|Doom" 知识库/05-数据-精确数值手册.md | head
+Command: cd "D:/PVZ endless" && grep -n "寒冰菇\|毁灭菇\|Ice-shroom\|Doom" docs/知识库/05-数据-精确数值手册.md | head
 Stdout: 79:| 樱桃 / 辣椒 /（夜间）冰、毁灭菇：放置到生效 | **100** |
 86:| **寒冰菇：冰冻 + 减速总时长** | **2000** |
 87:| **寒冰菇：冻结水面 / 云朵** | **300** |
@@ -40459,7 +40459,7 @@ Let me read it.
 1154→
 1155→## 十二、开局与搭梯
 1156→
-1157→沿用 `知识库/14-技术-搭梯与前期发育.md` 的三阶段。
+1157→沿用 `docs/知识库/14-技术-搭梯与前期发育.md` 的三阶段。
 1158→
 1159→**本阵要搭的梯子：8 个**（模仿者南瓜在 1-2、1-3、2-2、2-3、5-2、5-3、6-2、6-3）
 1160→
@@ -40746,7 +40746,7 @@ Signal: (none)
 ## 589. 👤 用户
 *时间：2026-10-18T08:52:31.472Z*
 
-每次都要上机验证打2F还是比较麻烦，能够按照PvZ的规则、“剔除次要因素保留主要因素”（这是减少工作量、时间复杂度的关键）制作一个简易轨道验证器吗？因为我们对于PvZ有精确数据 @"D:/PVZ endless/知识库/05-数据-精确数值手册.md"（只要原版模型），只需要代码模拟每一个对象即可，甚至可以直接“格子除以速度得到时间（有垫材、冰等等其它方法延长这个时间），时间乘dps得伤害，大于hp就可以”的超级简化模型（这样的算法是否太简单了以至于不太准确？）。如此可以快速验证轨道的循环是否成立。
+每次都要上机验证打2F还是比较麻烦，能够按照PvZ的规则、“剔除次要因素保留主要因素”（这是减少工作量、时间复杂度的关键）制作一个简易轨道验证器吗？因为我们对于PvZ有精确数据 @"D:/PVZ endless/docs/知识库/05-数据-精确数值手册.md"（只要原版模型），只需要代码模拟每一个对象即可，甚至可以直接“格子除以速度得到时间（有垫材、冰等等其它方法延长这个时间），时间乘dps得伤害，大于hp就可以”的超级简化模型（这样的算法是否太简单了以至于不太准确？）。如此可以快速验证轨道的循环是否成立。
 模拟器甚至不需要知道阵容的样子，只需要知道有哪些格子会被僵尸践踏并且付出的代价就行了
 以PE.电波钟无炮为例，可以以这样的思路搭建模拟模型：
 对每个格子建立输出对象（包含属性dps（指的是io；定时炮落地另外计算）、核坑倒计时等等），对每种能够产生影响的僵尸建立对象（包含属性速度（只保留随机区间最快和最慢）、hp等等，还有尸潮总hp用来制作刷怪计时器），对会受损的植物（一般是南瓜和别的防御植物）建立对象（包含属性hp（南瓜计算平均回复速度叠在血量亏损上）等等），对卡槽建立结构体（包含对象卡片（其中一部分选卡的cd、cost）、经济等等）。如果有合适的算法，仅仅通过计算就算出轨道行不行。
@@ -40760,7 +40760,7 @@ Signal: (none)
 
 <details><summary>💭 思考过程</summary>
 
-用户要求做一个"轨道验证器"——一个简化模型的模拟器，用精确数据（知识库/05）来做数值模拟，验证轨道（节奏）是否成立。以 PE.电波钟无炮 为例。
+用户要求做一个"轨道验证器"——一个简化模型的模拟器，用精确数据（docs/知识库/05）来做数值模拟，验证轨道（节奏）是否成立。以 PE.电波钟无炮 为例。
 
 这是一个相当大的工程项目。让我先理清需求：
 
@@ -40915,13 +40915,13 @@ for t in range(0, T, dt):
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && grep -n \"^## \\|^### \" 知识库/05-数据-精确数值手册.md", "description": "看05手册目录结构"}
+{"command": "cd \"D:/PVZ endless\" && grep -n \"^## \\|^### \" docs/知识库/05-数据-精确数值手册.md", "description": "看05手册目录结构"}
 ```
 
 **📤 工具结果** `call_00_p5JeKB70dWvD1jZblGMs5676`
 
 ```
-Command: cd "D:/PVZ endless" && grep -n "^## \|^### " 知识库/05-数据-精确数值手册.md
+Command: cd "D:/PVZ endless" && grep -n "^## \|^### " docs/知识库/05-数据-精确数值手册.md
 Stdout: 8:## 一、单位体系（先立规矩）
 42:## 二、场地坐标
 75:## 三、植物时间表（单位 cs）
@@ -40960,7 +40960,7 @@ Signal: (none)
 **🔧 工具调用：`Read`**
 
 ```json
-{"file_path": "D:/PVZ endless/知识库/05-数据-精确数值手册.md", "offset": 1, "limit": 42}
+{"file_path": "D:/PVZ endless/docs/知识库/05-数据-精确数值手册.md", "offset": 1, "limit": 42}
 ```
 
 
@@ -40970,7 +40970,7 @@ Signal: (none)
 **🔧 工具调用：`Read`**
 
 ```json
-{"file_path": "D:/PVZ endless/知识库/05-数据-精确数值手册.md", "offset": 108, "limit": 30}
+{"file_path": "D:/PVZ endless/docs/知识库/05-数据-精确数值手册.md", "offset": 108, "limit": 30}
 ```
 
 **📤 工具结果** `call_00_ET_83VGRRq0zF9s9fNqDFf48078`
@@ -41072,13 +41072,13 @@ Let me grep for 速度 and 血量/HP.
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && grep -n \"速度\\|血量\\|hp\\|HP\\|270\\|370\\|1370\\|1670\\|3000\\|6000\" 知识库/05-数据-精确数值手册.md | head -20", "description": "查找僵尸血量与速度"}
+{"command": "cd \"D:/PVZ endless\" && grep -n \"速度\\|血量\\|hp\\|HP\\|270\\|370\\|1370\\|1670\\|3000\\|6000\" docs/知识库/05-数据-精确数值手册.md | head -20", "description": "查找僵尸血量与速度"}
 ```
 
 **📤 工具结果** `call_00_1PSVzjipUml113tiWvWz5106`
 
 ```
-Command: cd "D:/PVZ endless" && grep -n "速度\|血量\|hp\|HP\|270\|370\|1370\|1670\|3000\|6000" 知识库/05-数据-精确数值手册.md | head -20
+Command: cd "D:/PVZ endless" && grep -n "速度\|血量\|hp\|HP\|270\|370\|1370\|1670\|3000\|6000" docs/知识库/05-数据-精确数值手册.md | head -20
 Stdout: 173:| 磁力菇 | R = **270**；对啃食者 R = **320** | — |
 194:| 直线类速度 | **3.33 px/cs**（注意：只有两位小数，不是 10/3） |
 249:| **晚爆型（95%）** | 刷新后 **1320~2270 cs** 开盒 |
@@ -41099,7 +41099,7 @@ Signal: (none)
 **🔧 工具调用：`Read`**
 
 ```json
-{"file_path": "D:/PVZ endless/知识库/05-数据-精确数值手册.md", "limit": 40, "offset": 188}
+{"file_path": "D:/PVZ endless/docs/知识库/05-数据-精确数值手册.md", "limit": 40, "offset": 188}
 ```
 
 **📤 工具结果** `call_00_ET_F84MYHOG1ISVGQEXr3oJ7031`
@@ -41320,13 +41320,13 @@ PvZ 无尽刷新规则（02 里的六条规则）：
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && sed -n '1,80p' 知识库/02-核心-僵尸刷新机制.md", "description": "读刷新机制核心规则"}
+{"command": "cd \"D:/PVZ endless\" && sed -n '1,80p' docs/知识库/02-核心-僵尸刷新机制.md", "description": "读刷新机制核心规则"}
 ```
 
 **📤 工具结果** `call_00_w2kON4Ta6z6VWSuGqUEQ0916`
 
 ```
-Command: cd "D:/PVZ endless" && sed -n '1,80p' 知识库/02-核心-僵尸刷新机制.md
+Command: cd "D:/PVZ endless" && sed -n '1,80p' docs/知识库/02-核心-僵尸刷新机制.md
 Stdout: # 02 · 核心：僵尸刷新机制
 
 > 这是整个生存无尽头等重要的一块。**所有节奏都是拿来"喂"这套刷新规则的。**
@@ -41926,7 +41926,7 @@ Stdout: ## 七、节奏：三档出怪，三种打法【稿】
 
 > **双轨记录**：慢速关的 `C4io` 在 26 版里**名字不变**（C 系作为历史遗留保留，
 > 只是分类上归入 P 大类）。C 系的参数仍用**过怪量**，不是"加速1减速2"。
-> 详见 `知识库/08-维基-节奏体系与命名规范`。
+> 详见 `docs/知识库/08-维基-节奏体系与命名规范`。
 
 ### 7.1 慢速关：`C4io: N | AA' | I | I`
 
@@ -42185,7 +42185,7 @@ Signal: (none)
 **🔧 工具调用：`Write`**
 
 ```json
-{"file_path": "D:/PVZ endless/tools/trackcheck/data.py", "content": "# -*- coding: utf-8 -*-\n\"\"\"\ndata.py —— 轨道验证器的数据层\n\n★ 每一条数据都带来源标记：\n    [维]  维基《技术:精确数据》，收录于 知识库/05\n    [推]  由 05/06 的 cs 阈值反推\n    [俗]  社区通用值，本库未收录 → 标 ⚠️ 待核\n    [你]  用户给定\n\n★ 设计原则：**凡是标 ⚠️ 的，都可以在 config 里覆盖，也可以在 HTML 里改。**\n   模拟器的第一优先级是\"能被校准\"，不是\"一开始就对\"。\n\"\"\"\n\n# ---------------------------------------------------------------- 时间/空间\nCS = 1                      # 1 cs = 0.01 s\nTICK = 5                    # 模拟步长（cs）。5cs = 0.05s，对节奏验证够用\nCELL_W = 80                 # 一格 80px [维 05]\nSPAWN_X = (780, 819)        # 僵尸出生 x 区间 [维 05]\n\n# 格子中心 x：1 列 = 40，2 列 = 120 …… [维 05]\ndef cell_x(col: int) -> int:\n    return 40 + CELL_W * (col - 1)\n\n# ---------------------------------------------------------------- 速度基准\n# [推] 由 知识库/06 关键波长表反推：\n#      扶梯 1151cs → 8 列，1520cs → 7 列 ⇒ 369 cs/格\n#      扶梯 1520cs → 7 列，冰车 2226cs → 5 列 ⇒ 353 cs/格\n#      取中 361 cs/格 = 0.2216 px/cs\n#\n# ⚠️ 与\"普僵 4.7s/格\"的社区口径冲突（4.7s → 470cs/格）。\n#    两种口径差 30%，**必须用一次实测校准**：让一只普僵从出生走到 8 列，记秒数，\n#    然后 SPEED_UNIT = 实测cs/格。\nSPEED_UNIT = 361            # cs / 格（基准速度的僵尸走一格所需时间）\nSPEED_SCALE = 1.0           # 全局缩放，1.0 = 用 SPEED_UNIT\n\n# ---------------------------------------------------------------- 僵尸\n# spd = 相对基准速度的倍数（1.0 = SPEED_UNIT cs/格）\n# dmg = 每 cs 的啃食伤害（100 = 正常，即 1hp/cs）\nZOMBIES = {\n    # kind:  (hp,     spd,  dmg,  src)\n    '普通':   (270,    1.00, 100, '俗'),\n    '路障':   (370,    1.00, 100, '俗'),\n    '铁桶':   (1370,   1.00, 100, '俗'),\n    '铁门':   (1370,   1.00, 100, '俗'),\n    '读报':   (370,    1.00, 100, '俗'),\n    '橄榄':   (1670,   1.60, 100, '俗'),   # ⚠️ 速度待核（社区常说\"快\"）\n    '舞王':   (500,    1.00, 100, '俗'),\n    '伴舞':   (270,    1.00, 100, '俗'),\n    '小丑':   (500,    1.00, 100, '俗'),\n    '扶梯':   (500,    1.00, 100, '俗'),\n    '海豚':   (500,    1.00, 100, '俗'),\n    '潜水':   (500,    1.00, 100, '俗'),\n    '跳跳':   (500,    1.00, 100, '俗'),\n    '矿工':   (300,    1.00, 100, '俗'),\n    '小鬼':   (270,    2.00, 100, '俗'),\n    '气球':   (200,    1.00, 100, '俗'),\n    '蹦极':   (500,    1.00, 100, '俗'),\n    '投篮':   (850,    1.00, 100, '俗'),\n    '白眼':   (3000,   0.50, 100, '俗'),   # ⚠️ 巨人速度待核\n    '红眼':   (6000,   0.50, 100, '俗'),   # ⚠️ 巨人速度待核\n    '冰车':   (1350,   1.00, 100, '俗'),\n    '雪橇':   (1350,   1.00, 100, '俗'),\n}\n\n# 每只僵尸对\"本波总血量\"的贡献就是上面的 hp\n\n# ---------------------------------------------------------------- 植物\n# interval = 攻击间隔（cs）；dmg = 每次伤害；rng = (左, 右) 相对 px\n# rows = 覆盖行数（1 = 仅同行，3 = 上下各一行）\nPLANTS = {\n    '忧郁菇': dict(hp=300,  interval=193, dmg=20, rng=(-80, 160),  rows=3, src='[维 05]'),\n    '大喷菇': dict(hp=300,  interval=143, dmg=20, rng=(60, 400),   rows=1, src='[维 05]'),\n    '冰瓜':   dict(hp=300,  interval=293, dmg=80, rng=None,        rows=1, src='[维 05] 抛射'),\n    '香蒲':   dict(hp=300,  interval=143, dmg=20, rng=None,        rows=6, src='[维 05] 全行'),\n    '双子花': dict(hp=300,  interval=2400, dmg=0, rng=None,        rows=1, sun=50, src='[俗]'),\n    '存冰':   dict(hp=300,  interval=0,   dmg=0, rng=None,         rows=1, src='[你]'),\n    '荷叶':   dict(hp=300,  interval=0,   dmg=0, rng=None,         rows=1, src='[维 05]'),\n    '保护伞': dict(hp=300,  interval=0,   dmg=0, rng=None,         rows=1, src='[维 05]'),\n}\nPUMPKIN_HP = 4000       # ⚠️ 待核（社区常用 4000）\nPLANT_HP_DEFAULT = 300  # ⚠️ 待核（多数植物 300）\n\n# ---------------------------------------------------------------- 卡片\n# cost = 阳光；cd = 冷却（cs）\nCARDS = {\n    '冰':       dict(cost=75,  cd=5000, src='[维 05]'),\n    '模仿冰':   dict(cost=75,  cd=5000, src='[推] 同冰'),\n    '核':       dict(cost=125, cd=5000, src='[维 05]'),\n    '模仿核':   dict(cost=125, cd=5000, src='[推] 同核'),\n    '樱桃':     dict(cost=150, cd=5000, src='[维 05]'),\n    '辣椒':     dict(cost=125, cd=5000, src='[维 05]'),\n    '窝瓜':     dict(cost=50,  cd=5000, src='[维 05]'),\n    '南瓜':     dict(cost=125, cd=3000, src='[俗] 南瓜 CD 30s'),\n    '大蒜':     dict(cost=50,  cd=750,  src='[俗]'),\n    '咖啡豆':   dict(cost=75,  cd=750,  src='[俗]'),\n}\n\n# ---------------------------------------------------------------- 效果\nFREEZE_CS = (400, 600)      # 一次冰冻时长 [维 05]\nICE_TOTAL_CS = 2000         # 冰冻+减速总时长 [维 05]\nICE_DELAY = 100             # 夜间放置到生效 [维 05]\nASH_DMG = 1800              # 灰烬/核伤害 [维 10]\nCHERRY_R = 115              # 樱桃/炮爆炸半径 [维 05]\nDOOM_R = 250                # 毁灭菇半径 [维 05]\nCRATER_CS = 18000           # ⚠️ 待核：毁灭菇核坑持续时间（暂按 180s）\n\n# ---------------------------------------------------------------- 刷新\nR1_MIN_GAP = 600            # 两波最短间隔 6s [维 02]\nR2_VACUUM = 200             # 刷新真空 2s [维 02]\nR2_THRESHOLD = (0.50, 0.67) # 血量阈值 [维 02]\nR3_HARD = (2500, 3100)      # 强制刷新 25~31s [维 02]\nR0_FIRST = 600              # 开局 6s 刷第一波 [维 02]\nFLAG_STALL = 4500           # w9/w19 拖延 45s [维 02]\nFLAG_DELAY = 720             # 红字延迟 7.2s [维 02]\nFINAL_STALL = 4900          # w20 拖延 49s [维 02]\nFINAL_DELAY = 500            # 白字 5s [维 02]\n\n# ---------------------------------------------------------------- 啃食\nEAT_OFFSET = 45             # 僵尸停在 plant_x + 45 处啃 [推]\n"}
+{"file_path": "D:/PVZ endless/tools/trackcheck/data.py", "content": "# -*- coding: utf-8 -*-\n\"\"\"\ndata.py —— 轨道验证器的数据层\n\n★ 每一条数据都带来源标记：\n    [维]  维基《技术:精确数据》，收录于 docs/知识库/05\n    [推]  由 05/06 的 cs 阈值反推\n    [俗]  社区通用值，本库未收录 → 标 ⚠️ 待核\n    [你]  用户给定\n\n★ 设计原则：**凡是标 ⚠️ 的，都可以在 config 里覆盖，也可以在 HTML 里改。**\n   模拟器的第一优先级是\"能被校准\"，不是\"一开始就对\"。\n\"\"\"\n\n# ---------------------------------------------------------------- 时间/空间\nCS = 1                      # 1 cs = 0.01 s\nTICK = 5                    # 模拟步长（cs）。5cs = 0.05s，对节奏验证够用\nCELL_W = 80                 # 一格 80px [维 05]\nSPAWN_X = (780, 819)        # 僵尸出生 x 区间 [维 05]\n\n# 格子中心 x：1 列 = 40，2 列 = 120 …… [维 05]\ndef cell_x(col: int) -> int:\n    return 40 + CELL_W * (col - 1)\n\n# ---------------------------------------------------------------- 速度基准\n# [推] 由 docs/知识库/06 关键波长表反推：\n#      扶梯 1151cs → 8 列，1520cs → 7 列 ⇒ 369 cs/格\n#      扶梯 1520cs → 7 列，冰车 2226cs → 5 列 ⇒ 353 cs/格\n#      取中 361 cs/格 = 0.2216 px/cs\n#\n# ⚠️ 与\"普僵 4.7s/格\"的社区口径冲突（4.7s → 470cs/格）。\n#    两种口径差 30%，**必须用一次实测校准**：让一只普僵从出生走到 8 列，记秒数，\n#    然后 SPEED_UNIT = 实测cs/格。\nSPEED_UNIT = 361            # cs / 格（基准速度的僵尸走一格所需时间）\nSPEED_SCALE = 1.0           # 全局缩放，1.0 = 用 SPEED_UNIT\n\n# ---------------------------------------------------------------- 僵尸\n# spd = 相对基准速度的倍数（1.0 = SPEED_UNIT cs/格）\n# dmg = 每 cs 的啃食伤害（100 = 正常，即 1hp/cs）\nZOMBIES = {\n    # kind:  (hp,     spd,  dmg,  src)\n    '普通':   (270,    1.00, 100, '俗'),\n    '路障':   (370,    1.00, 100, '俗'),\n    '铁桶':   (1370,   1.00, 100, '俗'),\n    '铁门':   (1370,   1.00, 100, '俗'),\n    '读报':   (370,    1.00, 100, '俗'),\n    '橄榄':   (1670,   1.60, 100, '俗'),   # ⚠️ 速度待核（社区常说\"快\"）\n    '舞王':   (500,    1.00, 100, '俗'),\n    '伴舞':   (270,    1.00, 100, '俗'),\n    '小丑':   (500,    1.00, 100, '俗'),\n    '扶梯':   (500,    1.00, 100, '俗'),\n    '海豚':   (500,    1.00, 100, '俗'),\n    '潜水':   (500,    1.00, 100, '俗'),\n    '跳跳':   (500,    1.00, 100, '俗'),\n    '矿工':   (300,    1.00, 100, '俗'),\n    '小鬼':   (270,    2.00, 100, '俗'),\n    '气球':   (200,    1.00, 100, '俗'),\n    '蹦极':   (500,    1.00, 100, '俗'),\n    '投篮':   (850,    1.00, 100, '俗'),\n    '白眼':   (3000,   0.50, 100, '俗'),   # ⚠️ 巨人速度待核\n    '红眼':   (6000,   0.50, 100, '俗'),   # ⚠️ 巨人速度待核\n    '冰车':   (1350,   1.00, 100, '俗'),\n    '雪橇':   (1350,   1.00, 100, '俗'),\n}\n\n# 每只僵尸对\"本波总血量\"的贡献就是上面的 hp\n\n# ---------------------------------------------------------------- 植物\n# interval = 攻击间隔（cs）；dmg = 每次伤害；rng = (左, 右) 相对 px\n# rows = 覆盖行数（1 = 仅同行，3 = 上下各一行）\nPLANTS = {\n    '忧郁菇': dict(hp=300,  interval=193, dmg=20, rng=(-80, 160),  rows=3, src='[维 05]'),\n    '大喷菇': dict(hp=300,  interval=143, dmg=20, rng=(60, 400),   rows=1, src='[维 05]'),\n    '冰瓜':   dict(hp=300,  interval=293, dmg=80, rng=None,        rows=1, src='[维 05] 抛射'),\n    '香蒲':   dict(hp=300,  interval=143, dmg=20, rng=None,        rows=6, src='[维 05] 全行'),\n    '双子花': dict(hp=300,  interval=2400, dmg=0, rng=None,        rows=1, sun=50, src='[俗]'),\n    '存冰':   dict(hp=300,  interval=0,   dmg=0, rng=None,         rows=1, src='[你]'),\n    '荷叶':   dict(hp=300,  interval=0,   dmg=0, rng=None,         rows=1, src='[维 05]'),\n    '保护伞': dict(hp=300,  interval=0,   dmg=0, rng=None,         rows=1, src='[维 05]'),\n}\nPUMPKIN_HP = 4000       # ⚠️ 待核（社区常用 4000）\nPLANT_HP_DEFAULT = 300  # ⚠️ 待核（多数植物 300）\n\n# ---------------------------------------------------------------- 卡片\n# cost = 阳光；cd = 冷却（cs）\nCARDS = {\n    '冰':       dict(cost=75,  cd=5000, src='[维 05]'),\n    '模仿冰':   dict(cost=75,  cd=5000, src='[推] 同冰'),\n    '核':       dict(cost=125, cd=5000, src='[维 05]'),\n    '模仿核':   dict(cost=125, cd=5000, src='[推] 同核'),\n    '樱桃':     dict(cost=150, cd=5000, src='[维 05]'),\n    '辣椒':     dict(cost=125, cd=5000, src='[维 05]'),\n    '窝瓜':     dict(cost=50,  cd=5000, src='[维 05]'),\n    '南瓜':     dict(cost=125, cd=3000, src='[俗] 南瓜 CD 30s'),\n    '大蒜':     dict(cost=50,  cd=750,  src='[俗]'),\n    '咖啡豆':   dict(cost=75,  cd=750,  src='[俗]'),\n}\n\n# ---------------------------------------------------------------- 效果\nFREEZE_CS = (400, 600)      # 一次冰冻时长 [维 05]\nICE_TOTAL_CS = 2000         # 冰冻+减速总时长 [维 05]\nICE_DELAY = 100             # 夜间放置到生效 [维 05]\nASH_DMG = 1800              # 灰烬/核伤害 [维 10]\nCHERRY_R = 115              # 樱桃/炮爆炸半径 [维 05]\nDOOM_R = 250                # 毁灭菇半径 [维 05]\nCRATER_CS = 18000           # ⚠️ 待核：毁灭菇核坑持续时间（暂按 180s）\n\n# ---------------------------------------------------------------- 刷新\nR1_MIN_GAP = 600            # 两波最短间隔 6s [维 02]\nR2_VACUUM = 200             # 刷新真空 2s [维 02]\nR2_THRESHOLD = (0.50, 0.67) # 血量阈值 [维 02]\nR3_HARD = (2500, 3100)      # 强制刷新 25~31s [维 02]\nR0_FIRST = 600              # 开局 6s 刷第一波 [维 02]\nFLAG_STALL = 4500           # w9/w19 拖延 45s [维 02]\nFLAG_DELAY = 720             # 红字延迟 7.2s [维 02]\nFINAL_STALL = 4900          # w20 拖延 49s [维 02]\nFINAL_DELAY = 500            # 白字 5s [维 02]\n\n# ---------------------------------------------------------------- 啃食\nEAT_OFFSET = 45             # 僵尸停在 plant_x + 45 处啃 [推]\n"}
 ```
 
 **📤 工具结果** `call_00_ET_WbdZO7ka7mjOuC3YWgxB6031`
@@ -45123,7 +45123,7 @@ I need to keep it manageable. Let me write.
 **🔧 工具调用：`Write`**
 
 ```json
-{"content": "# -*- coding: utf-8 -*-\n\"\"\"\ndata.py —— 数据层（2026-10-18 全面换成权威源）\n\n★ 来源：\n    [速] wiki《攻略:僵尸速度》—— 逐 cs 位移、动画函数表、减速系数\n    [血] wiki《教程:僵尸图鉴》—— 本体/护具/总体血量、濒死机制\n    [精] wiki《技术:精确数据》—— 坐标、判定、子弹、炮、冰（收录于 知识库/05）\n    [俗] 本库未收录的社区值 → 标 ⚠️\n\n★ 关键修正（相对 v0.1）：\n    ① 巨人速度 = 普通僵尸速度（0.23~0.37），不是 0.5 倍\n    ② 减速：匀速僵尸 ×0.4，非匀速僵尸 ×0.5（不是统一 0.5）\n    ③ 血量：路障 640、读报 420、气球 290、矿工 370、扶梯 1000、蹦极 450\n    ④ 新增\"濒死减血\"：血量低于 1/3 后自动掉血\n\"\"\"\n\n# ---------------------------------------------------------------- 时间/空间\nCS = 1\nTICK = 5                    # 模拟步长（cs）\nCELL_W = 80                 # 一格 80px [精]\nSPAWN_X = (780, 819)        # 出生点 [精]\nDMG_LINE = 800              # 僵尸可伤：防御域左端 ≤ 800 [精]\nDEF_LEFT_OFF = 36           # 普僵防御域横向偏移 [精]\n\n\ndef cell_x(col):\n    return 40 + CELL_W * (col - 1)\n\n\n# ---------------------------------------------------------------- 速度模型\n# [速] 非匀速僵尸平均位移 = 相对速度 × 0.47 × (片段总数+1) / 片段总数\n#      匀速僵尸：位移 = 速度参数\n# n = 动画片段总数（非匀速用）\nSPEED_K = 0.47\n\nZOMB = {\n    # 名称: (总体血量, 亮度速度min, vmax, 匀速?, 片段数n)\n    '普通':   (270,  0.23, 0.37, False, 46),\n    '旗帜':   (270,  0.45, 0.45, False, 46),\n    '路障':   (640,  0.23, 0.37, False, 46),   # 饰品 370 + 本体 270 [血]\n    '撑杆':   (500,  0.23, 0.37, False, 44),   # 跳后行走；跳前奔跑 0.66~0.68\n    '铁桶':   (1370, 0.23, 0.37, False, 46),\n    '读报':   (420,  0.23, 0.37, False, 46),   # 报纸 150 + 本体 270 [血]\n    '铁门':   (1370, 0.23, 0.37, False, 46),\n    '橄榄':   (1670, 0.66, 0.68, False, 29),\n    '舞王':   (500,  0.45, 0.45, False, 20),   # 前进；滑步另算\n    '伴舞':   (270,  0.45, 0.45, False, 20),\n    '潜水':   (270,  0.66, 0.68, False, 36),\n    '海豚':   (500,  0.23, 0.37, False, 41),   # 水中行走；冲锋 0.89~0.91 匀速\n    '冰车':   (1350, 0.10, 0.25, True,  0),    # 由 x 决定，见 ice_car_speed\n    '小丑':   (500,  0.66, 0.68, False, 18),\n    '气球':   (290,  0.23, 0.37, True,  0),    # 飞行匀速；气球 20 + 本体 270\n    '矿工':   (370,  0.23, 0.37, False, 36),   # 帽 100 + 本体 270\n    '跳跳':   (500,  0.45, 0.45, False, 46),\n    '蹦极':   (450,  1.00, 1.00, True,  0),    # 不走路，走\"高度\"通道\n    '扶梯':   (1000, 0.23, 0.37, False, 46),   # 无梯；有梯 0.79~0.81\n    '投篮':   (850,  0.23, 0.37, True,  0),    # 飞行匀速\n    '白眼':   (3000, 0.23, 0.37, False, 48),\n    '红眼':   (6000, 0.23, 0.37, False, 48),\n    '小鬼':   (270,  0.23, 0.37, False, 32),\n    '雪人':   (1350, 0.40, 0.40, False, 33),\n}\n\n\ndef avg_speed(name, v=None):\n    \"\"\"返回 px/cs。v 不给就取速度区间中值。\"\"\"\n    hp, vmin, vmax, uniform, n = ZOMB[name]\n    if v is None:\n        v = (vmin + vmax) / 2\n    if uniform:\n        return v\n    return v * SPEED_K * (n + 1) / n\n\n\ndef ice_car_speed(x):\n    \"\"\"[速] 冰车速度由横坐标唯一确定\"\"\"\n    if x >= 700:\n        return 0.25\n    if x < 400:\n        return 0.10\n    return 0.25 - (700 - x) * 0.0005\n\n\nSLOW_UNIFORM = 0.4      # [速] 匀速僵尸减速系数\nSLOW_ANIM = 0.5         # [速] 非匀速僵尸减速系数\n\n# ---------------------------------------------------------------- 濒死减血\n# [血] 血量降到约最大血量 1/3 后进入垂死，自动掉血\nDYING_RATIO = 1 / 3\nDYING_DPS_BIG = 60      # 本体上限 ≥500\nDYING_DPS_SMALL = 20    # 本体上限 <500\n\n# ---------------------------------------------------------------- 植物\nPLANTS = {\n    '忧郁菇': dict(hp=300, interval=193, dmg=20, rng=(-80, 160), rows=3, src='[精]'),\n    '大喷菇': dict(hp=300, interval=143, dmg=20, rng=(60, 400), rows=1, src='[精]'),\n    '冰瓜':   dict(hp=300, interval=293, dmg=80, rng=None, rows=1, src='[精] 抛射'),\n    '香蒲':   dict(hp=300, interval=143, dmg=20, rng=None, rows=6, src='[精] 全行'),\n    '双子花': dict(hp=300, interval=2400, dmg=0, rng=None, rows=1, sun=50, src='[俗]'),\n    '存冰':   dict(hp=300, interval=0, dmg=0, rng=None, rows=1, src='[你]'),\n    '荷叶':   dict(hp=300, interval=0, dmg=0, rng=None, rows=1, src='[精]'),\n    '保护伞': dict(hp=300, interval=0, dmg=0, rng=None, rows=1, src='[精]'),\n    '玉米炮': dict(hp=300, interval=0, dmg=0, rng=None, rows=1, src='[精]'),\n}\nPUMPKIN_HP = 4000       # ⚠️ 待核（社区常用值）\nPLANT_HP_DEFAULT = 300\nEAT_DPS = 100           # [俗] 啃食 1hp/cs；减速减半 ⚠️\nEAT_OFFSET = 45\n\n# ---------------------------------------------------------------- 卡片\nCARDS = {\n    '冰':     dict(cost=75,  cd=5000),\n    '模仿冰': dict(cost=75,  cd=5000),\n    '核':     dict(cost=125, cd=5000),\n    '模仿核': dict(cost=125, cd=5000),\n    '樱桃':   dict(cost=150, cd=5000),\n    '辣椒':   dict(cost=125, cd=5000),\n    '窝瓜':   dict(cost=50,  cd=5000),\n    '南瓜':   dict(cost=125, cd=3000),\n    '大蒜':   dict(cost=50,  cd=750),\n    '咖啡豆': dict(cost=75,  cd=750),\n}\n\n# ---------------------------------------------------------------- 效果\nFREEZE_CS = (400, 600)\nICE_TOTAL_CS = 2000\nICE_DELAY = 100\nASH_DMG = 1800\nCHERRY_R = 115\nDOOM_R = 250\nCRATER_CS = 18000       # ⚠️ 待核\nCOFFEE_DELAY = 100\n\n# ---------------------------------------------------------------- 刷新\nR1_MIN_GAP = 600\nR2_VACUUM = 200\nR2_THRESHOLD = (0.50, 0.67)\nR3_HARD = (2500, 3100)\nR0_FIRST = 600\nFLAG_STALL = 4500\nFLAG_DELAY = 720\nFINAL_STALL = 4900\nFINAL_DELAY = 500\n\n# ---------------------------------------------------------------- 判定型僵尸\n# [精] 小丑：刷新后 4.4~7.54s 或 13.25~22.75s 开盒，开盒后 1.10s 爆炸\nJOKER_BOX = ((440, 754), (1325, 2275))\nJOKER_FUSE = 110\n\n# [精] 蹦极：停留 300cs、抓取 63cs；落地高度 3000~3150，每 cs -8\nBUNGEE_DROP = (375, 394)\nBUNGEE_STAY = 300\nBUNGEE_GRAB = 63\n\n# [精] 投篮：攻击间隔 300cs；动画进度 0.545 时扔出\nCATAPULT_INTERVAL = 300\nCATAPULT_THROW_AT = 0.545\n\n# [精] 矿工：出土到晕 130cs，晕眩 350cs（减速 ×2）\nMINER_EMERGE = 130\nMINER_STUN = 350\n", "file_path": "D:/PVZ endless/tools/trackcheck/data.py"}
+{"content": "# -*- coding: utf-8 -*-\n\"\"\"\ndata.py —— 数据层（2026-10-18 全面换成权威源）\n\n★ 来源：\n    [速] wiki《攻略:僵尸速度》—— 逐 cs 位移、动画函数表、减速系数\n    [血] wiki《教程:僵尸图鉴》—— 本体/护具/总体血量、濒死机制\n    [精] wiki《技术:精确数据》—— 坐标、判定、子弹、炮、冰（收录于 docs/知识库/05）\n    [俗] 本库未收录的社区值 → 标 ⚠️\n\n★ 关键修正（相对 v0.1）：\n    ① 巨人速度 = 普通僵尸速度（0.23~0.37），不是 0.5 倍\n    ② 减速：匀速僵尸 ×0.4，非匀速僵尸 ×0.5（不是统一 0.5）\n    ③ 血量：路障 640、读报 420、气球 290、矿工 370、扶梯 1000、蹦极 450\n    ④ 新增\"濒死减血\"：血量低于 1/3 后自动掉血\n\"\"\"\n\n# ---------------------------------------------------------------- 时间/空间\nCS = 1\nTICK = 5                    # 模拟步长（cs）\nCELL_W = 80                 # 一格 80px [精]\nSPAWN_X = (780, 819)        # 出生点 [精]\nDMG_LINE = 800              # 僵尸可伤：防御域左端 ≤ 800 [精]\nDEF_LEFT_OFF = 36           # 普僵防御域横向偏移 [精]\n\n\ndef cell_x(col):\n    return 40 + CELL_W * (col - 1)\n\n\n# ---------------------------------------------------------------- 速度模型\n# [速] 非匀速僵尸平均位移 = 相对速度 × 0.47 × (片段总数+1) / 片段总数\n#      匀速僵尸：位移 = 速度参数\n# n = 动画片段总数（非匀速用）\nSPEED_K = 0.47\n\nZOMB = {\n    # 名称: (总体血量, 亮度速度min, vmax, 匀速?, 片段数n)\n    '普通':   (270,  0.23, 0.37, False, 46),\n    '旗帜':   (270,  0.45, 0.45, False, 46),\n    '路障':   (640,  0.23, 0.37, False, 46),   # 饰品 370 + 本体 270 [血]\n    '撑杆':   (500,  0.23, 0.37, False, 44),   # 跳后行走；跳前奔跑 0.66~0.68\n    '铁桶':   (1370, 0.23, 0.37, False, 46),\n    '读报':   (420,  0.23, 0.37, False, 46),   # 报纸 150 + 本体 270 [血]\n    '铁门':   (1370, 0.23, 0.37, False, 46),\n    '橄榄':   (1670, 0.66, 0.68, False, 29),\n    '舞王':   (500,  0.45, 0.45, False, 20),   # 前进；滑步另算\n    '伴舞':   (270,  0.45, 0.45, False, 20),\n    '潜水':   (270,  0.66, 0.68, False, 36),\n    '海豚':   (500,  0.23, 0.37, False, 41),   # 水中行走；冲锋 0.89~0.91 匀速\n    '冰车':   (1350, 0.10, 0.25, True,  0),    # 由 x 决定，见 ice_car_speed\n    '小丑':   (500,  0.66, 0.68, False, 18),\n    '气球':   (290,  0.23, 0.37, True,  0),    # 飞行匀速；气球 20 + 本体 270\n    '矿工':   (370,  0.23, 0.37, False, 36),   # 帽 100 + 本体 270\n    '跳跳':   (500,  0.45, 0.45, False, 46),\n    '蹦极':   (450,  1.00, 1.00, True,  0),    # 不走路，走\"高度\"通道\n    '扶梯':   (1000, 0.23, 0.37, False, 46),   # 无梯；有梯 0.79~0.81\n    '投篮':   (850,  0.23, 0.37, True,  0),    # 飞行匀速\n    '白眼':   (3000, 0.23, 0.37, False, 48),\n    '红眼':   (6000, 0.23, 0.37, False, 48),\n    '小鬼':   (270,  0.23, 0.37, False, 32),\n    '雪人':   (1350, 0.40, 0.40, False, 33),\n}\n\n\ndef avg_speed(name, v=None):\n    \"\"\"返回 px/cs。v 不给就取速度区间中值。\"\"\"\n    hp, vmin, vmax, uniform, n = ZOMB[name]\n    if v is None:\n        v = (vmin + vmax) / 2\n    if uniform:\n        return v\n    return v * SPEED_K * (n + 1) / n\n\n\ndef ice_car_speed(x):\n    \"\"\"[速] 冰车速度由横坐标唯一确定\"\"\"\n    if x >= 700:\n        return 0.25\n    if x < 400:\n        return 0.10\n    return 0.25 - (700 - x) * 0.0005\n\n\nSLOW_UNIFORM = 0.4      # [速] 匀速僵尸减速系数\nSLOW_ANIM = 0.5         # [速] 非匀速僵尸减速系数\n\n# ---------------------------------------------------------------- 濒死减血\n# [血] 血量降到约最大血量 1/3 后进入垂死，自动掉血\nDYING_RATIO = 1 / 3\nDYING_DPS_BIG = 60      # 本体上限 ≥500\nDYING_DPS_SMALL = 20    # 本体上限 <500\n\n# ---------------------------------------------------------------- 植物\nPLANTS = {\n    '忧郁菇': dict(hp=300, interval=193, dmg=20, rng=(-80, 160), rows=3, src='[精]'),\n    '大喷菇': dict(hp=300, interval=143, dmg=20, rng=(60, 400), rows=1, src='[精]'),\n    '冰瓜':   dict(hp=300, interval=293, dmg=80, rng=None, rows=1, src='[精] 抛射'),\n    '香蒲':   dict(hp=300, interval=143, dmg=20, rng=None, rows=6, src='[精] 全行'),\n    '双子花': dict(hp=300, interval=2400, dmg=0, rng=None, rows=1, sun=50, src='[俗]'),\n    '存冰':   dict(hp=300, interval=0, dmg=0, rng=None, rows=1, src='[你]'),\n    '荷叶':   dict(hp=300, interval=0, dmg=0, rng=None, rows=1, src='[精]'),\n    '保护伞': dict(hp=300, interval=0, dmg=0, rng=None, rows=1, src='[精]'),\n    '玉米炮': dict(hp=300, interval=0, dmg=0, rng=None, rows=1, src='[精]'),\n}\nPUMPKIN_HP = 4000       # ⚠️ 待核（社区常用值）\nPLANT_HP_DEFAULT = 300\nEAT_DPS = 100           # [俗] 啃食 1hp/cs；减速减半 ⚠️\nEAT_OFFSET = 45\n\n# ---------------------------------------------------------------- 卡片\nCARDS = {\n    '冰':     dict(cost=75,  cd=5000),\n    '模仿冰': dict(cost=75,  cd=5000),\n    '核':     dict(cost=125, cd=5000),\n    '模仿核': dict(cost=125, cd=5000),\n    '樱桃':   dict(cost=150, cd=5000),\n    '辣椒':   dict(cost=125, cd=5000),\n    '窝瓜':   dict(cost=50,  cd=5000),\n    '南瓜':   dict(cost=125, cd=3000),\n    '大蒜':   dict(cost=50,  cd=750),\n    '咖啡豆': dict(cost=75,  cd=750),\n}\n\n# ---------------------------------------------------------------- 效果\nFREEZE_CS = (400, 600)\nICE_TOTAL_CS = 2000\nICE_DELAY = 100\nASH_DMG = 1800\nCHERRY_R = 115\nDOOM_R = 250\nCRATER_CS = 18000       # ⚠️ 待核\nCOFFEE_DELAY = 100\n\n# ---------------------------------------------------------------- 刷新\nR1_MIN_GAP = 600\nR2_VACUUM = 200\nR2_THRESHOLD = (0.50, 0.67)\nR3_HARD = (2500, 3100)\nR0_FIRST = 600\nFLAG_STALL = 4500\nFLAG_DELAY = 720\nFINAL_STALL = 4900\nFINAL_DELAY = 500\n\n# ---------------------------------------------------------------- 判定型僵尸\n# [精] 小丑：刷新后 4.4~7.54s 或 13.25~22.75s 开盒，开盒后 1.10s 爆炸\nJOKER_BOX = ((440, 754), (1325, 2275))\nJOKER_FUSE = 110\n\n# [精] 蹦极：停留 300cs、抓取 63cs；落地高度 3000~3150，每 cs -8\nBUNGEE_DROP = (375, 394)\nBUNGEE_STAY = 300\nBUNGEE_GRAB = 63\n\n# [精] 投篮：攻击间隔 300cs；动画进度 0.545 时扔出\nCATAPULT_INTERVAL = 300\nCATAPULT_THROW_AT = 0.545\n\n# [精] 矿工：出土到晕 130cs，晕眩 350cs（减速 ×2）\nMINER_EMERGE = 130\nMINER_STUN = 350\n", "file_path": "D:/PVZ endless/tools/trackcheck/data.py"}
 ```
 
 **📤 工具结果** `call_00_IYtaGSybPMazWtem65Ag4094`
@@ -50622,7 +50622,7 @@ This is a great validation.
 Now let me:
 1. Clean up frames (large)
 2. Update README with these numbers + the 出怪机制 implementation
-3. Update 知识库/09 with the 饱和出怪 content? User said "记得做记录" — I should record the 出怪机制 findings. 09 already has 权重表/阶数/饱和阈值. I should add: 每波至多50只、出怪列表2000项、加权随机填充、红眼上限公式.
+3. Update docs/知识库/09 with the 饱和出怪 content? User said "记得做记录" — I should record the 出怪机制 findings. 09 already has 权重表/阶数/饱和阈值. I should add: 每波至多50只、出怪列表2000项、加权随机填充、红眼上限公式.
 
 Let me patch 09 briefly and README.
 
@@ -50643,14 +50643,14 @@ First cleanup + 09 patch.
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && rm -rf \"练习/PE.电波钟无炮/_v\" && python - << 'PYEOF'\np='知识库/09-维基-出怪机制.md'\ns=open(p,encoding='utf-8').read()\nadd = \"\"\"\n\n---\n\n## ★ 饱和出怪：每波 50 只（2026-10-18 补，来源 wiki《技术:出怪机制》）\n\n> 这一节解释了为什么\"每一波每一路、除红眼外每种僵尸都会来几只\" —— **对策不能省**。\n\n### 出怪列表是唯一的数量来源\n\n> \"完整的出怪列表长度 2000……**每 50 个为 1 波，总共记录 40 波。因此，每波至多生成 50 只僵尸。**\n> 若出怪列表中留空，则对应波次会生成少于 50 只。\n> **每波僵尸刷新时，游戏会严格按照出怪列表预先设定的顺序依次生成对应僵尸。**\"\n\n```\n生存无尽每轮 20 波 → 只用前 1000 个值\n列表在选卡页面就已确定；退出重进可刷新（\"无痕 S/L\"）\n```\n\n### 列表怎么被填满：权重 → 数量\n\n权重不直接等于数量，而是**加权随机决定下一个填谁**，直到**本波级别总和逼近级别上限**为止：\n\n```\n每波级别上限 = int(int((当前波数 + 已完成选卡数 × 20) × 0.8) / 2) + 1\n               旗帜波 ×2.5，向零取整\n```\n\n**饱和之后（f ≥ 85）级别上限不再起限制作用 → 列表被填满 → 每波 50 只。**\n50 只摊到 6 路，每路 8~9 只，再按权重分配种类 —— 这就是\"每种都会来\"的来源。\n\n### 三个饱和阈值（原文）\n\n| flags | 含义 |\n|---|---|\n| **47f** | 阶数不再起限制作用 |\n| **85f** | 级别上限在**统计意义**上不再起限制作用 |\n| **109f** | 红眼数量上限不再起限制作用 |\n| **126f** | 级别上限在**严格意义**上不再起限制作用 |\n\n### 红眼数量上限（原文）\n\n> \"已生成的红眼总数达到上限后，非旗帜波不再出红眼，立刻生效。\n> 上限初始为 0，**轮数=5 起每轮 +1**，轮数=54 起固定 50。\"\n\n（轮数 = 选卡时已完成 flag 数 / 2 − 1）\n\n### 阶数：决定\"从第几波才会出现\"\n\n| 阶 | 僵尸 | 最早出现 |\n|---|---|---|\n| 一阶 | 普、路障、铁桶、读报、雪人 | 第 1 波 |\n| 二阶 | 撑杆、铁门、橄榄、舞王 | 第 5 波 |\n| 三阶 | 潜水、海豚、冰车、小丑、气球、矿工、跳跳、梯子、投篮 | 第 10 波 |\n| 四阶 | 白眼、红眼 | 第 15 波（轮数=9 起每轮 −1，23 起固定 1） |\n\n### 对做阵/做验证的直接结论\n\n```\n① 别抱侥幸：饱和后每波 50 只，**每一路每种都会来**\n   → 任何\"这个僵尸来得少所以可以不管\"的假设都是错的\n② 前 9 波是\"一二阶\"的天下，三阶僵尸第 10 波才登场\n   → w1~w9 的压力主要来自 普/路障/铁桶/橄榄/铁门/舞王/撑杆\n③ 蹦极权重 1000，且**仅旗帜波生成** → 只可能在 w10 / w20 出现\n④ 红眼上限随轮数线性增长，轮数=54 起固定 50\n```\n\n> 验证器里的实现：`tools/trackcheck/spawn.py`（加权随机 + 级别上限 + 阶数门控 + 每波≤50）。\n\"\"\"\nif '饱和出怪：每波 50 只' not in s:\n    s = s + add\nopen(p,'w',encoding='utf-8').write(s)\nprint('09 updated')\nPYEOF", "description": "把饱和出怪写进知识库09"}
+{"command": "cd \"D:/PVZ endless\" && rm -rf \"练习/PE.电波钟无炮/_v\" && python - << 'PYEOF'\np='docs/知识库/09-维基-出怪机制.md'\ns=open(p,encoding='utf-8').read()\nadd = \"\"\"\n\n---\n\n## ★ 饱和出怪：每波 50 只（2026-10-18 补，来源 wiki《技术:出怪机制》）\n\n> 这一节解释了为什么\"每一波每一路、除红眼外每种僵尸都会来几只\" —— **对策不能省**。\n\n### 出怪列表是唯一的数量来源\n\n> \"完整的出怪列表长度 2000……**每 50 个为 1 波，总共记录 40 波。因此，每波至多生成 50 只僵尸。**\n> 若出怪列表中留空，则对应波次会生成少于 50 只。\n> **每波僵尸刷新时，游戏会严格按照出怪列表预先设定的顺序依次生成对应僵尸。**\"\n\n```\n生存无尽每轮 20 波 → 只用前 1000 个值\n列表在选卡页面就已确定；退出重进可刷新（\"无痕 S/L\"）\n```\n\n### 列表怎么被填满：权重 → 数量\n\n权重不直接等于数量，而是**加权随机决定下一个填谁**，直到**本波级别总和逼近级别上限**为止：\n\n```\n每波级别上限 = int(int((当前波数 + 已完成选卡数 × 20) × 0.8) / 2) + 1\n               旗帜波 ×2.5，向零取整\n```\n\n**饱和之后（f ≥ 85）级别上限不再起限制作用 → 列表被填满 → 每波 50 只。**\n50 只摊到 6 路，每路 8~9 只，再按权重分配种类 —— 这就是\"每种都会来\"的来源。\n\n### 三个饱和阈值（原文）\n\n| flags | 含义 |\n|---|---|\n| **47f** | 阶数不再起限制作用 |\n| **85f** | 级别上限在**统计意义**上不再起限制作用 |\n| **109f** | 红眼数量上限不再起限制作用 |\n| **126f** | 级别上限在**严格意义**上不再起限制作用 |\n\n### 红眼数量上限（原文）\n\n> \"已生成的红眼总数达到上限后，非旗帜波不再出红眼，立刻生效。\n> 上限初始为 0，**轮数=5 起每轮 +1**，轮数=54 起固定 50。\"\n\n（轮数 = 选卡时已完成 flag 数 / 2 − 1）\n\n### 阶数：决定\"从第几波才会出现\"\n\n| 阶 | 僵尸 | 最早出现 |\n|---|---|---|\n| 一阶 | 普、路障、铁桶、读报、雪人 | 第 1 波 |\n| 二阶 | 撑杆、铁门、橄榄、舞王 | 第 5 波 |\n| 三阶 | 潜水、海豚、冰车、小丑、气球、矿工、跳跳、梯子、投篮 | 第 10 波 |\n| 四阶 | 白眼、红眼 | 第 15 波（轮数=9 起每轮 −1，23 起固定 1） |\n\n### 对做阵/做验证的直接结论\n\n```\n① 别抱侥幸：饱和后每波 50 只，**每一路每种都会来**\n   → 任何\"这个僵尸来得少所以可以不管\"的假设都是错的\n② 前 9 波是\"一二阶\"的天下，三阶僵尸第 10 波才登场\n   → w1~w9 的压力主要来自 普/路障/铁桶/橄榄/铁门/舞王/撑杆\n③ 蹦极权重 1000，且**仅旗帜波生成** → 只可能在 w10 / w20 出现\n④ 红眼上限随轮数线性增长，轮数=54 起固定 50\n```\n\n> 验证器里的实现：`tools/trackcheck/spawn.py`（加权随机 + 级别上限 + 阶数门控 + 每波≤50）。\n\"\"\"\nif '饱和出怪：每波 50 只' not in s:\n    s = s + add\nopen(p,'w',encoding='utf-8').write(s)\nprint('09 updated')\nPYEOF", "description": "把饱和出怪写进知识库09"}
 ```
 
 **📤 工具结果** `call_00_H3IkY4wIprUe5WAI5Dkl2716`
 
 ```
 Command: cd "D:/PVZ endless" && rm -rf "练习/PE.电波钟无炮/_v" && python - << 'PYEOF'
-p='知识库/09-维基-出怪机制.md'
+p='docs/知识库/09-维基-出怪机制.md'
 s=open(p,encoding='utf-8').read()
 add = """
 
@@ -50742,7 +50742,7 @@ Signal: (none)
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && python - << 'PYEOF'\np='tools/trackcheck/README.md'\ns=open(p,encoding='utf-8').read()\ns += \"\"\"\n\n---\n\n## v0.6 —— 出怪改成真实机制 + 四档录像实测（2026-10-18 晚）\n\n### 出怪不再是\"编\"的，按《技术:出怪机制》生成\n\n新增 `spawn.py`：\n\n```\n加权随机填满「出怪列表」，受四个约束：\n  ① 每波至多 50 只（列表 2000 项 / 50 = 40 波）\n  ② 级别上限 = int(int((波数 + 轮数×20) × 0.8)/2) + 1，旗帜波 ×2.5\n  ③ 阶数门控（三阶僵尸第 10 波才出现，四阶第 15 波，轮数=9 起每轮 -1）\n  ④ 红眼数量上限（轮数=5 起每轮 +1，54 起固定 50）\n```\n\n**饱和之后每波就是 50 只** —— 50 只摊到 6 路，每路 8~9 只，按权重分种类。\n这就是\"每一路每种都会来，对策不能省\"的来源。改完之后模拟出来的波次规模：\n\n```\nw1  49 只（路障 23 + 普通 26）\nw10 51 只（含旗帜；冰车 9、海豚 6、蹦极 4……）\nw20 48 只（红眼 9、白眼 1、冰车 3……）\n```\n\n以前那版 w1 只有 5 只 —— **差了十倍**。\n\n### 四档录像：暂停扣除后的有效时长（★ 这是本轮最硬的实测数据）\n\n用\"GAME PAUSED 面板\"的深灰蓝配色做检测（`paused.py`）：\n\n| 档 | 录像 | 暂停 | **有效游戏时长** | 折算每波 |\n|---|---|---|---|---|\n| 慢速 | 457s | 164s（36%） | **293s** | **14.7s** |\n| 变速 | 366s | 81s（22%） | **285s** | **14.3s** |\n| 快速 | 279s | 95s（34%） | **184s** | **9.2s** |\n| 极速 | 245s | 25s（10%） | **220s** | **11.0s** |\n\n### ★ 这张表和 L1 的 12.5s 硬下限对上了\n\n```\nC4io 要求平均波长 ≥ 12.5s（冰 CD 50s ÷ 4 波）\n\n慢速 14.7s ✔  变速 14.3s ✔   → C4io 成立\n快速  9.2s ✘  极速 11.0s ✘   → C4io 不成立\n```\n\n而实际打法正是：\n\n```\n慢速 → 完整 C4io\n快速 → AA' 拆开（降低对单卡的依赖）\n极速 → 几乎不操作（索性放弃以卡为核心的打法）\n```\n\n**三条独立路径（理论 CD 账、录像实测、实际打法）指向同一个分界。**\n这是整个验证器第一次做到\"理论—实测—操作\"三方对齐。\n\n### 暂停检测做法（可复用）\n\n```bash\nffmpeg -i xx.mp4 -vf \"fps=1,scale=320:-1\" frames/%05d.png\npython tools/trackcheck/paused.py frames/\n```\n\n判据：画面中上部（10%~62% 宽、6%~55% 高）里，\"暗 + 低彩度\"像素占比 > 18%。\n正常游戏 < 8%，暂停时 > 30%。\n（`freezedetect` 不可用 —— PvZ 暂停时植物/阳光仍在动，画面不冻结。）\n\"\"\"\nopen(p,'w',encoding='utf-8').write(s)\nprint('ok')\nPYEOF\ncat >> .workbuddy/memory/2026-10-18.md << 'EOF'\n\n---\n\n## 第十五批：出怪机制真实化 + 四档录像暂停检测（20:18）\n\n### 1. 出怪不再是编的\n抓 wiki《技术:出怪机制》，拿到核心：**出怪列表 2000 项、每 50 个一波、每波至多 50 只、按级别上限加权随机填充**。\n新增 `spawn.py` 实现：加权随机 + 级别上限公式 + 阶数门控 + 红眼上限 + 每波≤50。\n饱和后 **每波 50 只**（摊 6 路，每路 8~9 只）→ 这就是用户说的\"每一路每种都会来，对策不能省\"。\n改完 w1 从 5 只变成 49 只（差十倍）。已把这一节写进 `知识库/09`。\n\n### 2. 四档录像：暂停扣除（★ 本轮最硬数据）\n用\"GAME PAUSED 面板\"深灰蓝配色检测（新增 `paused.py`）：\n| 档 | 录像 | 暂停 | 有效 | 每波 |\n|---|---|---|---|---|\n| 慢速 | 457s | 164s(36%) | 293s | **14.7s** |\n| 变速 | 366s | 81s(22%) | 285s | **14.3s** |\n| 快速 | 279s | 95s(34%) | 184s | **9.2s** |\n| 极速 | 245s | 25s(10%) | 220s | **11.0s** |\n\n**和 L1 算的 12.5s 硬下限对上了**：慢速/变速 >12.5 ✔，快速/极速 <12.5 ✘\n而实际打法正是：慢速完整 C4io / 快速 AA' 拆开 / 极速几乎不操作。\n**理论 CD 账 + 录像实测 + 实际打法，三条独立路径指向同一分界。**\n\n### 3. 方法记录\n`freezedetect` 不可用（PvZ 暂停时画面不冻结）；改用颜色特征：中上部\"暗+低彩度\"像素占比 >18% 即暂停。\nEOF\necho ok", "description": "更新README与记忆"}
+{"command": "cd \"D:/PVZ endless\" && python - << 'PYEOF'\np='tools/trackcheck/README.md'\ns=open(p,encoding='utf-8').read()\ns += \"\"\"\n\n---\n\n## v0.6 —— 出怪改成真实机制 + 四档录像实测（2026-10-18 晚）\n\n### 出怪不再是\"编\"的，按《技术:出怪机制》生成\n\n新增 `spawn.py`：\n\n```\n加权随机填满「出怪列表」，受四个约束：\n  ① 每波至多 50 只（列表 2000 项 / 50 = 40 波）\n  ② 级别上限 = int(int((波数 + 轮数×20) × 0.8)/2) + 1，旗帜波 ×2.5\n  ③ 阶数门控（三阶僵尸第 10 波才出现，四阶第 15 波，轮数=9 起每轮 -1）\n  ④ 红眼数量上限（轮数=5 起每轮 +1，54 起固定 50）\n```\n\n**饱和之后每波就是 50 只** —— 50 只摊到 6 路，每路 8~9 只，按权重分种类。\n这就是\"每一路每种都会来，对策不能省\"的来源。改完之后模拟出来的波次规模：\n\n```\nw1  49 只（路障 23 + 普通 26）\nw10 51 只（含旗帜；冰车 9、海豚 6、蹦极 4……）\nw20 48 只（红眼 9、白眼 1、冰车 3……）\n```\n\n以前那版 w1 只有 5 只 —— **差了十倍**。\n\n### 四档录像：暂停扣除后的有效时长（★ 这是本轮最硬的实测数据）\n\n用\"GAME PAUSED 面板\"的深灰蓝配色做检测（`paused.py`）：\n\n| 档 | 录像 | 暂停 | **有效游戏时长** | 折算每波 |\n|---|---|---|---|---|\n| 慢速 | 457s | 164s（36%） | **293s** | **14.7s** |\n| 变速 | 366s | 81s（22%） | **285s** | **14.3s** |\n| 快速 | 279s | 95s（34%） | **184s** | **9.2s** |\n| 极速 | 245s | 25s（10%） | **220s** | **11.0s** |\n\n### ★ 这张表和 L1 的 12.5s 硬下限对上了\n\n```\nC4io 要求平均波长 ≥ 12.5s（冰 CD 50s ÷ 4 波）\n\n慢速 14.7s ✔  变速 14.3s ✔   → C4io 成立\n快速  9.2s ✘  极速 11.0s ✘   → C4io 不成立\n```\n\n而实际打法正是：\n\n```\n慢速 → 完整 C4io\n快速 → AA' 拆开（降低对单卡的依赖）\n极速 → 几乎不操作（索性放弃以卡为核心的打法）\n```\n\n**三条独立路径（理论 CD 账、录像实测、实际打法）指向同一个分界。**\n这是整个验证器第一次做到\"理论—实测—操作\"三方对齐。\n\n### 暂停检测做法（可复用）\n\n```bash\nffmpeg -i xx.mp4 -vf \"fps=1,scale=320:-1\" frames/%05d.png\npython tools/trackcheck/paused.py frames/\n```\n\n判据：画面中上部（10%~62% 宽、6%~55% 高）里，\"暗 + 低彩度\"像素占比 > 18%。\n正常游戏 < 8%，暂停时 > 30%。\n（`freezedetect` 不可用 —— PvZ 暂停时植物/阳光仍在动，画面不冻结。）\n\"\"\"\nopen(p,'w',encoding='utf-8').write(s)\nprint('ok')\nPYEOF\ncat >> .workbuddy/memory/2026-10-18.md << 'EOF'\n\n---\n\n## 第十五批：出怪机制真实化 + 四档录像暂停检测（20:18）\n\n### 1. 出怪不再是编的\n抓 wiki《技术:出怪机制》，拿到核心：**出怪列表 2000 项、每 50 个一波、每波至多 50 只、按级别上限加权随机填充**。\n新增 `spawn.py` 实现：加权随机 + 级别上限公式 + 阶数门控 + 红眼上限 + 每波≤50。\n饱和后 **每波 50 只**（摊 6 路，每路 8~9 只）→ 这就是用户说的\"每一路每种都会来，对策不能省\"。\n改完 w1 从 5 只变成 49 只（差十倍）。已把这一节写进 `docs/知识库/09`。\n\n### 2. 四档录像：暂停扣除（★ 本轮最硬数据）\n用\"GAME PAUSED 面板\"深灰蓝配色检测（新增 `paused.py`）：\n| 档 | 录像 | 暂停 | 有效 | 每波 |\n|---|---|---|---|---|\n| 慢速 | 457s | 164s(36%) | 293s | **14.7s** |\n| 变速 | 366s | 81s(22%) | 285s | **14.3s** |\n| 快速 | 279s | 95s(34%) | 184s | **9.2s** |\n| 极速 | 245s | 25s(10%) | 220s | **11.0s** |\n\n**和 L1 算的 12.5s 硬下限对上了**：慢速/变速 >12.5 ✔，快速/极速 <12.5 ✘\n而实际打法正是：慢速完整 C4io / 快速 AA' 拆开 / 极速几乎不操作。\n**理论 CD 账 + 录像实测 + 实际打法，三条独立路径指向同一分界。**\n\n### 3. 方法记录\n`freezedetect` 不可用（PvZ 暂停时画面不冻结）；改用颜色特征：中上部\"暗+低彩度\"像素占比 >18% 即暂停。\nEOF\necho ok", "description": "更新README与记忆"}
 ```
 
 **📤 工具结果** `call_00_ET_B2h9sDl2KS632wHVij2F8943`
@@ -50835,7 +50835,7 @@ cat >> .workbuddy/memory/2026-10-18.md << 'EOF'
 抓 wiki《技术:出怪机制》，拿到核心：**出怪列表 2000 项、每 50 个一波、每波至多 50 只、按级别上限加权随机填充**。
 新增 `spawn.py` 实现：加权随机 + 级别上限公式 + 阶数门控 + 红眼上限 + 每波≤50。
 饱和后 **每波 50 只**（摊 6 路，每路 8~9 只）→ 这就是用户说的"每一路每种都会来，对策不能省"。
-改完 w1 从 5 只变成 49 只（差十倍）。已把这一节写进 `知识库/09`。
+改完 w1 从 5 只变成 49 只（差十倍）。已把这一节写进 `docs/知识库/09`。
 
 ### 2. 四档录像：暂停扣除（★ 本轮最硬数据）
 用"GAME PAUSED 面板"深灰蓝配色检测（新增 `paused.py`）：
@@ -50869,13 +50869,13 @@ Signal: (none)
 **🔧 工具调用：`present_files`**
 
 ```json
-{"cwd": "D:/PVZ endless", "explanation": "出怪按真实机制生成 + 四档录像暂停扣除后的实测波长", "files": ["D:/PVZ endless/tools/trackcheck/README.md", "D:/PVZ endless/tools/trackcheck/spawn.py", "D:/PVZ endless/tools/trackcheck/paused.py", "D:/PVZ endless/知识库/09-维基-出怪机制.md"]}
+{"cwd": "D:/PVZ endless", "explanation": "出怪按真实机制生成 + 四档录像暂停扣除后的实测波长", "files": ["D:/PVZ endless/tools/trackcheck/README.md", "D:/PVZ endless/tools/trackcheck/spawn.py", "D:/PVZ endless/tools/trackcheck/paused.py", "D:/PVZ endless/docs/知识库/09-维基-出怪机制.md"]}
 ```
 
 **📤 工具结果** `call_00_ET_BBvXSOvtwV1EUh6ftFGT4276`
 
 ```
-[{"type": "input_text", "text": "{\"type\":\"present_files_result\",\"files\":[\"D:/PVZ endless/tools/trackcheck/README.md\",\"D:/PVZ endless/tools/trackcheck/spawn.py\",\"D:/PVZ endless/tools/trackcheck/paused.py\",\"D:/PVZ endless/知识库/09-维基-出怪机制.md\"],\"previewed\":[],\"explanation\":\"出怪按真实机制生成 + 四档录像暂停扣除后的实测波长\",\"message\":\"Successfully presented 4 file(s).\"}"}]
+[{"type": "input_text", "text": "{\"type\":\"present_files_result\",\"files\":[\"D:/PVZ endless/tools/trackcheck/README.md\",\"D:/PVZ endless/tools/trackcheck/spawn.py\",\"D:/PVZ endless/tools/trackcheck/paused.py\",\"D:/PVZ endless/docs/知识库/09-维基-出怪机制.md\"],\"previewed\":[],\"explanation\":\"出怪按真实机制生成 + 四档录像暂停扣除后的实测波长\",\"message\":\"Successfully presented 4 file(s).\"}"}]
 ```
 
 这次已经拿到实测数据：**慢速 14.7s / 变速 14.3s / 快速 9.2s / 极速 11.0s**，和 L1 算出的 12.5s 硬下限完全吻合。
@@ -50929,7 +50929,7 @@ w20 48 只（红眼 9、白眼 1、冰车 3…）
 
 **这就是“每一路每种都会来”的机制来源**：50 只摊到 6 路，每路 8~9 只，再按权重分配种类。你之前说“不要抱侥幸心理”，现在模型里是真的没有侥幸空间了。
 
-这一节我已经写进了 `知识库/09`，包含原文引用、四个饱和阈值（47/85/109/126f）、阶数表、红眼上限公式。
+这一节我已经写进了 `docs/知识库/09`，包含原文引用、四个饱和阈值（47/85/109/126f）、阶数表、红眼上限公式。
 
 ## 四、两处要说明的
 
@@ -51154,19 +51154,19 @@ Arguments: {"command":"cd \"D:/PVZ endless\" && grep -rn \"投石车\\|投篮\" 
 
 <previous_tool_call>
 Tool: Read
-Arguments: {"file_path":"D:/PVZ endless/知识库/06-专题-控丑与关键波长.md","offset":165,"limit":50}
+Arguments: {"file_path":"D:/PVZ endless/docs/知识库/06-专题-控丑与关键波长.md","offset":165,"limit":50}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Read
-Arguments: {"file_path":"D:/PVZ endless/知识库/05-数据-精确数值手册.md","offset":265,"limit":40}
+Arguments: {"file_path":"D:/PVZ endless/docs/知识库/05-数据-精确数值手册.md","offset":265,"limit":40}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Read
-Arguments: {"file_path":"D:/PVZ endless/知识库/07-专题-炮位理论与阵型库.md","limit":45,"offset":10}
+Arguments: {"file_path":"D:/PVZ endless/docs/知识库/07-专题-炮位理论与阵型库.md","limit":45,"offset":10}
 <result><omitted /></result>
 </previous_tool_call>
 
@@ -51178,25 +51178,25 @@ Arguments: {"command":"cd \"D:/PVZ endless\" && grep -rn \"底线\" --include=*.
 
 <previous_tool_call>
 Tool: Read
-Arguments: {"file_path":"D:/PVZ endless/知识库/09-维基-出怪机制.md","limit":45,"offset":105}
+Arguments: {"file_path":"D:/PVZ endless/docs/知识库/09-维基-出怪机制.md","limit":45,"offset":105}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '40,120p' 知识库/05-数据-精确数值手册.md","description":"查看射程与判定数据"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '40,120p' docs/知识库/05-数据-精确数值手册.md","description":"查看射程与判定数据"}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"射程\\|忧郁菇\\|大喷\" 知识库/05-数据-精确数值手册.md | head -20","description":"查射程条目"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"射程\\|忧郁菇\\|大喷\" docs/知识库/05-数据-精确数值手册.md | head -20","description":"查射程条目"}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '122,180p' 知识库/05-数据-精确数值手册.md","description":"查看植物攻击间隔与射程表"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '122,180p' docs/知识库/05-数据-精确数值手册.md","description":"查看植物攻击间隔与射程表"}
 <result><omitted /></result>
 </previous_tool_call>
 
@@ -51712,13 +51712,13 @@ Arguments: {"file_path":"D:/PVZ endless/练习/FE.雾四炮/运阵手册.md","ne
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && grep -rn \"1800\\|玉米炮.*伤害\\|红眼.*6000\\|6000\" 知识库/*.md | head -12","description":"核对炮伤害与红眼血量"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && grep -rn \"1800\\|玉米炮.*伤害\\|红眼.*6000\\|6000\" docs/知识库/*.md | head -12","description":"核对炮伤害与红眼血量"}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"寒冰菇\\|毁灭菇\\|Ice-shroom\\|Doom\" 知识库/05-数据-精确数值手册.md | head","description":"核对寒冰菇与毁灭菇价格"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"寒冰菇\\|毁灭菇\\|Ice-shroom\\|Doom\" docs/知识库/05-数据-精确数值手册.md | head","description":"核对寒冰菇与毁灭菇价格"}
 <result><omitted /></result>
 </previous_tool_call>
 
@@ -52700,7 +52700,7 @@ Arguments: {"cwd":"D:/PVZ endless","explanation":"写入两项工程决策：陆
 
 <previous_user_message>
 
-每次都要上机验证打2F还是比较麻烦，能够按照PvZ的规则、“剔除次要因素保留主要因素”（这是减少工作量、时间复杂度的关键）制作一个简易轨道验证器吗？因为我们对于PvZ有精确数据 @"D:/PVZ endless/知识库/05-数据-精确数值手册.md"（只要原版模型），只需要代码模拟每一个对象即可，甚至可以直接“格子除以速度得到时间（有垫材、冰等等其它方法延长这个时间），时间乘dps得伤害，大于hp就可以”的超级简化模型（这样的算法是否太简单了以至于不太准确？）。如此可以快速验证轨道的循环是否成立。
+每次都要上机验证打2F还是比较麻烦，能够按照PvZ的规则、“剔除次要因素保留主要因素”（这是减少工作量、时间复杂度的关键）制作一个简易轨道验证器吗？因为我们对于PvZ有精确数据 @"D:/PVZ endless/docs/知识库/05-数据-精确数值手册.md"（只要原版模型），只需要代码模拟每一个对象即可，甚至可以直接“格子除以速度得到时间（有垫材、冰等等其它方法延长这个时间），时间乘dps得伤害，大于hp就可以”的超级简化模型（这样的算法是否太简单了以至于不太准确？）。如此可以快速验证轨道的循环是否成立。
 模拟器甚至不需要知道阵容的样子，只需要知道有哪些格子会被僵尸践踏并且付出的代价就行了
 以PE.电波钟无炮为例，可以以这样的思路搭建模拟模型：
 对每个格子建立输出对象（包含属性dps（指的是io；定时炮落地另外计算）、核坑倒计时等等），对每种能够产生影响的僵尸建立对象（包含属性速度（只保留随机区间最快和最慢）、hp等等，还有尸潮总hp用来制作刷怪计时器），对会受损的植物（一般是南瓜和别的防御植物）建立对象（包含属性hp（南瓜计算平均回复速度叠在血量亏损上）等等），对卡槽建立结构体（包含对象卡片（其中一部分选卡的cd、cost）、经济等等）。如果有合适的算法，仅仅通过计算就算出轨道行不行。
@@ -52716,37 +52716,37 @@ Arguments: {"cwd":"D:/PVZ endless","explanation":"写入两项工程决策：陆
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"^## \\|^### \" 知识库/05-数据-精确数值手册.md","description":"看05手册目录结构"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"^## \\|^### \" docs/知识库/05-数据-精确数值手册.md","description":"看05手册目录结构"}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Read
-Arguments: {"file_path":"D:/PVZ endless/知识库/05-数据-精确数值手册.md","offset":1,"limit":42}
+Arguments: {"file_path":"D:/PVZ endless/docs/知识库/05-数据-精确数值手册.md","offset":1,"limit":42}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Read
-Arguments: {"file_path":"D:/PVZ endless/知识库/05-数据-精确数值手册.md","offset":108,"limit":30}
+Arguments: {"file_path":"D:/PVZ endless/docs/知识库/05-数据-精确数值手册.md","offset":108,"limit":30}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"速度\\|血量\\|hp\\|HP\\|270\\|370\\|1370\\|1670\\|3000\\|6000\" 知识库/05-数据-精确数值手册.md | head -20","description":"查找僵尸血量与速度"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"速度\\|血量\\|hp\\|HP\\|270\\|370\\|1370\\|1670\\|3000\\|6000\" docs/知识库/05-数据-精确数值手册.md | head -20","description":"查找僵尸血量与速度"}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Read
-Arguments: {"file_path":"D:/PVZ endless/知识库/05-数据-精确数值手册.md","limit":40,"offset":188}
+Arguments: {"file_path":"D:/PVZ endless/docs/知识库/05-数据-精确数值手册.md","limit":40,"offset":188}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '1,80p' 知识库/02-核心-僵尸刷新机制.md","description":"读刷新机制核心规则"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '1,80p' docs/知识库/02-核心-僵尸刷新机制.md","description":"读刷新机制核心规则"}
 <result><omitted /></result>
 </previous_tool_call>
 
@@ -53871,19 +53871,19 @@ Arguments: {"command":"cd \"D:/PVZ endless\" && for t in 变速 快速 极速; d
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && rm -rf \"练习/PE.电波钟无炮/_v\" && python - << 'PYEOF'\np='知识库/09-维基-出怪机制.md'\ns=open(p,encoding='utf-8').read()\nadd = \"\"\"\n\n---\n\n## ★ 饱和出怪：每波 50 只（2026-10-18 补，来源 wiki《技术:出怪机制》）\n\n> 这一节解释了为什么\"每一波每一路、除红眼外每种僵尸都会来几只\" —— **对策不能省**。\n\n### 出怪列表是唯一的数量来源\n\n> \"完整的出怪列表长度 2000……**每 50 个为 1 波，总共记录 40 波。因此，每波至多生成 50 只僵尸。**\n> 若出怪列表中留空，则对应波次会生成少于 50 只。\n> **每波僵尸刷新时，游戏会严格按照出怪列表预先设定的顺序依次生成对应僵尸。**\"\n\n```\n生存无尽每轮 20 波 → 只用前 1000 个值\n列表在选卡页面就已确定；退出重进可刷新（\"无痕 S/L\"）\n```\n\n### 列表怎么被填满：权重 → 数量\n\n权重不直接等于数量，而是**加权随机决定下一个填谁**，直到**本波级别总和逼近级别上限**为止：\n\n```\n每波级别上限 = int(int((当前波数 + 已完成选卡数 × 20) × 0.8) / 2) + 1\n               旗帜波 ×2.5，向零取整\n```\n\n**饱和之后（f ≥ 85）级别上限不再起限制作用 → 列表被填满 → 每波 50 只。**\n50 只摊到 6 路，每路 8~9 只，再按权重分配种类 —— 这就是\"每种都会来\"的来源。\n\n### 三个饱和阈值（原文）\n\n| flags | 含义 |\n|---|---|\n| **47f** | 阶数不再起限制作用 |\n| **85f** | 级别上限在**统计意义**上不再起限制作用 |\n| **109f** | 红眼数量上限不再起限制作用 |\n| **126f** | 级别上限在**严格意义**上不再起限制作用 |\n\n### 红眼数量上限（原文）\n\n> \"已生成的红眼总数达到上限后，非旗帜波不再出红眼，立刻生效。\n> 上限初始为 0，**轮数=5 起每轮 +1**，轮数=54 起固定 50。\"\n\n（轮数 = 选卡时已完成 flag 数 / 2 − 1）\n\n### 阶数：决定\"从第几波才会出现\"\n\n| 阶 | 僵尸 | 最早出现 |\n|---|---|---|\n| 一阶 | 普、路障、铁桶、读报、雪人 | 第 1 波 |\n| 二阶 | 撑杆、铁门、橄榄、舞王 | 第 5 波 |\n| 三阶 | 潜水、海豚、冰车、小丑、气球、矿工、跳跳、梯子、投篮 | 第 10 波 |\n| 四阶 | 白眼、红眼 | 第 15 波（轮数=9 起每轮 −1，23 起固定 1） |\n\n### 对做阵/做验证的直接结论\n\n```\n① 别抱侥幸：饱和后每波 50 只，**每一路每种都会来**\n   → 任何\"这个僵尸来得少所以可以不管\"的假设都是错的\n② 前 9 波是\"一二阶\"的天下，三阶僵尸第 10 波才登场\n   → w1~w9 的压力主要来自 普/路障/铁桶/橄榄/铁门/舞王/撑杆\n③ 蹦极权重 1000，且**仅旗帜波生成** → 只可能在 w10 / w20 出现\n④ 红眼上限随轮数线性增长，轮数=54 起固定 50\n```\n\n> 验证器里的实现：`tools/trackcheck/spawn.py`（加权随机 + 级别上限 + 阶数门控 + 每波≤50）。\n\"\"\"\nif '饱和出怪：每波 50 只' not in s:\n    s = s + add\nopen(p,'w',encoding='utf-8').write(s)\nprint('09 updated')\nPYEOF","description":"把饱和出怪写进知识库09"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && rm -rf \"练习/PE.电波钟无炮/_v\" && python - << 'PYEOF'\np='docs/知识库/09-维基-出怪机制.md'\ns=open(p,encoding='utf-8').read()\nadd = \"\"\"\n\n---\n\n## ★ 饱和出怪：每波 50 只（2026-10-18 补，来源 wiki《技术:出怪机制》）\n\n> 这一节解释了为什么\"每一波每一路、除红眼外每种僵尸都会来几只\" —— **对策不能省**。\n\n### 出怪列表是唯一的数量来源\n\n> \"完整的出怪列表长度 2000……**每 50 个为 1 波，总共记录 40 波。因此，每波至多生成 50 只僵尸。**\n> 若出怪列表中留空，则对应波次会生成少于 50 只。\n> **每波僵尸刷新时，游戏会严格按照出怪列表预先设定的顺序依次生成对应僵尸。**\"\n\n```\n生存无尽每轮 20 波 → 只用前 1000 个值\n列表在选卡页面就已确定；退出重进可刷新（\"无痕 S/L\"）\n```\n\n### 列表怎么被填满：权重 → 数量\n\n权重不直接等于数量，而是**加权随机决定下一个填谁**，直到**本波级别总和逼近级别上限**为止：\n\n```\n每波级别上限 = int(int((当前波数 + 已完成选卡数 × 20) × 0.8) / 2) + 1\n               旗帜波 ×2.5，向零取整\n```\n\n**饱和之后（f ≥ 85）级别上限不再起限制作用 → 列表被填满 → 每波 50 只。**\n50 只摊到 6 路，每路 8~9 只，再按权重分配种类 —— 这就是\"每种都会来\"的来源。\n\n### 三个饱和阈值（原文）\n\n| flags | 含义 |\n|---|---|\n| **47f** | 阶数不再起限制作用 |\n| **85f** | 级别上限在**统计意义**上不再起限制作用 |\n| **109f** | 红眼数量上限不再起限制作用 |\n| **126f** | 级别上限在**严格意义**上不再起限制作用 |\n\n### 红眼数量上限（原文）\n\n> \"已生成的红眼总数达到上限后，非旗帜波不再出红眼，立刻生效。\n> 上限初始为 0，**轮数=5 起每轮 +1**，轮数=54 起固定 50。\"\n\n（轮数 = 选卡时已完成 flag 数 / 2 − 1）\n\n### 阶数：决定\"从第几波才会出现\"\n\n| 阶 | 僵尸 | 最早出现 |\n|---|---|---|\n| 一阶 | 普、路障、铁桶、读报、雪人 | 第 1 波 |\n| 二阶 | 撑杆、铁门、橄榄、舞王 | 第 5 波 |\n| 三阶 | 潜水、海豚、冰车、小丑、气球、矿工、跳跳、梯子、投篮 | 第 10 波 |\n| 四阶 | 白眼、红眼 | 第 15 波（轮数=9 起每轮 −1，23 起固定 1） |\n\n### 对做阵/做验证的直接结论\n\n```\n① 别抱侥幸：饱和后每波 50 只，**每一路每种都会来**\n   → 任何\"这个僵尸来得少所以可以不管\"的假设都是错的\n② 前 9 波是\"一二阶\"的天下，三阶僵尸第 10 波才登场\n   → w1~w9 的压力主要来自 普/路障/铁桶/橄榄/铁门/舞王/撑杆\n③ 蹦极权重 1000，且**仅旗帜波生成** → 只可能在 w10 / w20 出现\n④ 红眼上限随轮数线性增长，轮数=54 起固定 50\n```\n\n> 验证器里的实现：`tools/trackcheck/spawn.py`（加权随机 + 级别上限 + 阶数门控 + 每波≤50）。\n\"\"\"\nif '饱和出怪：每波 50 只' not in s:\n    s = s + add\nopen(p,'w',encoding='utf-8').write(s)\nprint('09 updated')\nPYEOF","description":"把饱和出怪写进知识库09"}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && python - << 'PYEOF'\np='tools/trackcheck/README.md'\ns=open(p,encoding='utf-8').read()\ns += \"\"\"\n\n---\n\n## v0.6 —— 出怪改成真实机制 + 四档录像实测（2026-10-18 晚）\n\n### 出怪不再是\"编\"的，按《技术:出怪机制》生成\n\n新增 `spawn.py`：\n\n```\n加权随机填满「出怪列表」，受四个约束：\n  ① 每波至多 50 只（列表 2000 项 / 50 = 40 波）\n  ② 级别上限 = int(int((波数 + 轮数×20) × 0.8)/2) + 1，旗帜波 ×2.5\n  ③ 阶数门控（三阶僵尸第 10 波才出现，四阶第 15 波，轮数=9 起每轮 -1）\n  ④ 红眼数量上限（轮数=5 起每轮 +1，54 起固定 50）\n```\n\n**饱和之后每波就是 50 只** —— 50 只摊到 6 路，每路 8~9 只，按权重分种类。\n这就是\"每一路每种都会来，对策不能省\"的来源。改完之后模拟出来的波次规模：\n\n```\nw1  49 只（路障 23 + 普通 26）\nw10 51 只（含旗帜；冰车 9、海豚 6、蹦极 4……）\nw20 48 只（红眼 9、白眼 1、冰车 3……）\n```\n\n以前那版 w1 只有 5 只 —— **差了十倍**。\n\n### 四档录像：暂停扣除后的有效时长（★ 这是本轮最硬的实测数据）\n\n用\"GAME PAUSED 面板\"的深灰蓝配色做检测（`paused.py`）：\n\n| 档 | 录像 | 暂停 | **有效游戏时长** | 折算每波 |\n|---|---|---|---|---|\n| 慢速 | 457s | 164s（36%） | **293s** | **14.7s** |\n| 变速 | 366s | 81s（22%） | **285s** | **14.3s** |\n| 快速 | 279s | 95s（34%） | **184s** | **9.2s** |\n| 极速 | 245s | 25s（10%） | **220s** | **11.0s** |\n\n### ★ 这张表和 L1 的 12.5s 硬下限对上了\n\n```\nC4io 要求平均波长 ≥ 12.5s（冰 CD 50s ÷ 4 波）\n\n慢速 14.7s ✔  变速 14.3s ✔   → C4io 成立\n快速  9.2s ✘  极速 11.0s ✘   → C4io 不成立\n```\n\n而实际打法正是：\n\n```\n慢速 → 完整 C4io\n快速 → AA' 拆开（降低对单卡的依赖）\n极速 → 几乎不操作（索性放弃以卡为核心的打法）\n```\n\n**三条独立路径（理论 CD 账、录像实测、实际打法）指向同一个分界。**\n这是整个验证器第一次做到\"理论—实测—操作\"三方对齐。\n\n### 暂停检测做法（可复用）\n\n```bash\nffmpeg -i xx.mp4 -vf \"fps=1,scale=320:-1\" frames/%05d.png\npython tools/trackcheck/paused.py frames/\n```\n\n判据：画面中上部（10%~62% 宽、6%~55% 高）里，\"暗 + 低彩度\"像素占比 > 18%。\n正常游戏 < 8%，暂停时 > 30%。\n（`freezedetect` 不可用 —— PvZ 暂停时植物/阳光仍在动，画面不冻结。）\n\"\"\"\nopen(p,'w',encoding='utf-8').write(s)\nprint('ok')\nPYEOF\ncat >> .workbuddy/memory/2026-10-18.md << 'EOF'\n\n---\n\n## 第十五批：出怪机制真实化 + 四档录像暂停检测（20:18）\n\n### 1. 出怪不再是编的\n抓 wiki《技术:出怪机制》，拿到核心：**出怪列表 2000 项、每 50 个一波、每波至多 50 只、按级别上限加权随机填充**。\n新增 `spawn.py` 实现：加权随机 + 级别上限公式 + 阶数门控 + 红眼上限 + 每波≤50。\n饱和后 **每波 50 只**（摊 6 路，每路 8~9 只）→ 这就是用户说的\"每一路每种都会来，对策不能省\"。\n改完 w1 从 5 只变成 49 只（差十倍）。已把这一节写进 `知识库/09`。\n\n### 2. 四档录像：暂停扣除（★ 本轮最硬数据）\n用\"GAME PAUSED 面板\"深灰蓝配色检测（新增 `paused.py`）：\n| 档 | 录像 | 暂停 | 有效 | 每波 |\n|---|---|---|---|---|\n| 慢速 | 457s | 164s(36%) | 293s | **14.7s** |\n| 变速 | 366s | 81s(22%) | 285s | **14.3s** |\n| 快速 | 279s | 95s(34%) | 184s | **9.2s** |\n| 极速 | 245s | 25s(10%) | 220s | **11.0s** |\n\n**和 L1 算的 12.5s 硬下限对上了**：慢速/变速 >12.5 ✔，快速/极速 <12.5 ✘\n而实际打法正是：慢速完整 C4io / 快速 AA' 拆开 / 极速几乎不操作。\n**理论 CD 账 + 录像实测 + 实际打法，三条独立路径指向同一分界。**\n\n### 3. 方法记录\n`freezedetect` 不可用（PvZ 暂停时画面不冻结）；改用颜色特征：中上部\"暗+低彩度\"像素占比 >18% 即暂停。\nEOF\necho ok","description":"更新README与记忆"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && python - << 'PYEOF'\np='tools/trackcheck/README.md'\ns=open(p,encoding='utf-8').read()\ns += \"\"\"\n\n---\n\n## v0.6 —— 出怪改成真实机制 + 四档录像实测（2026-10-18 晚）\n\n### 出怪不再是\"编\"的，按《技术:出怪机制》生成\n\n新增 `spawn.py`：\n\n```\n加权随机填满「出怪列表」，受四个约束：\n  ① 每波至多 50 只（列表 2000 项 / 50 = 40 波）\n  ② 级别上限 = int(int((波数 + 轮数×20) × 0.8)/2) + 1，旗帜波 ×2.5\n  ③ 阶数门控（三阶僵尸第 10 波才出现，四阶第 15 波，轮数=9 起每轮 -1）\n  ④ 红眼数量上限（轮数=5 起每轮 +1，54 起固定 50）\n```\n\n**饱和之后每波就是 50 只** —— 50 只摊到 6 路，每路 8~9 只，按权重分种类。\n这就是\"每一路每种都会来，对策不能省\"的来源。改完之后模拟出来的波次规模：\n\n```\nw1  49 只（路障 23 + 普通 26）\nw10 51 只（含旗帜；冰车 9、海豚 6、蹦极 4……）\nw20 48 只（红眼 9、白眼 1、冰车 3……）\n```\n\n以前那版 w1 只有 5 只 —— **差了十倍**。\n\n### 四档录像：暂停扣除后的有效时长（★ 这是本轮最硬的实测数据）\n\n用\"GAME PAUSED 面板\"的深灰蓝配色做检测（`paused.py`）：\n\n| 档 | 录像 | 暂停 | **有效游戏时长** | 折算每波 |\n|---|---|---|---|---|\n| 慢速 | 457s | 164s（36%） | **293s** | **14.7s** |\n| 变速 | 366s | 81s（22%） | **285s** | **14.3s** |\n| 快速 | 279s | 95s（34%） | **184s** | **9.2s** |\n| 极速 | 245s | 25s（10%） | **220s** | **11.0s** |\n\n### ★ 这张表和 L1 的 12.5s 硬下限对上了\n\n```\nC4io 要求平均波长 ≥ 12.5s（冰 CD 50s ÷ 4 波）\n\n慢速 14.7s ✔  变速 14.3s ✔   → C4io 成立\n快速  9.2s ✘  极速 11.0s ✘   → C4io 不成立\n```\n\n而实际打法正是：\n\n```\n慢速 → 完整 C4io\n快速 → AA' 拆开（降低对单卡的依赖）\n极速 → 几乎不操作（索性放弃以卡为核心的打法）\n```\n\n**三条独立路径（理论 CD 账、录像实测、实际打法）指向同一个分界。**\n这是整个验证器第一次做到\"理论—实测—操作\"三方对齐。\n\n### 暂停检测做法（可复用）\n\n```bash\nffmpeg -i xx.mp4 -vf \"fps=1,scale=320:-1\" frames/%05d.png\npython tools/trackcheck/paused.py frames/\n```\n\n判据：画面中上部（10%~62% 宽、6%~55% 高）里，\"暗 + 低彩度\"像素占比 > 18%。\n正常游戏 < 8%，暂停时 > 30%。\n（`freezedetect` 不可用 —— PvZ 暂停时植物/阳光仍在动，画面不冻结。）\n\"\"\"\nopen(p,'w',encoding='utf-8').write(s)\nprint('ok')\nPYEOF\ncat >> .workbuddy/memory/2026-10-18.md << 'EOF'\n\n---\n\n## 第十五批：出怪机制真实化 + 四档录像暂停检测（20:18）\n\n### 1. 出怪不再是编的\n抓 wiki《技术:出怪机制》，拿到核心：**出怪列表 2000 项、每 50 个一波、每波至多 50 只、按级别上限加权随机填充**。\n新增 `spawn.py` 实现：加权随机 + 级别上限公式 + 阶数门控 + 红眼上限 + 每波≤50。\n饱和后 **每波 50 只**（摊 6 路，每路 8~9 只）→ 这就是用户说的\"每一路每种都会来，对策不能省\"。\n改完 w1 从 5 只变成 49 只（差十倍）。已把这一节写进 `docs/知识库/09`。\n\n### 2. 四档录像：暂停扣除（★ 本轮最硬数据）\n用\"GAME PAUSED 面板\"深灰蓝配色检测（新增 `paused.py`）：\n| 档 | 录像 | 暂停 | 有效 | 每波 |\n|---|---|---|---|---|\n| 慢速 | 457s | 164s(36%) | 293s | **14.7s** |\n| 变速 | 366s | 81s(22%) | 285s | **14.3s** |\n| 快速 | 279s | 95s(34%) | 184s | **9.2s** |\n| 极速 | 245s | 25s(10%) | 220s | **11.0s** |\n\n**和 L1 算的 12.5s 硬下限对上了**：慢速/变速 >12.5 ✔，快速/极速 <12.5 ✘\n而实际打法正是：慢速完整 C4io / 快速 AA' 拆开 / 极速几乎不操作。\n**理论 CD 账 + 录像实测 + 实际打法，三条独立路径指向同一分界。**\n\n### 3. 方法记录\n`freezedetect` 不可用（PvZ 暂停时画面不冻结）；改用颜色特征：中上部\"暗+低彩度\"像素占比 >18% 即暂停。\nEOF\necho ok","description":"更新README与记忆"}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: present_files
-Arguments: {"cwd":"D:/PVZ endless","explanation":"出怪按真实机制生成 + 四档录像暂停扣除后的实测波长","files":["D:/PVZ endless/tools/trackcheck/README.md","D:/PVZ endless/tools/trackcheck/spawn.py","D:/PVZ endless/tools/trackcheck/paused.py","D:/PVZ endless/知识库/09-维基-出怪机制.md"]}
+Arguments: {"cwd":"D:/PVZ endless","explanation":"出怪按真实机制生成 + 四档录像暂停扣除后的实测波长","files":["D:/PVZ endless/tools/trackcheck/README.md","D:/PVZ endless/tools/trackcheck/spawn.py","D:/PVZ endless/tools/trackcheck/paused.py","D:/PVZ endless/docs/知识库/09-维基-出怪机制.md"]}
 <result><omitted /></result>
 </previous_tool_call>
 
@@ -53939,7 +53939,7 @@ w20 48 只（红眼 9、白眼 1、冰车 3…）
 
 **这就是“每一路每种都会来”的机制来源**：50 只摊到 6 路，每路 8~9 只，再按权重分配种类。你之前说“不要抱侥幸心理”，现在模型里是真的没有侥幸空间了。
 
-这一节我已经写进了 `知识库/09`，包含原文引用、四个饱和阈值（47/85/109/126f）、阶数表、红眼上限公式。
+这一节我已经写进了 `docs/知识库/09`，包含原文引用、四个饱和阈值（47/85/109/126f）、阶数表、红眼上限公式。
 
 ## 四、两处要说明的
 
@@ -55181,7 +55181,7 @@ Now, "核 @w1 断裂 6 次". Let me debug. Maybe `D.CARDS['核']` doesn't exist 
    5→★ 来源：
    6→    [速] wiki《攻略:僵尸速度》—— 逐 cs 位移、动画函数表、减速系数
    7→    [血] wiki《教程:僵尸图鉴》—— 本体/护具/总体血量、濒死机制
-   8→    [精] wiki《技术:精确数据》—— 坐标、判定、子弹、炮、冰（收录于 知识库/05）
+   8→    [精] wiki《技术:精确数据》—— 坐标、判定、子弹、炮、冰（收录于 docs/知识库/05）
    9→    [俗] 本库未收录的社区值 → 标 ⚠️
   10→
   11→★ 关键修正（相对 v0.1）：
@@ -55477,7 +55477,7 @@ But the user says these videos are at saturation (125F+), where 级别上限 no 
 
 Hmm, that seems too much. Let's check: 50 zombies with 22% 橄榄 = 11 橄榄. Each 1670 HP → 18,370. Plus 红眼 on flag.
 
-Hmm. But wait — the weight table I have might be wrong. Let me re-check: the weights in spawn.py came from 知识库/09. Let me check what the wiki says. In 无尽 saturation, waves are indeed brutal, but 橄榄 at 11 per wave seems high.
+Hmm. But wait — the weight table I have might be wrong. Let me re-check: the weights in spawn.py came from docs/知识库/09. Let me check what the wiki says. In 无尽 saturation, waves are indeed brutal, but 橄榄 at 11 per wave seems high.
 
 Actually, hmm, I recall 无尽出怪权重: 普通 4000, 路障 4000, 撑杆 2000, 铁桶 3000, 读报 1000, 铁门 3500, 橄榄 2000, 舞王 1000, 潜水 2000, 冰车 2000, 雪橇 2000, 海豚 1500, 小丑 1000, 气球 2000, 矿工 1000, 跳跳 1000, 蹦极 1000, 梯子 1000, 投篮 1500, 白眼 1500, 红眼 6000.
 
@@ -55597,7 +55597,7 @@ Let me do it properly. I'll restructure the engine with:
 
 1. **Spawn model**: 波内依次生成。每只间隔 = 均匀 5~20cs? Need a source. Hmm. In PvZ, zombies in a wave spawn with `spawnInterval`. I believe the actual interval between zombies within a wave is 4~12cs for the "huge wave" and larger normally... Let me just fetch the wiki to be accurate, since user cares about accuracy.
 
-Actually let me check 知识库/02 for spawn interval info.
+Actually let me check docs/知识库/02 for spawn interval info.
 
 Let me grep.
 
@@ -55719,7 +55719,7 @@ Let me grep.
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && grep -n \"间隔\\|生成\\|spawn\" 知识库/02-核心-僵尸刷新机制.md | head -30", "description": "查波内生成间隔"}
+{"command": "cd \"D:/PVZ endless\" && grep -n \"间隔\\|生成\\|spawn\" docs/知识库/02-核心-僵尸刷新机制.md | head -30", "description": "查波内生成间隔"}
 ```
 
 **📤 工具结果** `call_00_2d8lsyYEUUuxRjpfiXiZ4502`
@@ -55782,7 +55782,7 @@ Signal: (none)
 **📤 工具结果** `call_01_iXScou93Jpju0k6lXnMx9852`
 
 ```
-Command: cd "D:/PVZ endless" && grep -n "间隔\|生成\|spawn" 知识库/02-核心-僵尸刷新机制.md | head -30
+Command: cd "D:/PVZ endless" && grep -n "间隔\|生成\|spawn" docs/知识库/02-核心-僵尸刷新机制.md | head -30
 Stdout: 18:| **R1** | 任意两波刷新间隔**绝不少于 6s** | 6.0s |
 50:- `?` 处的间隔由 R1/R2/R3 共同决定，**最小 6s**。
 
@@ -56121,7 +56121,7 @@ Hmm, that suggests either:
 
 Let me reconsider the weight table. Actually I should verify weights from the wiki. The 09 doc has a 33-item weight table. Let me look at it.
 
-Let me check 知识库/09 for the weights.
+Let me check docs/知识库/09 for the weights.
 
 </details>
 
@@ -56132,13 +56132,13 @@ Let me check 知识库/09 for the weights.
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && sed -n '1,105p' 知识库/09-维基-出怪机制.md", "description": "查看出怪权重表原文"}
+{"command": "cd \"D:/PVZ endless\" && sed -n '1,105p' docs/知识库/09-维基-出怪机制.md", "description": "查看出怪权重表原文"}
 ```
 
 **📤 工具结果** `call_00_aTAzr8lvaGQDsiSxI3rK7301`
 
 ```
-Command: cd "D:/PVZ endless" && sed -n '1,105p' 知识库/09-维基-出怪机制.md
+Command: cd "D:/PVZ endless" && sed -n '1,105p' docs/知识库/09-维基-出怪机制.md
 Stdout: # 09 · 维基：出怪机制
 
 > 来源：维基《技术:出怪机制》（引自 pvz.tools/植僵百科知识）。
@@ -56257,13 +56257,13 @@ Signal: (none)
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && sed -n '105,175p' 知识库/09-维基-出怪机制.md", "description": "读出怪权重表"}
+{"command": "cd \"D:/PVZ endless\" && sed -n '105,175p' docs/知识库/09-维基-出怪机制.md", "description": "读出怪权重表"}
 ```
 
 **📤 工具结果** `call_00_ET_yh3YDMuqyk1j8gT6KO0p4495`
 
 ```
-Command: cd "D:/PVZ endless" && sed -n '105,175p' 知识库/09-维基-出怪机制.md
+Command: cd "D:/PVZ endless" && sed -n '105,175p' docs/知识库/09-维基-出怪机制.md
 Stdout: | # | 僵尸 | 级别 | 权重 | 备注 |
 |---|---|---|---|---|
 | 0 | 普僵 | 1 | **4000** | 轮数 5 起每轮 −180，轮数 25 起固定 400 |
@@ -57888,7 +57888,7 @@ Hmm OK so the cap is ~500 for w1. Not binding.
 
 Then how do people survive? Because... hmm.
 
-Wait. Maybe I have 阶数 backwards. Let me re-read 知识库/09's 阶数 table: "四阶 白眼、红眼 第15波；轮数 9 起每轮 −1，轮数 23 起固定 1". 
+Wait. Maybe I have 阶数 backwards. Let me re-read docs/知识库/09's 阶数 table: "四阶 白眼、红眼 第15波；轮数 9 起每轮 −1，轮数 23 起固定 1". 
 
 Hmm, this is what the wiki says. So at 轮数≥23, giants from wave 1.
 
@@ -57997,7 +57997,7 @@ What if the cap is right but the **fill stops at the cap**, and the pool's avera
 
 I'm going in circles.
 
-Let me look at actual data: 知识库/09 has 饱和阈值 47f/85f/109f/126f. "85f 级别上限在统计意义上不再起限制作用" — meaning at 85 flags, the cap is big enough that the wave fills to 50. So BEFORE 85f, waves are smaller. After 85f, waves are 50.
+Let me look at actual data: docs/知识库/09 has 饱和阈值 47f/85f/109f/126f. "85f 级别上限在统计意义上不再起限制作用" — meaning at 85 flags, the cap is big enough that the wave fills to 50. So BEFORE 85f, waves are smaller. After 85f, waves are 50.
 
 So at 125F, waves ARE 50 zombies. And that's what the user says ("饱和出怪").
 
@@ -60884,7 +60884,7 @@ Actually, let me reconsider: 忧郁菇 in PvZ has `mLaunchCounter` and fires spo
 
 Hmm, the DPS chart: Gloom-shroom DPS is listed as ~20/1.9 = 10.5 per zombie. Hmm.
 
-Let me check 知识库/05 for the attack interval table I read earlier.
+Let me check docs/知识库/05 for the attack interval table I read earlier.
 
 Let me grep for 攻击间隔.
 
@@ -60965,7 +60965,7 @@ Hmm.
 
 So DPS ~1900 max in sim. 
 
-Hmm, let me reconsider whether 忧郁菇 interval should be 193cs. Let me check 知识库/05.
+Hmm, let me reconsider whether 忧郁菇 interval should be 193cs. Let me check docs/知识库/05.
 
 Actually — wait. I wonder if 忧郁菇 attacks 4 times per cycle (one per direction), effectively 4×20 damage to a zombie in range? No.
 
@@ -60986,13 +60986,13 @@ Let me grep 05.
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && grep -n \"忧郁菇\\|大喷菇\\|冰瓜\\|攻击间隔\\|间隔\" 知识库/05-数据-精确数值手册.md | sed -n '1,30p'", "description": "核对植物攻击间隔"}
+{"command": "cd \"D:/PVZ endless\" && grep -n \"忧郁菇\\|大喷菇\\|冰瓜\\|攻击间隔\\|间隔\" docs/知识库/05-数据-精确数值手册.md | sed -n '1,30p'", "description": "核对植物攻击间隔"}
 ```
 
 **📤 工具结果** `call_00_FMIL6nzpshMmeriC2cX82418`
 
 ```
-Command: cd "D:/PVZ endless" && grep -n "忧郁菇\|大喷菇\|冰瓜\|攻击间隔\|间隔" 知识库/05-数据-精确数值手册.md | sed -n '1,30p'
+Command: cd "D:/PVZ endless" && grep -n "忧郁菇\|大喷菇\|冰瓜\|攻击间隔\|间隔" docs/知识库/05-数据-精确数值手册.md | sed -n '1,30p'
 Stdout: 83:| 大嘴花：空开咬间隔 | 107 |
 118:| 投篮：攻击间隔 | 300 |
 122:## 五、攻击间隔与命中延迟
@@ -61043,13 +61043,13 @@ Let me read lines 190-215 of 05.
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && sed -n '122,215p' 知识库/05-数据-精确数值手册.md", "description": "读攻击间隔与射程原文"}
+{"command": "cd \"D:/PVZ endless\" && sed -n '122,215p' docs/知识库/05-数据-精确数值手册.md", "description": "读攻击间隔与射程原文"}
 ```
 
 **📤 工具结果** `call_00_KbhdVGSaBW9PbZqqaG0Y9024`
 
 ```
-Command: cd "D:/PVZ endless" && sed -n '122,215p' 知识库/05-数据-精确数值手册.md
+Command: cd "D:/PVZ endless" && sed -n '122,215p' docs/知识库/05-数据-精确数值手册.md
 Stdout: ## 五、攻击间隔与命中延迟
 
 ### 5.1 攻击间隔
@@ -61537,7 +61537,7 @@ Hmm.
 
 Whatever the interpretation, the empirical anchor says waves ≈ 15-22k HP. And that's ROUND 5-9.
 
-Interesting: 知识库/09 says "85f 级别上限在统计意义上不再起限制作用" — at 轮数 41. Under my formula cap=329 at w1. To fill 50 slots with avg level 5.3 needs 265 < 329 → not binding. At 轮数 15: cap = (1+300)*0.8/2+1 = 121 → binds (need 265). At 轮数 9: cap = (1+180)*0.8/2+1 = 73 → strongly binds.
+Interesting: docs/知识库/09 says "85f 级别上限在统计意义上不再起限制作用" — at 轮数 41. Under my formula cap=329 at w1. To fill 50 slots with avg level 5.3 needs 265 < 329 → not binding. At 轮数 15: cap = (1+300)*0.8/2+1 = 121 → binds (need 265). At 轮数 9: cap = (1+180)*0.8/2+1 = 73 → strongly binds.
 
 Hmm, so 85f "不再限制" implies cap ≥ 265 at 轮数 41. Consistent with the formula. And at 125F cap = 489.
 
@@ -67251,13 +67251,13 @@ dps ≈ 6000-1436 = 4564 伤害 / 30s = 152 dps。所以 1436/152 = 9.4s 就死�
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && grep -n \"巨人\\|举锤\\|砸\\|smash\\|1800\" 知识库/05-数据-精确数值手册.md | head -20; echo \"=== 06\"; grep -n \"巨人\\|举锤\\|砸\" 知识库/06-专题-控丑与关键波长.md | head -10", "description": "查巨人攻击数据"}
+{"command": "cd \"D:/PVZ endless\" && grep -n \"巨人\\|举锤\\|砸\\|smash\\|1800\" docs/知识库/05-数据-精确数值手册.md | head -20; echo \"=== 06\"; grep -n \"巨人\\|举锤\\|砸\" docs/知识库/06-专题-控丑与关键波长.md | head -10", "description": "查巨人攻击数据"}
 ```
 
 **📤 工具结果** `call_00_Jr2CyiZbqF1XeyRdldbY3009`
 
 ```
-Command: cd "D:/PVZ endless" && grep -n "巨人\|举锤\|砸\|smash\|1800" 知识库/05-数据-精确数值手册.md | head -20; echo "=== 06"; grep -n "巨人\|举锤\|砸" 知识库/06-专题-控丑与关键波长.md | head -10
+Command: cd "D:/PVZ endless" && grep -n "巨人\|举锤\|砸\|smash\|1800" docs/知识库/05-数据-精确数值手册.md | head -20; echo "=== 06"; grep -n "巨人\|举锤\|砸" docs/知识库/06-专题-控丑与关键波长.md | head -10
 Stdout: 67:| 撑杆、巨人 | **−150** |
 177:**防御判定（受啃/碾/砸）**：
 263:### 11.2 巨人 / 小鬼
@@ -67867,13 +67867,13 @@ Hmm。
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && grep -n \"可伤\\|800\\|防御域\" 知识库/05-数据-精确数值手册.md | head -12", "description": "核对可伤线原文"}
+{"command": "cd \"D:/PVZ endless\" && grep -n \"可伤\\|800\\|防御域\" docs/知识库/05-数据-精确数值手册.md | head -12", "description": "核对可伤线原文"}
 ```
 
 **📤 工具结果** `call_00_VQr9wNMPxP2caxOsfYbb3275`
 
 ```
-Command: cd "D:/PVZ endless" && grep -n "可伤\|800\|防御域" 知识库/05-数据-精确数值手册.md | head -12
+Command: cd "D:/PVZ endless" && grep -n "可伤\|800\|防御域" docs/知识库/05-数据-精确数值手册.md | head -12
 Stdout: 71:**僵尸可伤条件**：防御域左端 ≤ 800。
 
 Stderr: (empty)
@@ -76378,19 +76378,19 @@ Arguments: {"command":"cd \"D:/PVZ endless\" && grep -rn \"投石车\\|投篮\" 
 
 <previous_tool_call>
 Tool: Read
-Arguments: {"file_path":"D:/PVZ endless/知识库/06-专题-控丑与关键波长.md","offset":165,"limit":50}
+Arguments: {"file_path":"D:/PVZ endless/docs/知识库/06-专题-控丑与关键波长.md","offset":165,"limit":50}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Read
-Arguments: {"file_path":"D:/PVZ endless/知识库/05-数据-精确数值手册.md","offset":265,"limit":40}
+Arguments: {"file_path":"D:/PVZ endless/docs/知识库/05-数据-精确数值手册.md","offset":265,"limit":40}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Read
-Arguments: {"file_path":"D:/PVZ endless/知识库/07-专题-炮位理论与阵型库.md","limit":45,"offset":10}
+Arguments: {"file_path":"D:/PVZ endless/docs/知识库/07-专题-炮位理论与阵型库.md","limit":45,"offset":10}
 <result><omitted /></result>
 </previous_tool_call>
 
@@ -76402,25 +76402,25 @@ Arguments: {"command":"cd \"D:/PVZ endless\" && grep -rn \"底线\" --include=*.
 
 <previous_tool_call>
 Tool: Read
-Arguments: {"file_path":"D:/PVZ endless/知识库/09-维基-出怪机制.md","limit":45,"offset":105}
+Arguments: {"file_path":"D:/PVZ endless/docs/知识库/09-维基-出怪机制.md","limit":45,"offset":105}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '40,120p' 知识库/05-数据-精确数值手册.md","description":"查看射程与判定数据"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '40,120p' docs/知识库/05-数据-精确数值手册.md","description":"查看射程与判定数据"}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"射程\\|忧郁菇\\|大喷\" 知识库/05-数据-精确数值手册.md | head -20","description":"查射程条目"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"射程\\|忧郁菇\\|大喷\" docs/知识库/05-数据-精确数值手册.md | head -20","description":"查射程条目"}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '122,180p' 知识库/05-数据-精确数值手册.md","description":"查看植物攻击间隔与射程表"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '122,180p' docs/知识库/05-数据-精确数值手册.md","description":"查看植物攻击间隔与射程表"}
 <result><omitted /></result>
 </previous_tool_call>
 
@@ -76936,13 +76936,13 @@ Arguments: {"file_path":"D:/PVZ endless/练习/FE.雾四炮/运阵手册.md","ne
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && grep -rn \"1800\\|玉米炮.*伤害\\|红眼.*6000\\|6000\" 知识库/*.md | head -12","description":"核对炮伤害与红眼血量"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && grep -rn \"1800\\|玉米炮.*伤害\\|红眼.*6000\\|6000\" docs/知识库/*.md | head -12","description":"核对炮伤害与红眼血量"}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"寒冰菇\\|毁灭菇\\|Ice-shroom\\|Doom\" 知识库/05-数据-精确数值手册.md | head","description":"核对寒冰菇与毁灭菇价格"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"寒冰菇\\|毁灭菇\\|Ice-shroom\\|Doom\" docs/知识库/05-数据-精确数值手册.md | head","description":"核对寒冰菇与毁灭菇价格"}
 <result><omitted /></result>
 </previous_tool_call>
 
@@ -77924,7 +77924,7 @@ Arguments: {"cwd":"D:/PVZ endless","explanation":"写入两项工程决策：陆
 
 <previous_user_message>
 
-每次都要上机验证打2F还是比较麻烦，能够按照PvZ的规则、“剔除次要因素保留主要因素”（这是减少工作量、时间复杂度的关键）制作一个简易轨道验证器吗？因为我们对于PvZ有精确数据 @"D:/PVZ endless/知识库/05-数据-精确数值手册.md"（只要原版模型），只需要代码模拟每一个对象即可，甚至可以直接“格子除以速度得到时间（有垫材、冰等等其它方法延长这个时间），时间乘dps得伤害，大于hp就可以”的超级简化模型（这样的算法是否太简单了以至于不太准确？）。如此可以快速验证轨道的循环是否成立。
+每次都要上机验证打2F还是比较麻烦，能够按照PvZ的规则、“剔除次要因素保留主要因素”（这是减少工作量、时间复杂度的关键）制作一个简易轨道验证器吗？因为我们对于PvZ有精确数据 @"D:/PVZ endless/docs/知识库/05-数据-精确数值手册.md"（只要原版模型），只需要代码模拟每一个对象即可，甚至可以直接“格子除以速度得到时间（有垫材、冰等等其它方法延长这个时间），时间乘dps得伤害，大于hp就可以”的超级简化模型（这样的算法是否太简单了以至于不太准确？）。如此可以快速验证轨道的循环是否成立。
 模拟器甚至不需要知道阵容的样子，只需要知道有哪些格子会被僵尸践踏并且付出的代价就行了
 以PE.电波钟无炮为例，可以以这样的思路搭建模拟模型：
 对每个格子建立输出对象（包含属性dps（指的是io；定时炮落地另外计算）、核坑倒计时等等），对每种能够产生影响的僵尸建立对象（包含属性速度（只保留随机区间最快和最慢）、hp等等，还有尸潮总hp用来制作刷怪计时器），对会受损的植物（一般是南瓜和别的防御植物）建立对象（包含属性hp（南瓜计算平均回复速度叠在血量亏损上）等等），对卡槽建立结构体（包含对象卡片（其中一部分选卡的cd、cost）、经济等等）。如果有合适的算法，仅仅通过计算就算出轨道行不行。
@@ -77940,37 +77940,37 @@ Arguments: {"cwd":"D:/PVZ endless","explanation":"写入两项工程决策：陆
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"^## \\|^### \" 知识库/05-数据-精确数值手册.md","description":"看05手册目录结构"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"^## \\|^### \" docs/知识库/05-数据-精确数值手册.md","description":"看05手册目录结构"}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Read
-Arguments: {"file_path":"D:/PVZ endless/知识库/05-数据-精确数值手册.md","offset":1,"limit":42}
+Arguments: {"file_path":"D:/PVZ endless/docs/知识库/05-数据-精确数值手册.md","offset":1,"limit":42}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Read
-Arguments: {"file_path":"D:/PVZ endless/知识库/05-数据-精确数值手册.md","offset":108,"limit":30}
+Arguments: {"file_path":"D:/PVZ endless/docs/知识库/05-数据-精确数值手册.md","offset":108,"limit":30}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"速度\\|血量\\|hp\\|HP\\|270\\|370\\|1370\\|1670\\|3000\\|6000\" 知识库/05-数据-精确数值手册.md | head -20","description":"查找僵尸血量与速度"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"速度\\|血量\\|hp\\|HP\\|270\\|370\\|1370\\|1670\\|3000\\|6000\" docs/知识库/05-数据-精确数值手册.md | head -20","description":"查找僵尸血量与速度"}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Read
-Arguments: {"file_path":"D:/PVZ endless/知识库/05-数据-精确数值手册.md","limit":40,"offset":188}
+Arguments: {"file_path":"D:/PVZ endless/docs/知识库/05-数据-精确数值手册.md","limit":40,"offset":188}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '1,80p' 知识库/02-核心-僵尸刷新机制.md","description":"读刷新机制核心规则"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '1,80p' docs/知识库/02-核心-僵尸刷新机制.md","description":"读刷新机制核心规则"}
 <result><omitted /></result>
 </previous_tool_call>
 
@@ -79095,19 +79095,19 @@ Arguments: {"command":"cd \"D:/PVZ endless\" && for t in 变速 快速 极速; d
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && rm -rf \"练习/PE.电波钟无炮/_v\" && python - << 'PYEOF'\np='知识库/09-维基-出怪机制.md'\ns=open(p,encoding='utf-8').read()\nadd = \"\"\"\n\n---\n\n## ★ 饱和出怪：每波 50 只（2026-10-18 补，来源 wiki《技术:出怪机制》）\n\n> 这一节解释了为什么\"每一波每一路、除红眼外每种僵尸都会来几只\" —— **对策不能省**。\n\n### 出怪列表是唯一的数量来源\n\n> \"完整的出怪列表长度 2000……**每 50 个为 1 波，总共记录 40 波。因此，每波至多生成 50 只僵尸。**\n> 若出怪列表中留空，则对应波次会生成少于 50 只。\n> **每波僵尸刷新时，游戏会严格按照出怪列表预先设定的顺序依次生成对应僵尸。**\"\n\n```\n生存无尽每轮 20 波 → 只用前 1000 个值\n列表在选卡页面就已确定；退出重进可刷新（\"无痕 S/L\"）\n```\n\n### 列表怎么被填满：权重 → 数量\n\n权重不直接等于数量，而是**加权随机决定下一个填谁**，直到**本波级别总和逼近级别上限**为止：\n\n```\n每波级别上限 = int(int((当前波数 + 已完成选卡数 × 20) × 0.8) / 2) + 1\n               旗帜波 ×2.5，向零取整\n```\n\n**饱和之后（f ≥ 85）级别上限不再起限制作用 → 列表被填满 → 每波 50 只。**\n50 只摊到 6 路，每路 8~9 只，再按权重分配种类 —— 这就是\"每种都会来\"的来源。\n\n### 三个饱和阈值（原文）\n\n| flags | 含义 |\n|---|---|\n| **47f** | 阶数不再起限制作用 |\n| **85f** | 级别上限在**统计意义**上不再起限制作用 |\n| **109f** | 红眼数量上限不再起限制作用 |\n| **126f** | 级别上限在**严格意义**上不再起限制作用 |\n\n### 红眼数量上限（原文）\n\n> \"已生成的红眼总数达到上限后，非旗帜波不再出红眼，立刻生效。\n> 上限初始为 0，**轮数=5 起每轮 +1**，轮数=54 起固定 50。\"\n\n（轮数 = 选卡时已完成 flag 数 / 2 − 1）\n\n### 阶数：决定\"从第几波才会出现\"\n\n| 阶 | 僵尸 | 最早出现 |\n|---|---|---|\n| 一阶 | 普、路障、铁桶、读报、雪人 | 第 1 波 |\n| 二阶 | 撑杆、铁门、橄榄、舞王 | 第 5 波 |\n| 三阶 | 潜水、海豚、冰车、小丑、气球、矿工、跳跳、梯子、投篮 | 第 10 波 |\n| 四阶 | 白眼、红眼 | 第 15 波（轮数=9 起每轮 −1，23 起固定 1） |\n\n### 对做阵/做验证的直接结论\n\n```\n① 别抱侥幸：饱和后每波 50 只，**每一路每种都会来**\n   → 任何\"这个僵尸来得少所以可以不管\"的假设都是错的\n② 前 9 波是\"一二阶\"的天下，三阶僵尸第 10 波才登场\n   → w1~w9 的压力主要来自 普/路障/铁桶/橄榄/铁门/舞王/撑杆\n③ 蹦极权重 1000，且**仅旗帜波生成** → 只可能在 w10 / w20 出现\n④ 红眼上限随轮数线性增长，轮数=54 起固定 50\n```\n\n> 验证器里的实现：`tools/trackcheck/spawn.py`（加权随机 + 级别上限 + 阶数门控 + 每波≤50）。\n\"\"\"\nif '饱和出怪：每波 50 只' not in s:\n    s = s + add\nopen(p,'w',encoding='utf-8').write(s)\nprint('09 updated')\nPYEOF","description":"把饱和出怪写进知识库09"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && rm -rf \"练习/PE.电波钟无炮/_v\" && python - << 'PYEOF'\np='docs/知识库/09-维基-出怪机制.md'\ns=open(p,encoding='utf-8').read()\nadd = \"\"\"\n\n---\n\n## ★ 饱和出怪：每波 50 只（2026-10-18 补，来源 wiki《技术:出怪机制》）\n\n> 这一节解释了为什么\"每一波每一路、除红眼外每种僵尸都会来几只\" —— **对策不能省**。\n\n### 出怪列表是唯一的数量来源\n\n> \"完整的出怪列表长度 2000……**每 50 个为 1 波，总共记录 40 波。因此，每波至多生成 50 只僵尸。**\n> 若出怪列表中留空，则对应波次会生成少于 50 只。\n> **每波僵尸刷新时，游戏会严格按照出怪列表预先设定的顺序依次生成对应僵尸。**\"\n\n```\n生存无尽每轮 20 波 → 只用前 1000 个值\n列表在选卡页面就已确定；退出重进可刷新（\"无痕 S/L\"）\n```\n\n### 列表怎么被填满：权重 → 数量\n\n权重不直接等于数量，而是**加权随机决定下一个填谁**，直到**本波级别总和逼近级别上限**为止：\n\n```\n每波级别上限 = int(int((当前波数 + 已完成选卡数 × 20) × 0.8) / 2) + 1\n               旗帜波 ×2.5，向零取整\n```\n\n**饱和之后（f ≥ 85）级别上限不再起限制作用 → 列表被填满 → 每波 50 只。**\n50 只摊到 6 路，每路 8~9 只，再按权重分配种类 —— 这就是\"每种都会来\"的来源。\n\n### 三个饱和阈值（原文）\n\n| flags | 含义 |\n|---|---|\n| **47f** | 阶数不再起限制作用 |\n| **85f** | 级别上限在**统计意义**上不再起限制作用 |\n| **109f** | 红眼数量上限不再起限制作用 |\n| **126f** | 级别上限在**严格意义**上不再起限制作用 |\n\n### 红眼数量上限（原文）\n\n> \"已生成的红眼总数达到上限后，非旗帜波不再出红眼，立刻生效。\n> 上限初始为 0，**轮数=5 起每轮 +1**，轮数=54 起固定 50。\"\n\n（轮数 = 选卡时已完成 flag 数 / 2 − 1）\n\n### 阶数：决定\"从第几波才会出现\"\n\n| 阶 | 僵尸 | 最早出现 |\n|---|---|---|\n| 一阶 | 普、路障、铁桶、读报、雪人 | 第 1 波 |\n| 二阶 | 撑杆、铁门、橄榄、舞王 | 第 5 波 |\n| 三阶 | 潜水、海豚、冰车、小丑、气球、矿工、跳跳、梯子、投篮 | 第 10 波 |\n| 四阶 | 白眼、红眼 | 第 15 波（轮数=9 起每轮 −1，23 起固定 1） |\n\n### 对做阵/做验证的直接结论\n\n```\n① 别抱侥幸：饱和后每波 50 只，**每一路每种都会来**\n   → 任何\"这个僵尸来得少所以可以不管\"的假设都是错的\n② 前 9 波是\"一二阶\"的天下，三阶僵尸第 10 波才登场\n   → w1~w9 的压力主要来自 普/路障/铁桶/橄榄/铁门/舞王/撑杆\n③ 蹦极权重 1000，且**仅旗帜波生成** → 只可能在 w10 / w20 出现\n④ 红眼上限随轮数线性增长，轮数=54 起固定 50\n```\n\n> 验证器里的实现：`tools/trackcheck/spawn.py`（加权随机 + 级别上限 + 阶数门控 + 每波≤50）。\n\"\"\"\nif '饱和出怪：每波 50 只' not in s:\n    s = s + add\nopen(p,'w',encoding='utf-8').write(s)\nprint('09 updated')\nPYEOF","description":"把饱和出怪写进知识库09"}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && python - << 'PYEOF'\np='tools/trackcheck/README.md'\ns=open(p,encoding='utf-8').read()\ns += \"\"\"\n\n---\n\n## v0.6 —— 出怪改成真实机制 + 四档录像实测（2026-10-18 晚）\n\n### 出怪不再是\"编\"的，按《技术:出怪机制》生成\n\n新增 `spawn.py`：\n\n```\n加权随机填满「出怪列表」，受四个约束：\n  ① 每波至多 50 只（列表 2000 项 / 50 = 40 波）\n  ② 级别上限 = int(int((波数 + 轮数×20) × 0.8)/2) + 1，旗帜波 ×2.5\n  ③ 阶数门控（三阶僵尸第 10 波才出现，四阶第 15 波，轮数=9 起每轮 -1）\n  ④ 红眼数量上限（轮数=5 起每轮 +1，54 起固定 50）\n```\n\n**饱和之后每波就是 50 只** —— 50 只摊到 6 路，每路 8~9 只，按权重分种类。\n这就是\"每一路每种都会来，对策不能省\"的来源。改完之后模拟出来的波次规模：\n\n```\nw1  49 只（路障 23 + 普通 26）\nw10 51 只（含旗帜；冰车 9、海豚 6、蹦极 4……）\nw20 48 只（红眼 9、白眼 1、冰车 3……）\n```\n\n以前那版 w1 只有 5 只 —— **差了十倍**。\n\n### 四档录像：暂停扣除后的有效时长（★ 这是本轮最硬的实测数据）\n\n用\"GAME PAUSED 面板\"的深灰蓝配色做检测（`paused.py`）：\n\n| 档 | 录像 | 暂停 | **有效游戏时长** | 折算每波 |\n|---|---|---|---|---|\n| 慢速 | 457s | 164s（36%） | **293s** | **14.7s** |\n| 变速 | 366s | 81s（22%） | **285s** | **14.3s** |\n| 快速 | 279s | 95s（34%） | **184s** | **9.2s** |\n| 极速 | 245s | 25s（10%） | **220s** | **11.0s** |\n\n### ★ 这张表和 L1 的 12.5s 硬下限对上了\n\n```\nC4io 要求平均波长 ≥ 12.5s（冰 CD 50s ÷ 4 波）\n\n慢速 14.7s ✔  变速 14.3s ✔   → C4io 成立\n快速  9.2s ✘  极速 11.0s ✘   → C4io 不成立\n```\n\n而实际打法正是：\n\n```\n慢速 → 完整 C4io\n快速 → AA' 拆开（降低对单卡的依赖）\n极速 → 几乎不操作（索性放弃以卡为核心的打法）\n```\n\n**三条独立路径（理论 CD 账、录像实测、实际打法）指向同一个分界。**\n这是整个验证器第一次做到\"理论—实测—操作\"三方对齐。\n\n### 暂停检测做法（可复用）\n\n```bash\nffmpeg -i xx.mp4 -vf \"fps=1,scale=320:-1\" frames/%05d.png\npython tools/trackcheck/paused.py frames/\n```\n\n判据：画面中上部（10%~62% 宽、6%~55% 高）里，\"暗 + 低彩度\"像素占比 > 18%。\n正常游戏 < 8%，暂停时 > 30%。\n（`freezedetect` 不可用 —— PvZ 暂停时植物/阳光仍在动，画面不冻结。）\n\"\"\"\nopen(p,'w',encoding='utf-8').write(s)\nprint('ok')\nPYEOF\ncat >> .workbuddy/memory/2026-10-18.md << 'EOF'\n\n---\n\n## 第十五批：出怪机制真实化 + 四档录像暂停检测（20:18）\n\n### 1. 出怪不再是编的\n抓 wiki《技术:出怪机制》，拿到核心：**出怪列表 2000 项、每 50 个一波、每波至多 50 只、按级别上限加权随机填充**。\n新增 `spawn.py` 实现：加权随机 + 级别上限公式 + 阶数门控 + 红眼上限 + 每波≤50。\n饱和后 **每波 50 只**（摊 6 路，每路 8~9 只）→ 这就是用户说的\"每一路每种都会来，对策不能省\"。\n改完 w1 从 5 只变成 49 只（差十倍）。已把这一节写进 `知识库/09`。\n\n### 2. 四档录像：暂停扣除（★ 本轮最硬数据）\n用\"GAME PAUSED 面板\"深灰蓝配色检测（新增 `paused.py`）：\n| 档 | 录像 | 暂停 | 有效 | 每波 |\n|---|---|---|---|---|\n| 慢速 | 457s | 164s(36%) | 293s | **14.7s** |\n| 变速 | 366s | 81s(22%) | 285s | **14.3s** |\n| 快速 | 279s | 95s(34%) | 184s | **9.2s** |\n| 极速 | 245s | 25s(10%) | 220s | **11.0s** |\n\n**和 L1 算的 12.5s 硬下限对上了**：慢速/变速 >12.5 ✔，快速/极速 <12.5 ✘\n而实际打法正是：慢速完整 C4io / 快速 AA' 拆开 / 极速几乎不操作。\n**理论 CD 账 + 录像实测 + 实际打法，三条独立路径指向同一分界。**\n\n### 3. 方法记录\n`freezedetect` 不可用（PvZ 暂停时画面不冻结）；改用颜色特征：中上部\"暗+低彩度\"像素占比 >18% 即暂停。\nEOF\necho ok","description":"更新README与记忆"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && python - << 'PYEOF'\np='tools/trackcheck/README.md'\ns=open(p,encoding='utf-8').read()\ns += \"\"\"\n\n---\n\n## v0.6 —— 出怪改成真实机制 + 四档录像实测（2026-10-18 晚）\n\n### 出怪不再是\"编\"的，按《技术:出怪机制》生成\n\n新增 `spawn.py`：\n\n```\n加权随机填满「出怪列表」，受四个约束：\n  ① 每波至多 50 只（列表 2000 项 / 50 = 40 波）\n  ② 级别上限 = int(int((波数 + 轮数×20) × 0.8)/2) + 1，旗帜波 ×2.5\n  ③ 阶数门控（三阶僵尸第 10 波才出现，四阶第 15 波，轮数=9 起每轮 -1）\n  ④ 红眼数量上限（轮数=5 起每轮 +1，54 起固定 50）\n```\n\n**饱和之后每波就是 50 只** —— 50 只摊到 6 路，每路 8~9 只，按权重分种类。\n这就是\"每一路每种都会来，对策不能省\"的来源。改完之后模拟出来的波次规模：\n\n```\nw1  49 只（路障 23 + 普通 26）\nw10 51 只（含旗帜；冰车 9、海豚 6、蹦极 4……）\nw20 48 只（红眼 9、白眼 1、冰车 3……）\n```\n\n以前那版 w1 只有 5 只 —— **差了十倍**。\n\n### 四档录像：暂停扣除后的有效时长（★ 这是本轮最硬的实测数据）\n\n用\"GAME PAUSED 面板\"的深灰蓝配色做检测（`paused.py`）：\n\n| 档 | 录像 | 暂停 | **有效游戏时长** | 折算每波 |\n|---|---|---|---|---|\n| 慢速 | 457s | 164s（36%） | **293s** | **14.7s** |\n| 变速 | 366s | 81s（22%） | **285s** | **14.3s** |\n| 快速 | 279s | 95s（34%） | **184s** | **9.2s** |\n| 极速 | 245s | 25s（10%） | **220s** | **11.0s** |\n\n### ★ 这张表和 L1 的 12.5s 硬下限对上了\n\n```\nC4io 要求平均波长 ≥ 12.5s（冰 CD 50s ÷ 4 波）\n\n慢速 14.7s ✔  变速 14.3s ✔   → C4io 成立\n快速  9.2s ✘  极速 11.0s ✘   → C4io 不成立\n```\n\n而实际打法正是：\n\n```\n慢速 → 完整 C4io\n快速 → AA' 拆开（降低对单卡的依赖）\n极速 → 几乎不操作（索性放弃以卡为核心的打法）\n```\n\n**三条独立路径（理论 CD 账、录像实测、实际打法）指向同一个分界。**\n这是整个验证器第一次做到\"理论—实测—操作\"三方对齐。\n\n### 暂停检测做法（可复用）\n\n```bash\nffmpeg -i xx.mp4 -vf \"fps=1,scale=320:-1\" frames/%05d.png\npython tools/trackcheck/paused.py frames/\n```\n\n判据：画面中上部（10%~62% 宽、6%~55% 高）里，\"暗 + 低彩度\"像素占比 > 18%。\n正常游戏 < 8%，暂停时 > 30%。\n（`freezedetect` 不可用 —— PvZ 暂停时植物/阳光仍在动，画面不冻结。）\n\"\"\"\nopen(p,'w',encoding='utf-8').write(s)\nprint('ok')\nPYEOF\ncat >> .workbuddy/memory/2026-10-18.md << 'EOF'\n\n---\n\n## 第十五批：出怪机制真实化 + 四档录像暂停检测（20:18）\n\n### 1. 出怪不再是编的\n抓 wiki《技术:出怪机制》，拿到核心：**出怪列表 2000 项、每 50 个一波、每波至多 50 只、按级别上限加权随机填充**。\n新增 `spawn.py` 实现：加权随机 + 级别上限公式 + 阶数门控 + 红眼上限 + 每波≤50。\n饱和后 **每波 50 只**（摊 6 路，每路 8~9 只）→ 这就是用户说的\"每一路每种都会来，对策不能省\"。\n改完 w1 从 5 只变成 49 只（差十倍）。已把这一节写进 `docs/知识库/09`。\n\n### 2. 四档录像：暂停扣除（★ 本轮最硬数据）\n用\"GAME PAUSED 面板\"深灰蓝配色检测（新增 `paused.py`）：\n| 档 | 录像 | 暂停 | 有效 | 每波 |\n|---|---|---|---|---|\n| 慢速 | 457s | 164s(36%) | 293s | **14.7s** |\n| 变速 | 366s | 81s(22%) | 285s | **14.3s** |\n| 快速 | 279s | 95s(34%) | 184s | **9.2s** |\n| 极速 | 245s | 25s(10%) | 220s | **11.0s** |\n\n**和 L1 算的 12.5s 硬下限对上了**：慢速/变速 >12.5 ✔，快速/极速 <12.5 ✘\n而实际打法正是：慢速完整 C4io / 快速 AA' 拆开 / 极速几乎不操作。\n**理论 CD 账 + 录像实测 + 实际打法，三条独立路径指向同一分界。**\n\n### 3. 方法记录\n`freezedetect` 不可用（PvZ 暂停时画面不冻结）；改用颜色特征：中上部\"暗+低彩度\"像素占比 >18% 即暂停。\nEOF\necho ok","description":"更新README与记忆"}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: present_files
-Arguments: {"cwd":"D:/PVZ endless","explanation":"出怪按真实机制生成 + 四档录像暂停扣除后的实测波长","files":["D:/PVZ endless/tools/trackcheck/README.md","D:/PVZ endless/tools/trackcheck/spawn.py","D:/PVZ endless/tools/trackcheck/paused.py","D:/PVZ endless/知识库/09-维基-出怪机制.md"]}
+Arguments: {"cwd":"D:/PVZ endless","explanation":"出怪按真实机制生成 + 四档录像暂停扣除后的实测波长","files":["D:/PVZ endless/tools/trackcheck/README.md","D:/PVZ endless/tools/trackcheck/spawn.py","D:/PVZ endless/tools/trackcheck/paused.py","D:/PVZ endless/docs/知识库/09-维基-出怪机制.md"]}
 <result><omitted /></result>
 </previous_tool_call>
 
@@ -79163,7 +79163,7 @@ w20 48 只（红眼 9、白眼 1、冰车 3…）
 
 **这就是“每一路每种都会来”的机制来源**：50 只摊到 6 路，每路 8~9 只，再按权重分配种类。你之前说“不要抱侥幸心理”，现在模型里是真的没有侥幸空间了。
 
-这一节我已经写进了 `知识库/09`，包含原文引用、四个饱和阈值（47/85/109/126f）、阶数表、红眼上限公式。
+这一节我已经写进了 `docs/知识库/09`，包含原文引用、四个饱和阈值（47/85/109/126f）、阶数表、红眼上限公式。
 
 ## 四、两处要说明的
 
@@ -79242,7 +79242,7 @@ Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"选卡\" -A 20 练习/
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"间隔\\|生成\\|spawn\" 知识库/02-核心-僵尸刷新机制.md | head -30","description":"查波内生成间隔"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"间隔\\|生成\\|spawn\" docs/知识库/02-核心-僵尸刷新机制.md | head -30","description":"查波内生成间隔"}
 <result><omitted /></result>
 </previous_tool_call>
 
@@ -79258,13 +79258,13 @@ Arguments: {"url":"https://wiki.pvz1.com/doku.php?id=%E6%8A%80%E6%9C%AF:%E5%87%B
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '1,105p' 知识库/09-维基-出怪机制.md","description":"查看出怪权重表原文"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '1,105p' docs/知识库/09-维基-出怪机制.md","description":"查看出怪权重表原文"}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '105,175p' 知识库/09-维基-出怪机制.md","description":"读出怪权重表"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '105,175p' docs/知识库/09-维基-出怪机制.md","description":"读出怪权重表"}
 <result><omitted /></result>
 </previous_tool_call>
 
@@ -79620,13 +79620,13 @@ Arguments: {"command":"cd \"D:/PVZ endless\" && python - << 'PYEOF'\np='tools/tr
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"忧郁菇\\|大喷菇\\|冰瓜\\|攻击间隔\\|间隔\" 知识库/05-数据-精确数值手册.md | sed -n '1,30p'","description":"核对植物攻击间隔"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"忧郁菇\\|大喷菇\\|冰瓜\\|攻击间隔\\|间隔\" docs/知识库/05-数据-精确数值手册.md | sed -n '1,30p'","description":"核对植物攻击间隔"}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '122,215p' 知识库/05-数据-精确数值手册.md","description":"读攻击间隔与射程原文"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '122,215p' docs/知识库/05-数据-精确数值手册.md","description":"读攻击间隔与射程原文"}
 <result><omitted /></result>
 </previous_tool_call>
 
@@ -80113,7 +80113,7 @@ Arguments: {"command":"cd \"D:/PVZ endless\" && cat > /tmp/dbg4.py << 'EOF'\nimp
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"巨人\\|举锤\\|砸\\|smash\\|1800\" 知识库/05-数据-精确数值手册.md | head -20; echo \"=== 06\"; grep -n \"巨人\\|举锤\\|砸\" 知识库/06-专题-控丑与关键波长.md | head -10","description":"查巨人攻击数据"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"巨人\\|举锤\\|砸\\|smash\\|1800\" docs/知识库/05-数据-精确数值手册.md | head -20; echo \"=== 06\"; grep -n \"巨人\\|举锤\\|砸\" docs/知识库/06-专题-控丑与关键波长.md | head -10","description":"查巨人攻击数据"}
 <result><omitted /></result>
 </previous_tool_call>
 
@@ -80129,7 +80129,7 @@ Arguments: {"command":"cd \"D:/PVZ endless\" && python - << 'PYEOF'\np='tools/tr
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"可伤\\|800\\|防御域\" 知识库/05-数据-精确数值手册.md | head -12","description":"核对可伤线原文"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"可伤\\|800\\|防御域\" docs/知识库/05-数据-精确数值手册.md | head -12","description":"核对可伤线原文"}
 <result><omitted /></result>
 </previous_tool_call>
 
@@ -87344,13 +87344,13 @@ wiki 的出怪权重表在知识库 09 里。让我核对红眼的权重。
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && sed -n '/权重/,/^## /p' 知识库/09-维基-出怪机制.md | head -60", "description": "查wiki出怪权重表"}
+{"command": "cd \"D:/PVZ endless\" && sed -n '/权重/,/^## /p' docs/知识库/09-维基-出怪机制.md | head -60", "description": "查wiki出怪权重表"}
 ```
 
 **📤 工具结果** `call_00_UJDts9dKnMDVhQTH3mQI2554`
 
 ```
-Command: cd "D:/PVZ endless" && sed -n '/权重/,/^## /p' 知识库/09-维基-出怪机制.md | head -60
+Command: cd "D:/PVZ endless" && sed -n '/权重/,/^## /p' docs/知识库/09-维基-出怪机制.md | head -60
 Stdout: **权重 → 级别 → 阶数 → 红眼数量上限**
 
 ---
@@ -92147,13 +92147,13 @@ w1 N, w2 AA', w3 I, w4 I, w5 I, w6 N, w7 AA', w8 I, w9 I, w10 I(兼冰杀蹦极)
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && grep -n \"2000\\|冰冻\\|冻结\\|减速\" 知识库/05-数据-精确数值手册.md | head -30", "description": "查冰冻时长精确数据"}
+{"command": "cd \"D:/PVZ endless\" && grep -n \"2000\\|冰冻\\|冻结\\|减速\" docs/知识库/05-数据-精确数值手册.md | head -30", "description": "查冰冻时长精确数据"}
 ```
 
 **📤 工具结果** `call_00_luBWcr1JWM6eTO4jvwGV9390`
 
 ```
-Command: cd "D:/PVZ endless" && grep -n "2000\|冰冻\|冻结\|减速" 知识库/05-数据-精确数值手册.md | head -30
+Command: cd "D:/PVZ endless" && grep -n "2000\|冰冻\|冻结\|减速" docs/知识库/05-数据-精确数值手册.md | head -30
 Stdout: 86:| **寒冰菇：冰冻 + 减速总时长** | **2000** |
 87:| **寒冰菇：冻结水面 / 云朵** | **300** |
 88:| **寒冰菇：一次冰冻**（未减速时受冰） | **400~600** |
@@ -92233,13 +92233,13 @@ grep "冰瓜" 在 05 里。
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && grep -n \"冰瓜\\|西瓜\\|chill\\|寒冰\" 知识库/05-数据-精确数值手册.md | head -20; echo \"=== 233行附近\"; sed -n '228,245p' 知识库/05-数据-精确数值手册.md", "description": "查冰瓜减速时长"}
+{"command": "cd \"D:/PVZ endless\" && grep -n \"冰瓜\\|西瓜\\|chill\\|寒冰\" docs/知识库/05-数据-精确数值手册.md | head -20; echo \"=== 233行附近\"; sed -n '228,245p' docs/知识库/05-数据-精确数值手册.md", "description": "查冰瓜减速时长"}
 ```
 
 **📤 工具结果** `call_00_1X107CpOQpjIYilnAtn33294`
 
 ```
-Command: cd "D:/PVZ endless" && grep -n "冰瓜\|西瓜\|chill\|寒冰" 知识库/05-数据-精确数值手册.md | head -20; echo "=== 233行附近"; sed -n '228,245p' 知识库/05-数据-精确数值手册.md
+Command: cd "D:/PVZ endless" && grep -n "冰瓜\|西瓜\|chill\|寒冰" docs/知识库/05-数据-精确数值手册.md | head -20; echo "=== 233行附近"; sed -n '228,245p' docs/知识库/05-数据-精确数值手册.md
 Stdout: 86:| **寒冰菇：冰冻 + 减速总时长** | **2000** |
 87:| **寒冰菇：冻结水面 / 云朵** | **300** |
 88:| **寒冰菇：一次冰冻**（未减速时受冰） | **400~600** |
@@ -99202,13 +99202,13 @@ x+2 列（中心 X+160）射程 X+80 到 X+320。巨人右端 X+36 < X+80 → **
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && grep -n \"受击\\|判定框\\|碰撞\\|巨人\\|3×3\\|3\\*3\" 知识库/05-数据-精确数值手册.md | head -40", "description": "查受击框与巨人相关数据"}
+{"command": "cd \"D:/PVZ endless\" && grep -n \"受击\\|判定框\\|碰撞\\|巨人\\|3×3\\|3\\*3\" docs/知识库/05-数据-精确数值手册.md | head -40", "description": "查受击框与巨人相关数据"}
 ```
 
 **📤 工具结果** `call_00_ABY0agZ5neooGfOwIryc6064`
 
 ```
-Command: cd "D:/PVZ endless" && grep -n "受击\|判定框\|碰撞\|巨人\|3×3\|3\*3" 知识库/05-数据-精确数值手册.md | head -40
+Command: cd "D:/PVZ endless" && grep -n "受击\|判定框\|碰撞\|巨人\|3×3\|3\*3" docs/知识库/05-数据-精确数值手册.md | head -40
 Stdout: 67:| 撑杆、巨人 | **−150** |
 263:### 11.2 巨人 / 小鬼
 269:- **ICE3**：巨人投掷动画进度 > 0.74 时扔出；冰/黄油在"扔出前一帧"生效可取消投掷。
@@ -99239,13 +99239,13 @@ Signal: (none)
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && sed -n '40,80p' 知识库/05-数据-精确数值手册.md", "description": "看射程判定表"}
+{"command": "cd \"D:/PVZ endless\" && sed -n '40,80p' docs/知识库/05-数据-精确数值手册.md", "description": "看射程判定表"}
 ```
 
 **📤 工具结果** `call_00_7eHpxthvxicXZdEd798a5326`
 
 ```
-Command: cd "D:/PVZ endless" && sed -n '40,80p' 知识库/05-数据-精确数值手册.md
+Command: cd "D:/PVZ endless" && sed -n '40,80p' docs/知识库/05-数据-精确数值手册.md
 Stdout: ---
 
 ## 二、场地坐标
@@ -99300,13 +99300,13 @@ Signal: (none)
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && grep -n \"防御域\\|横向\\|宽\\|偏移\" 知识库/05-数据-精确数值手册.md | head -25", "description": "查防御域宽度数据"}
+{"command": "cd \"D:/PVZ endless\" && grep -n \"防御域\\|横向\\|宽\\|偏移\" docs/知识库/05-数据-精确数值手册.md | head -25", "description": "查防御域宽度数据"}
 ```
 
 **📤 工具结果** `call_00_ET_PZaFmO5LqJb4O1GU3fUF5707`
 
 ```
-Command: cd "D:/PVZ endless" && grep -n "防御域\|横向\|宽\|偏移" 知识库/05-数据-精确数值手册.md | head -25
+Command: cd "D:/PVZ endless" && grep -n "防御域\|横向\|宽\|偏移" docs/知识库/05-数据-精确数值手册.md | head -25
 Stdout: 20:**僵尸判定范围计算**（偏移相对僵尸基址，16 进制）：
 22:| 偏移 | 意义 | 普通僵尸 |
 24:| `[+8C]` | 防御范围横向偏移 | 36 |
@@ -99502,13 +99502,13 @@ x+2 列（中心 X+160）射程 X+80 到 X+320。巨人右界要 ≥ X+80。
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && sed -n '15,40p' 知识库/05-数据-精确数值手册.md", "description": "看判定范围原始表"}
+{"command": "cd \"D:/PVZ endless\" && sed -n '15,40p' docs/知识库/05-数据-精确数值手册.md", "description": "看判定范围原始表"}
 ```
 
 **📤 工具结果** `call_00_tE9JKCcxIadSH0Ag0ead5605`
 
 ```
-Command: cd "D:/PVZ endless" && sed -n '15,40p' 知识库/05-数据-精确数值手册.md
+Command: cd "D:/PVZ endless" && sed -n '15,40p' docs/知识库/05-数据-精确数值手册.md
 Stdout: 
 **判定规则**：圆判定 `(Δx)² + (Δy)² ≤ R²`，其中 Δx、Δy 已取整 —— 所以判定圆不是数学意义上的圆。
 
@@ -99807,13 +99807,13 @@ URL: https://wiki.pvz1.com/lib/exe/detail.php?id=技术:精确数据&media=技�
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && mkdir -p 原始资料/wiki图 && curl -sL --max-time 60 -o \"原始资料/wiki图/僵尸攻防判定偏移与尺寸.png\" \"https://wiki.pvz1.com/lib/exe/detail.php?id=%E6%8A%80%E6%9C%AF%3A%E7%B2%BE%E7%A1%AE%E6%95%B0%E6%8D%AE&media=%E6%8A%80%E6%9C%AF%3Apasted%3A20221218-165244.png\" && ls -la \"原始资料/wiki图/\" && file \"原始资料/wiki图/僵尸攻防判定偏移与尺寸.png\" 2>/dev/null || true", "description": "下载判定偏移表格图片"}
+{"command": "cd \"D:/PVZ endless\" && mkdir -p docs/原始资料/wiki图 && curl -sL --max-time 60 -o \"docs/原始资料/wiki图/僵尸攻防判定偏移与尺寸.png\" \"https://wiki.pvz1.com/lib/exe/detail.php?id=%E6%8A%80%E6%9C%AF%3A%E7%B2%BE%E7%A1%AE%E6%95%B0%E6%8D%AE&media=%E6%8A%80%E6%9C%AF%3Apasted%3A20221218-165244.png\" && ls -la \"docs/原始资料/wiki图/\" && file \"docs/原始资料/wiki图/僵尸攻防判定偏移与尺寸.png\" 2>/dev/null || true", "description": "下载判定偏移表格图片"}
 ```
 
 **📤 工具结果** `call_00_XoLNwEx1fdYDqkmqscGG2144`
 
 ```
-Command: cd "D:/PVZ endless" && mkdir -p 原始资料/wiki图 && curl -sL --max-time 60 -o "原始资料/wiki图/僵尸攻防判定偏移与尺寸.png" "https://wiki.pvz1.com/lib/exe/detail.php?id=%E6%8A%80%E6%9C%AF%3A%E7%B2%BE%E7%A1%AE%E6%95%B0%E6%8D%AE&media=%E6%8A%80%E6%9C%AF%3Apasted%3A20221218-165244.png" && ls -la "原始资料/wiki图/" && file "原始资料/wiki图/僵尸攻防判定偏移与尺寸.png" 2>/dev/null || true
+Command: cd "D:/PVZ endless" && mkdir -p docs/原始资料/wiki图 && curl -sL --max-time 60 -o "docs/原始资料/wiki图/僵尸攻防判定偏移与尺寸.png" "https://wiki.pvz1.com/lib/exe/detail.php?id=%E6%8A%80%E6%9C%AF%3A%E7%B2%BE%E7%A1%AE%E6%95%B0%E6%8D%AE&media=%E6%8A%80%E6%9C%AF%3Apasted%3A20221218-165244.png" && ls -la "docs/原始资料/wiki图/" && file "docs/原始资料/wiki图/僵尸攻防判定偏移与尺寸.png" 2>/dev/null || true
 Stdout: (empty)
 Stderr: (empty)
 Exit Code: 0
@@ -99827,13 +99827,13 @@ Signal: (none)
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && mkdir -p \"原始资料/wiki图\" && curl -sL --max-time 60 -A \"Mozilla/5.0\" -o \"原始资料/wiki图/judge.png\" \"https://wiki.pvz1.com/lib/exe/fetch.php?media=%E6%8A%80%E6%9C%AF:pasted:20221218-165244.png\"; echo \"exit=$?\"; ls -la \"原始资料/wiki图/\" 2>&1", "description": "直接抓取图片文件"}
+{"command": "cd \"D:/PVZ endless\" && mkdir -p \"docs/原始资料/wiki图\" && curl -sL --max-time 60 -A \"Mozilla/5.0\" -o \"docs/原始资料/wiki图/judge.png\" \"https://wiki.pvz1.com/lib/exe/fetch.php?media=%E6%8A%80%E6%9C%AF:pasted:20221218-165244.png\"; echo \"exit=$?\"; ls -la \"docs/原始资料/wiki图/\" 2>&1", "description": "直接抓取图片文件"}
 ```
 
 **📤 工具结果** `call_00_ET_VYkSlirZlMQAFwbpr8Ar1367`
 
 ```
-Command: cd "D:/PVZ endless" && mkdir -p "原始资料/wiki图" && curl -sL --max-time 60 -A "Mozilla/5.0" -o "原始资料/wiki图/judge.png" "https://wiki.pvz1.com/lib/exe/fetch.php?media=%E6%8A%80%E6%9C%AF:pasted:20221218-165244.png"; echo "exit=$?"; ls -la "原始资料/wiki图/" 2>&1
+Command: cd "D:/PVZ endless" && mkdir -p "docs/原始资料/wiki图" && curl -sL --max-time 60 -A "Mozilla/5.0" -o "docs/原始资料/wiki图/judge.png" "https://wiki.pvz1.com/lib/exe/fetch.php?media=%E6%8A%80%E6%9C%AF:pasted:20221218-165244.png"; echo "exit=$?"; ls -la "docs/原始资料/wiki图/" 2>&1
 Stdout: exit=7
 total 0
 drwxr-xr-x 1 Welun_Laptop 197121 0 Oct 19 10:39 .
@@ -102605,13 +102605,13 @@ grep 大喷 射程。
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && grep -n \"大喷\\|忧郁菇\\|射程\\|4 格\\|四格\" 知识库/05-数据-精确数值手册.md | head -20; echo \"=== 射程段\"; sed -n '190,215p' 知识库/05-数据-精确数值手册.md", "description": "查大喷与忧郁菇射程原文"}
+{"command": "cd \"D:/PVZ endless\" && grep -n \"大喷\\|忧郁菇\\|射程\\|4 格\\|四格\" docs/知识库/05-数据-精确数值手册.md | head -20; echo \"=== 射程段\"; sed -n '190,215p' docs/知识库/05-数据-精确数值手册.md", "description": "查大喷与忧郁菇射程原文"}
 ```
 
 **📤 工具结果** `call_00_v2hMZrov0LdNwAb16pKs8588`
 
 ```
-Command: cd "D:/PVZ endless" && grep -n "大喷\|忧郁菇\|射程\|4 格\|四格" 知识库/05-数据-精确数值手册.md | head -20; echo "=== 射程段"; sed -n '190,215p' 知识库/05-数据-精确数值手册.md
+Command: cd "D:/PVZ endless" && grep -n "大喷\|忧郁菇\|射程\|4 格\|四格" docs/知识库/05-数据-精确数值手册.md | head -20; echo "=== 射程段"; sed -n '190,215p' docs/知识库/05-数据-精确数值手册.md
 Stdout: 130:| 忧郁菇 | 1.86 ~ 2.00 s |
 142:| 大喷菇 | 49 |
 150:| **忧郁菇** | **74、102、130、158** |
@@ -111442,13 +111442,13 @@ grep 05 里冰车。
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && grep -n \"冰车\\|临界\" 知识库/05-数据-精确数值手册.md | head -20; echo \"=== 冰车段\"; grep -n \"冰车\" -A 6 知识库/05-数据-精确数值手册.md | grep -A 6 \"11\\.\" | head -20", "description": "查冰车临界数据"}
+{"command": "cd \"D:/PVZ endless\" && grep -n \"冰车\\|临界\" docs/知识库/05-数据-精确数值手册.md | head -20; echo \"=== 冰车段\"; grep -n \"冰车\" -A 6 docs/知识库/05-数据-精确数值手册.md | grep -A 6 \"11\\.\" | head -20", "description": "查冰车临界数据"}
 ```
 
 **📤 工具结果** `call_00_NZKKYarLSQnZIKCslUcD8298`
 
 ```
-Command: cd "D:/PVZ endless" && grep -n "冰车\|临界" 知识库/05-数据-精确数值手册.md | head -20; echo "=== 冰车段"; grep -n "冰车" -A 6 知识库/05-数据-精确数值手册.md | grep -A 6 "11\." | head -20
+Command: cd "D:/PVZ endless" && grep -n "冰车\|临界" docs/知识库/05-数据-精确数值手册.md | head -20; echo "=== 冰车段"; grep -n "冰车" -A 6 docs/知识库/05-数据-精确数值手册.md | grep -A 6 "11\." | head -20
 Stdout: 66:| 橄榄、冰车、投篮 | **−175** |
 260:| 冰车 | 292 | 622 | 1014 |
 === 冰车段
@@ -114258,40 +114258,40 @@ Let me grep 原始资料 for 冰车.
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && ls 原始资料/ && grep -rn \"冰车\" 原始资料/*.txt | head -40", "description": "查找原始资料中冰车数据"}
+{"command": "cd \"D:/PVZ endless\" && ls docs/原始资料/ && grep -rn \"冰车\" docs/原始资料/*.txt | head -40", "description": "查找原始资料中冰车数据"}
 ```
 
 **📤 工具结果** `call_00_151WNSRF7Poeush7JGiA3855`
 
 ```
-Command: cd "D:/PVZ endless" && ls 原始资料/ && grep -rn "冰车" 原始资料/*.txt | head -40
+Command: cd "D:/PVZ endless" && ls docs/原始资料/ && grep -rn "冰车" docs/原始资料/*.txt | head -40
 Stdout: wiki图
 【新】新轨道读本.txt
 【旧】轨道理论完全读本.txt
-原始资料/【新】新轨道读本.txt:339:有前场空位（不能被冰车的冰道覆盖），炮就不需要；樱桃CD 为 50 秒，炮仅有 36 秒左右……等等。 
-原始资料/【新】新轨道读本.txt:463:代表僵尸：红眼（白眼）、冰车、小丑。 
-原始资料/【新】新轨道读本.txt:538:• 必杀系强无敌，对所有阵型威胁都较大（红眼、冰车、小丑） 
-原始资料/【新】新轨道读本.txt:1115:巨人？冰车？小丑？No no no…… 答案是舞王。 
-原始资料/【新】新轨道读本.txt:1258:12.5 秒波长正好能让冰车不碾 7 列曾；7.5 秒加速波正好能杜绝小丑的威胁。循环总长度 35 秒。 
-原始资料/【新】新轨道读本.txt:1368:假设我对前面的例子稍作修改：仍旧 w1~w19 全程 ch4，但每波改为 17.5 秒，使得冰车碾不到 6 列曾
-原始资料/【新】新轨道读本.txt:1449:请点击视频欣赏曾哥如何在半张大脸都被冰车盖住的情况下死里逃生，以及刺激的w9/w19 收尾过程。 
-原始资料/【新】新轨道读本.txt:1602:比其它僵尸烦人——它们就是冰车和矿工。 
-原始资料/【新】新轨道读本.txt:1605:冰对冰车、矿工完全无效，不能起到变奏的作用。 
-原始资料/【新】新轨道读本.txt:1609:热过渡是最常见的分离操作，其具体内容为：在冰变奏的减速波中，用炮（或灰烬卡）炸掉冰车、矿
-原始资料/【新】新轨道读本.txt:1620:• 由于冰车的血量贡献并不低，热过渡操作通常只用在慢速关，用在变速关或快速关容易意外刷
-原始资料/【新】新轨道读本.txt:1800:NE 场地有一个好，就是它不会出冰车，热过渡时只需要考虑矿工的问题。 
-原始资料/【新】新轨道读本.txt:2142:• 邻 C7u 倒是不怕投篮，但是亲，这是 FE，不是 NE，要放 AA'a，冰波就得地刺扎两路冰车，一
-原始资料/【新】新轨道读本.txt:2149:组，这样只需要扎一行冰车。 
-原始资料/【新】新轨道读本.txt:2341:• 不让冰车碾压 6 列曾的最大波长约为 17.5s（保留一位小数） 
-原始资料/【新】新轨道读本.txt:2369:• 前场：舞王召唤 342（有八列炮时为 319）；扶梯啃八列炮 380；小丑爆炸 550；冰车碾压八
-原始资料/【新】新轨道读本.txt:2371:• 中场：冰车碾压七列炮 1110；冰车碾压六列炮 1628； 
-原始资料/【新】新轨道读本.txt:2405:• 冰车碾压五列植物非常晚，要等到 2226； 
-原始资料/【旧】轨道理论完全读本.txt:352:分为垫巨人和刺冰车，核心思想就是让巨人走的更慢砸不到植物，让冰道铺的越短不影响弹坑。
-原始资料/【旧】轨道理论完全读本.txt:487:NE： Y 轴间距 100，蘑菇无须唤醒，墓碑+，冰车-
-原始资料/【旧】轨道理论完全读本.txt:669:IPP：没有产生基础运算,PP 热过渡炸，干掉冰车。
-原始资料/【旧】轨道理论完全读本.txt:834:首先我们要定义一下，何为分离。分离就是加法操作有目的的避开/针对某类僵尸，为阵型争取更多的保护时间。最常见的就是预判炸冰车，保护场地不被冰道覆盖，影响弹坑与垫材。
-原始资料/【旧】轨道理论完全读本.txt:836:打多了的问题，例如精确分离小丑，就不可避免的会把和小丑速度差不多的梯子冰车橄榄全部带走。假如本波刷怪都是小脆皮呢？不好意思，刷新了。目前不精确分离并没有值得一提的 EL 阵型应用，在此仅作为一种“变数”予以提出。其对玩家的影响，更多的还是体现在变速关下半场。
-原始资料/【旧】轨道理论完全读本.txt:868:D8-I/C/A：RE.#四炮。低抗版方六。除了观察红眼，还得看下冰车到哪了。反正二三四路的八列有其中之一，一炮炸
+docs/原始资料/【新】新轨道读本.txt:339:有前场空位（不能被冰车的冰道覆盖），炮就不需要；樱桃CD 为 50 秒，炮仅有 36 秒左右……等等。 
+docs/原始资料/【新】新轨道读本.txt:463:代表僵尸：红眼（白眼）、冰车、小丑。 
+docs/原始资料/【新】新轨道读本.txt:538:• 必杀系强无敌，对所有阵型威胁都较大（红眼、冰车、小丑） 
+docs/原始资料/【新】新轨道读本.txt:1115:巨人？冰车？小丑？No no no…… 答案是舞王。 
+docs/原始资料/【新】新轨道读本.txt:1258:12.5 秒波长正好能让冰车不碾 7 列曾；7.5 秒加速波正好能杜绝小丑的威胁。循环总长度 35 秒。 
+docs/原始资料/【新】新轨道读本.txt:1368:假设我对前面的例子稍作修改：仍旧 w1~w19 全程 ch4，但每波改为 17.5 秒，使得冰车碾不到 6 列曾
+docs/原始资料/【新】新轨道读本.txt:1449:请点击视频欣赏曾哥如何在半张大脸都被冰车盖住的情况下死里逃生，以及刺激的w9/w19 收尾过程。 
+docs/原始资料/【新】新轨道读本.txt:1602:比其它僵尸烦人——它们就是冰车和矿工。 
+docs/原始资料/【新】新轨道读本.txt:1605:冰对冰车、矿工完全无效，不能起到变奏的作用。 
+docs/原始资料/【新】新轨道读本.txt:1609:热过渡是最常见的分离操作，其具体内容为：在冰变奏的减速波中，用炮（或灰烬卡）炸掉冰车、矿
+docs/原始资料/【新】新轨道读本.txt:1620:• 由于冰车的血量贡献并不低，热过渡操作通常只用在慢速关，用在变速关或快速关容易意外刷
+docs/原始资料/【新】新轨道读本.txt:1800:NE 场地有一个好，就是它不会出冰车，热过渡时只需要考虑矿工的问题。 
+docs/原始资料/【新】新轨道读本.txt:2142:• 邻 C7u 倒是不怕投篮，但是亲，这是 FE，不是 NE，要放 AA'a，冰波就得地刺扎两路冰车，一
+docs/原始资料/【新】新轨道读本.txt:2149:组，这样只需要扎一行冰车。 
+docs/原始资料/【新】新轨道读本.txt:2341:• 不让冰车碾压 6 列曾的最大波长约为 17.5s（保留一位小数） 
+docs/原始资料/【新】新轨道读本.txt:2369:• 前场：舞王召唤 342（有八列炮时为 319）；扶梯啃八列炮 380；小丑爆炸 550；冰车碾压八
+docs/原始资料/【新】新轨道读本.txt:2371:• 中场：冰车碾压七列炮 1110；冰车碾压六列炮 1628； 
+docs/原始资料/【新】新轨道读本.txt:2405:• 冰车碾压五列植物非常晚，要等到 2226； 
+docs/原始资料/【旧】轨道理论完全读本.txt:352:分为垫巨人和刺冰车，核心思想就是让巨人走的更慢砸不到植物，让冰道铺的越短不影响弹坑。
+docs/原始资料/【旧】轨道理论完全读本.txt:487:NE： Y 轴间距 100，蘑菇无须唤醒，墓碑+，冰车-
+docs/原始资料/【旧】轨道理论完全读本.txt:669:IPP：没有产生基础运算,PP 热过渡炸，干掉冰车。
+docs/原始资料/【旧】轨道理论完全读本.txt:834:首先我们要定义一下，何为分离。分离就是加法操作有目的的避开/针对某类僵尸，为阵型争取更多的保护时间。最常见的就是预判炸冰车，保护场地不被冰道覆盖，影响弹坑与垫材。
+docs/原始资料/【旧】轨道理论完全读本.txt:836:打多了的问题，例如精确分离小丑，就不可避免的会把和小丑速度差不多的梯子冰车橄榄全部带走。假如本波刷怪都是小脆皮呢？不好意思，刷新了。目前不精确分离并没有值得一提的 EL 阵型应用，在此仅作为一种“变数”予以提出。其对玩家的影响，更多的还是体现在变速关下半场。
+docs/原始资料/【旧】轨道理论完全读本.txt:868:D8-I/C/A：RE.#四炮。低抗版方六。除了观察红眼，还得看下冰车到哪了。反正二三四路的八列有其中之一，一炮炸
 
 Stderr: (empty)
 Exit Code: 0
@@ -114329,13 +114329,13 @@ Let me grep.
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && ls 知识库/ && grep -rn \"临界\" 原始资料/知识库/*.txt 2>/dev/null | head -20", "description": "查找临界数据来源"}
+{"command": "cd \"D:/PVZ endless\" && ls docs/知识库/ && grep -rn \"临界\" docs/原始资料/docs/知识库/*.txt 2>/dev/null | head -20", "description": "查找临界数据来源"}
 ```
 
 **📤 工具结果** `call_00_JxMpv4NElH366skuB9qj6897`
 
 ```
-Command: cd "D:/PVZ endless" && ls 知识库/ && grep -rn "临界" 原始资料/知识库/*.txt 2>/dev/null | head -20
+Command: cd "D:/PVZ endless" && ls docs/知识库/ && grep -rn "临界" docs/原始资料/docs/知识库/*.txt 2>/dev/null | head -20
 Stdout: 01-基础-场地坐标与术语.md
 02-核心-僵尸刷新机制.md
 03-核心-轨道语言与运算量.md
@@ -114363,13 +114363,13 @@ Signal: (none)
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && grep -n \"冰车\" 知识库/05-数据-精确数值手册.md | head -30", "description": "在精确数值手册里找冰车"}
+{"command": "cd \"D:/PVZ endless\" && grep -n \"冰车\" docs/知识库/05-数据-精确数值手册.md | head -30", "description": "在精确数值手册里找冰车"}
 ```
 
 **📤 工具结果** `call_00_ET_l1ABRTSznf1wTeJFRY8Q3555`
 
 ```
-Command: cd "D:/PVZ endless" && grep -n "冰车" 知识库/05-数据-精确数值手册.md | head -30
+Command: cd "D:/PVZ endless" && grep -n "冰车" docs/知识库/05-数据-精确数值手册.md | head -30
 Stdout: 66:| 橄榄、冰车、投篮 | **−175** |
 260:| 冰车 | 292 | 622 | 1014 |
 
@@ -114385,13 +114385,13 @@ Signal: (none)
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && sed -n '240,290p' 知识库/05-数据-精确数值手册.md && echo ---- && sed -n '55,80p' 知识库/05-数据-精确数值手册.md", "description": "读取精确数值手册相关表"}
+{"command": "cd \"D:/PVZ endless\" && sed -n '240,290p' docs/知识库/05-数据-精确数值手册.md && echo ---- && sed -n '55,80p' docs/知识库/05-数据-精确数值手册.md", "description": "读取精确数值手册相关表"}
 ```
 
 **📤 工具结果** `call_00_ET_nrVCtznHtjQjGS7bxw533394`
 
 ```
-Command: cd "D:/PVZ endless" && sed -n '240,290p' 知识库/05-数据-精确数值手册.md && echo ---- && sed -n '55,80p' 知识库/05-数据-精确数值手册.md
+Command: cd "D:/PVZ endless" && sed -n '240,290p' docs/知识库/05-数据-精确数值手册.md && echo ---- && sed -n '55,80p' docs/知识库/05-数据-精确数值手册.md
 Stdout: 
 ---
 
@@ -114491,13 +114491,13 @@ Now, add a 冰车 field audit. Let me also get 冰车 hitbox. Let me search for 
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && grep -n \"受击\\|判定框\\|碰撞\\|防御域\\|横偏\\|横宽\" 知识库/05-数据-精确数值手册.md | head -30", "description": "查找受击框数据"}
+{"command": "cd \"D:/PVZ endless\" && grep -n \"受击\\|判定框\\|碰撞\\|防御域\\|横偏\\|横宽\" docs/知识库/05-数据-精确数值手册.md | head -30", "description": "查找受击框数据"}
 ```
 
 **📤 工具结果** `call_00_x2bPSej8EqMYRTDeJzsy2321`
 
 ```
-Command: cd "D:/PVZ endless" && grep -n "受击\|判定框\|碰撞\|防御域\|横偏\|横宽" 知识库/05-数据-精确数值手册.md | head -30
+Command: cd "D:/PVZ endless" && grep -n "受击\|判定框\|碰撞\|防御域\|横偏\|横宽" docs/知识库/05-数据-精确数值手册.md | head -30
 Stdout: 34:左行僵尸：左界 = x + 横偏；右界 = 左界 + 横宽
 35:右行僵尸：右界 = x + 120 − 横偏；左界 = 右界 − 横宽
 71:**僵尸可伤条件**：防御域左端 ≤ 800。
@@ -114514,13 +114514,13 @@ Signal: (none)
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && sed -n '20,55p' 知识库/05-数据-精确数值手册.md", "description": "读取防御域表"}
+{"command": "cd \"D:/PVZ endless\" && sed -n '20,55p' docs/知识库/05-数据-精确数值手册.md", "description": "读取防御域表"}
 ```
 
 **📤 工具结果** `call_00_ET_KvbumTlWxAVFtNvtW9vd4097`
 
 ```
-Command: cd "D:/PVZ endless" && sed -n '20,55p' 知识库/05-数据-精确数值手册.md
+Command: cd "D:/PVZ endless" && sed -n '20,55p' docs/知识库/05-数据-精确数值手册.md
 Stdout: **僵尸判定范围计算**（偏移相对僵尸基址，16 进制）：
 
 | 偏移 | 意义 | 普通僵尸 |
@@ -131807,7 +131807,7 @@ Signal: (none)
 
 其实这是关键：如果真实每波不是 50 只，我的整个密度就错了。
 
-让我快速查一下 知识库/09-维基-出怪机制.md。
+让我快速查一下 docs/知识库/09-维基-出怪机制.md。
 
 </details>
 
@@ -131818,13 +131818,13 @@ Signal: (none)
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && grep -n \"50\\|饱和\\|每波\" 知识库/09-维基-出怪机制.md | head -30", "description": "查饱和出怪的每波数量"}
+{"command": "cd \"D:/PVZ endless\" && grep -n \"50\\|饱和\\|每波\" docs/知识库/09-维基-出怪机制.md | head -30", "description": "查饱和出怪的每波数量"}
 ```
 
 **📤 工具结果** `call_00_X5b6G5eUpgGMYEcHGiDw8182`
 
 ```
-Command: cd "D:/PVZ endless" && grep -n "50\|饱和\|每波" 知识库/09-维基-出怪机制.md | head -30
+Command: cd "D:/PVZ endless" && grep -n "50\|饱和\|每波" docs/知识库/09-维基-出怪机制.md | head -30
 Stdout: 90:- 结构：**每 50 个 = 1 波，共 40 波** → 每波**最多 50 只**
 109:| 2 | 路障 | 2 | **4000** | 轮数 5 起每轮 −150，轮数 25 起固定 1000 |
 113:| 6 | 铁门 | 4 | 3500 | |
@@ -132954,13 +132954,13 @@ if w in (9, 19) and self.stall_waves:
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && grep -n \"红字\\|a huge wave\\|more zombies\" 知识库/01-基础-场地坐标与术语.md | head -20", "description": "查红字时间"}
+{"command": "cd \"D:/PVZ endless\" && grep -n \"红字\\|a huge wave\\|more zombies\" docs/知识库/01-基础-场地坐标与术语.md | head -20", "description": "查红字时间"}
 ```
 
 **📤 工具结果** `call_00_VKtYGB8ctf6xDcjDTnBm4797`
 
 ```
-Command: cd "D:/PVZ endless" && grep -n "红字\|a huge wave\|more zombies" 知识库/01-基础-场地坐标与术语.md | head -20
+Command: cd "D:/PVZ endless" && grep -n "红字\|a huge wave\|more zombies" docs/知识库/01-基础-场地坐标与术语.md | head -20
 Stdout: 72:| **红字** | w9 / w19 清完后跳出，7.2s 后刷下一波 |
 
 Stderr: (empty)
@@ -135417,37 +135417,37 @@ Arguments: {"file_path":"D:/PVZ endless/tools/trackcheck/data.py","offset":100,"
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && ls 原始资料/ && grep -rn \"冰车\" 原始资料/*.txt | head -40","description":"查找原始资料中冰车数据"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && ls docs/原始资料/ && grep -rn \"冰车\" docs/原始资料/*.txt | head -40","description":"查找原始资料中冰车数据"}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && ls 知识库/ && grep -rn \"临界\" 原始资料/知识库/*.txt 2>/dev/null | head -20","description":"查找临界数据来源"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && ls docs/知识库/ && grep -rn \"临界\" docs/原始资料/docs/知识库/*.txt 2>/dev/null | head -20","description":"查找临界数据来源"}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"冰车\" 知识库/05-数据-精确数值手册.md | head -30","description":"在精确数值手册里找冰车"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"冰车\" docs/知识库/05-数据-精确数值手册.md | head -30","description":"在精确数值手册里找冰车"}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '240,290p' 知识库/05-数据-精确数值手册.md && echo ---- && sed -n '55,80p' 知识库/05-数据-精确数值手册.md","description":"读取精确数值手册相关表"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '240,290p' docs/知识库/05-数据-精确数值手册.md && echo ---- && sed -n '55,80p' docs/知识库/05-数据-精确数值手册.md","description":"读取精确数值手册相关表"}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"受击\\|判定框\\|碰撞\\|防御域\\|横偏\\|横宽\" 知识库/05-数据-精确数值手册.md | head -30","description":"查找受击框数据"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"受击\\|判定框\\|碰撞\\|防御域\\|横偏\\|横宽\" docs/知识库/05-数据-精确数值手册.md | head -30","description":"查找受击框数据"}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '20,55p' 知识库/05-数据-精确数值手册.md","description":"读取防御域表"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '20,55p' docs/知识库/05-数据-精确数值手册.md","description":"读取防御域表"}
 <result><omitted /></result>
 </previous_tool_call>
 
@@ -136992,7 +136992,7 @@ Arguments: {"command":"cd \"D:/PVZ endless\" && C:/Users/Welun_Laptop/.workbuddy
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"50\\|饱和\\|每波\" 知识库/09-维基-出怪机制.md | head -30","description":"查饱和出怪的每波数量"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"50\\|饱和\\|每波\" docs/知识库/09-维基-出怪机制.md | head -30","description":"查饱和出怪的每波数量"}
 <result><omitted /></result>
 </previous_tool_call>
 
@@ -137132,7 +137132,7 @@ Arguments: {"cwd":"D:/PVZ endless","explanation":"v4.2 运阵报告：冰道持�
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"红字\\|a huge wave\\|more zombies\" 知识库/01-基础-场地坐标与术语.md | head -20","description":"查红字时间"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"红字\\|a huge wave\\|more zombies\" docs/知识库/01-基础-场地坐标与术语.md | head -20","description":"查红字时间"}
 <result><omitted /></result>
 </previous_tool_call>
 
@@ -140087,25 +140087,25 @@ k=0.80 已经很接近：慢速 −3%、变速 −2%、快速 −8%、极速 +3%
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && grep -rn \"血线\\|剩余血量\\|下一波\\|刷新条件\" 知识库/*.md | head -20", "description": "查血线机制"}
+{"command": "cd \"D:/PVZ endless\" && grep -rn \"血线\\|剩余血量\\|下一波\\|刷新条件\" docs/知识库/*.md | head -20", "description": "查血线机制"}
 ```
 
 **📤 工具结果** `call_00_8ZYQXGkYJdn0s2IHCoRM7879`
 
 ```
-Command: cd "D:/PVZ endless" && grep -rn "血线\|剩余血量\|下一波\|刷新条件" 知识库/*.md | head -20
-Stdout: 知识库/01-基础-场地坐标与术语.md:72:| **红字** | w9 / w19 清完后跳出，7.2s 后刷下一波 |
-知识库/02-核心-僵尸刷新机制.md:16:| **R0a** | w9/w19 刷新后，本波僵尸（除伴舞）全灭**或拖延 45s** → 红字跳出 → **7.2s** 后刷下一波 | 45 / 7.2s |
-知识库/02-核心-僵尸刷新机制.md:19:| **R2** | 血量触发刷新：本波剩余总血量 / 本波总血量 < **随机阈值** 时激活刷新，激活后 **2s** 刷出下一波 | 阈值 0.5~0.65(右界不定)，真空 2s |
-知识库/02-核心-僵尸刷新机制.md:25:- R0a/R0b 的"2 秒"与 R2 的"2 秒"是同一个机制：**刷新真空（刷出下一波前的 2s 空窗）**。
-知识库/02-核心-僵尸刷新机制.md:109:| **预判炸 / 预判冰** | 估计下一波刷新的时刻，**提前**操作，刷新即生效 | 高精度阵型必用；能让舞王原地召唤、海豚冻在岸上 |
-知识库/04-核心-节奏体系全谱.md:364:| **ICE2 (PI)** | 冰住要投小鬼的巨人，拖到下一波 | 与落地炮同步或稍早 |
-知识库/06-专题-控丑与关键波长.md:104:红字出现 ──7.20s──► 下一波刷新
-知识库/12-工程-内存基址与脚本框架.md:59:| `5594` | **达到刷新条件的血量** | 与 5598 相除 = **本波实际阈值** |
-知识库/12-工程-内存基址与脚本框架.md:61:| `559C` | **下一波僵尸倒计时** | 预判炸/预判冰的物理时钟 |
-知识库/12-工程-内存基址与脚本框架.md:62:| `55A0` | 下一波倒计时初始值 | — |
-知识库/12-工程-内存基址与脚本框架.md:275:| **白天点下一波预判冰的咖啡豆** | `波长 + 冰生效偏移 − 298` | `601+20-298` |
-知识库/12-工程-内存基址与脚本框架.md:276:| **夜间种下一波预判复制冰** | `波长 + 偏移 − 100 − 320` | `1350+5-100-320` |
+Command: cd "D:/PVZ endless" && grep -rn "血线\|剩余血量\|下一波\|刷新条件" docs/知识库/*.md | head -20
+Stdout: docs/知识库/01-基础-场地坐标与术语.md:72:| **红字** | w9 / w19 清完后跳出，7.2s 后刷下一波 |
+docs/知识库/02-核心-僵尸刷新机制.md:16:| **R0a** | w9/w19 刷新后，本波僵尸（除伴舞）全灭**或拖延 45s** → 红字跳出 → **7.2s** 后刷下一波 | 45 / 7.2s |
+docs/知识库/02-核心-僵尸刷新机制.md:19:| **R2** | 血量触发刷新：本波剩余总血量 / 本波总血量 < **随机阈值** 时激活刷新，激活后 **2s** 刷出下一波 | 阈值 0.5~0.65(右界不定)，真空 2s |
+docs/知识库/02-核心-僵尸刷新机制.md:25:- R0a/R0b 的"2 秒"与 R2 的"2 秒"是同一个机制：**刷新真空（刷出下一波前的 2s 空窗）**。
+docs/知识库/02-核心-僵尸刷新机制.md:109:| **预判炸 / 预判冰** | 估计下一波刷新的时刻，**提前**操作，刷新即生效 | 高精度阵型必用；能让舞王原地召唤、海豚冻在岸上 |
+docs/知识库/04-核心-节奏体系全谱.md:364:| **ICE2 (PI)** | 冰住要投小鬼的巨人，拖到下一波 | 与落地炮同步或稍早 |
+docs/知识库/06-专题-控丑与关键波长.md:104:红字出现 ──7.20s──► 下一波刷新
+docs/知识库/12-工程-内存基址与脚本框架.md:59:| `5594` | **达到刷新条件的血量** | 与 5598 相除 = **本波实际阈值** |
+docs/知识库/12-工程-内存基址与脚本框架.md:61:| `559C` | **下一波僵尸倒计时** | 预判炸/预判冰的物理时钟 |
+docs/知识库/12-工程-内存基址与脚本框架.md:62:| `55A0` | 下一波倒计时初始值 | — |
+docs/知识库/12-工程-内存基址与脚本框架.md:275:| **白天点下一波预判冰的咖啡豆** | `波长 + 冰生效偏移 − 298` | `601+20-298` |
+docs/知识库/12-工程-内存基址与脚本框架.md:276:| **夜间种下一波预判复制冰** | `波长 + 偏移 − 100 − 320` | `1350+5-100-320` |
 
 Stderr: (empty)
 Exit Code: 0
@@ -151980,29 +151980,29 @@ grep 知识库。
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && grep -rn \"大蒜\" 知识库/*.md | head -20 && echo ==== && grep -rn \"大蒜\" 原始资料/*.txt | head -10", "description": "查大蒜机制资料"}
+{"command": "cd \"D:/PVZ endless\" && grep -rn \"大蒜\" docs/知识库/*.md | head -20 && echo ==== && grep -rn \"大蒜\" docs/原始资料/*.txt | head -10", "description": "查大蒜机制资料"}
 ```
 
 **📤 工具结果** `call_00_TazJjW9u7O8oy6fto6T80676`
 
 ```
-Command: cd "D:/PVZ endless" && grep -rn "大蒜" 知识库/*.md | head -20 && echo ==== && grep -rn "大蒜" 原始资料/*.txt | head -10
-Stdout: 知识库/05-数据-精确数值手册.md:292:### 11.6 啃大蒜的伤害差异
-知识库/05-数据-精确数值手册.md:295:啃大蒜时间 = 1 + ceil(帧数 / 帧速 × 进度 × 100)
-知识库/05-数据-精确数值手册.md:328:| **大蒜 Garlic** | **50** | **叶子保护伞 Umbrella Leaf** | **100** |
-知识库/05-数据-精确数值手册.md:388:4. 《各种僵尸啃大蒜伤害值》
-知识库/07-专题-炮位理论与阵型库.md:166:        上半场：地刺 + 大蒜，把小丑改到 1 路
-知识库/10-维基-无炮研究.md:156:- **存冰**：PE 后退存 1~2 冰可快速关全控；FE 需特殊操作（一边扎冰车 + 8 列大蒜，所有卡控另一侧）。
-知识库/10-维基-无炮研究.md:223:- 快速关：灰烬集中半场 + 地刺大蒜控另半场，多数可不带曾套
-知识库/14-技术-搭梯与前期发育.md:41:> 从尸潮里**分离**出扶梯 → **保护**好扶梯 → 用**大蒜引导**它去指定位置 → 保证全程生存。
-知识库/14-技术-搭梯与前期发育.md:45:## 三、大蒜：唯一的"定向输送"工具
-知识库/14-技术-搭梯与前期发育.md:47:大蒜让僵尸**换行**。它的价值在于**去向是确定的或近乎确定的**：
-知识库/14-技术-搭梯与前期发育.md:80:> 因为那里是**大蒜位 + 扶梯的过道**。占了就没法引导，也没法让扶梯穿过去。
-知识库/14-技术-搭梯与前期发育.md:91:⑤ 若这局有扶梯：把 1、3、5 路「第 4 列大蒜之前的所有植物」全部清除 ——
-知识库/14-技术-搭梯与前期发育.md:101:① 前场放大蒜，把扶梯引导到 1、3、5 路
-知识库/14-技术-搭梯与前期发育.md:103:③ 2 路（或 4 路）搭完 → 铲掉 1-4（或 5-4）的大蒜，准备搭本行
-知识库/14-技术-搭梯与前期发育.md:123:| 其它快速僵尸 | 容易从扶梯里分离出来 | 靠大蒜与节奏控制 |
-知识库/14-技术-搭梯与前期发育.md:159:□ 1/3/5 路第 4 列大蒜在位并维护
+Command: cd "D:/PVZ endless" && grep -rn "大蒜" docs/知识库/*.md | head -20 && echo ==== && grep -rn "大蒜" docs/原始资料/*.txt | head -10
+Stdout: docs/知识库/05-数据-精确数值手册.md:292:### 11.6 啃大蒜的伤害差异
+docs/知识库/05-数据-精确数值手册.md:295:啃大蒜时间 = 1 + ceil(帧数 / 帧速 × 进度 × 100)
+docs/知识库/05-数据-精确数值手册.md:328:| **大蒜 Garlic** | **50** | **叶子保护伞 Umbrella Leaf** | **100** |
+docs/知识库/05-数据-精确数值手册.md:388:4. 《各种僵尸啃大蒜伤害值》
+docs/知识库/07-专题-炮位理论与阵型库.md:166:        上半场：地刺 + 大蒜，把小丑改到 1 路
+docs/知识库/10-维基-无炮研究.md:156:- **存冰**：PE 后退存 1~2 冰可快速关全控；FE 需特殊操作（一边扎冰车 + 8 列大蒜，所有卡控另一侧）。
+docs/知识库/10-维基-无炮研究.md:223:- 快速关：灰烬集中半场 + 地刺大蒜控另半场，多数可不带曾套
+docs/知识库/14-技术-搭梯与前期发育.md:41:> 从尸潮里**分离**出扶梯 → **保护**好扶梯 → 用**大蒜引导**它去指定位置 → 保证全程生存。
+docs/知识库/14-技术-搭梯与前期发育.md:45:## 三、大蒜：唯一的"定向输送"工具
+docs/知识库/14-技术-搭梯与前期发育.md:47:大蒜让僵尸**换行**。它的价值在于**去向是确定的或近乎确定的**：
+docs/知识库/14-技术-搭梯与前期发育.md:80:> 因为那里是**大蒜位 + 扶梯的过道**。占了就没法引导，也没法让扶梯穿过去。
+docs/知识库/14-技术-搭梯与前期发育.md:91:⑤ 若这局有扶梯：把 1、3、5 路「第 4 列大蒜之前的所有植物」全部清除 ——
+docs/知识库/14-技术-搭梯与前期发育.md:101:① 前场放大蒜，把扶梯引导到 1、3、5 路
+docs/知识库/14-技术-搭梯与前期发育.md:103:③ 2 路（或 4 路）搭完 → 铲掉 1-4（或 5-4）的大蒜，准备搭本行
+docs/知识库/14-技术-搭梯与前期发育.md:123:| 其它快速僵尸 | 容易从扶梯里分离出来 | 靠大蒜与节奏控制 |
+docs/知识库/14-技术-搭梯与前期发育.md:159:□ 1/3/5 路第 4 列大蒜在位并维护
 ====
 
 Stderr: (empty)
@@ -152017,13 +152017,13 @@ Signal: (none)
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && sed -n '40,75p' 知识库/14-技术-搭梯与前期发育.md && echo ==== && sed -n '288,300p' 知识库/05-数据-精确数值手册.md", "description": "读大蒜机制细节"}
+{"command": "cd \"D:/PVZ endless\" && sed -n '40,75p' docs/知识库/14-技术-搭梯与前期发育.md && echo ==== && sed -n '288,300p' docs/知识库/05-数据-精确数值手册.md", "description": "读大蒜机制细节"}
 ```
 
 **📤 工具结果** `call_00_ET_S6FqmZmqtr8i5zQJFnyC1952`
 
 ```
-Command: cd "D:/PVZ endless" && sed -n '40,75p' 知识库/14-技术-搭梯与前期发育.md && echo ==== && sed -n '288,300p' 知识库/05-数据-精确数值手册.md
+Command: cd "D:/PVZ endless" && sed -n '40,75p' docs/知识库/14-技术-搭梯与前期发育.md && echo ==== && sed -n '288,300p' docs/知识库/05-数据-精确数值手册.md
 Stdout: ### 3. 搭梯是一个"计划"，不是"等它来"
 > 从尸潮里**分离**出扶梯 → **保护**好扶梯 → 用**大蒜引导**它去指定位置 → 保证全程生存。
 
@@ -152195,13 +152195,13 @@ grep "大蒜" 05 里的血量。
 **🔧 工具调用：`Bash`**
 
 ```json
-{"command": "cd \"D:/PVZ endless\" && sed -n '150,200p' tools/trackcheck/data.py && echo ==== && grep -n \"大蒜\\|Garlic\" 知识库/05-数据-精确数值手册.md | head", "description": "看植物表与大蒜血量"}
+{"command": "cd \"D:/PVZ endless\" && sed -n '150,200p' tools/trackcheck/data.py && echo ==== && grep -n \"大蒜\\|Garlic\" docs/知识库/05-数据-精确数值手册.md | head", "description": "看植物表与大蒜血量"}
 ```
 
 **📤 工具结果** `call_00_ptj5HTvnzP8pDW8hCdW64333`
 
 ```
-Command: cd "D:/PVZ endless" && sed -n '150,200p' tools/trackcheck/data.py && echo ==== && grep -n "大蒜\|Garlic" 知识库/05-数据-精确数值手册.md | head
+Command: cd "D:/PVZ endless" && sed -n '150,200p' tools/trackcheck/data.py && echo ==== && grep -n "大蒜\|Garlic" docs/知识库/05-数据-精确数值手册.md | head
 Stdout: 
 # ---------------------------------------------------------------- 植物
 PLANTS = {
@@ -154128,37 +154128,37 @@ Arguments: {"file_path":"D:/PVZ endless/tools/trackcheck/data.py","offset":100,"
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && ls 原始资料/ && grep -rn \"冰车\" 原始资料/*.txt | head -40","description":"查找原始资料中冰车数据"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && ls docs/原始资料/ && grep -rn \"冰车\" docs/原始资料/*.txt | head -40","description":"查找原始资料中冰车数据"}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && ls 知识库/ && grep -rn \"临界\" 原始资料/知识库/*.txt 2>/dev/null | head -20","description":"查找临界数据来源"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && ls docs/知识库/ && grep -rn \"临界\" docs/原始资料/docs/知识库/*.txt 2>/dev/null | head -20","description":"查找临界数据来源"}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"冰车\" 知识库/05-数据-精确数值手册.md | head -30","description":"在精确数值手册里找冰车"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"冰车\" docs/知识库/05-数据-精确数值手册.md | head -30","description":"在精确数值手册里找冰车"}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '240,290p' 知识库/05-数据-精确数值手册.md && echo ---- && sed -n '55,80p' 知识库/05-数据-精确数值手册.md","description":"读取精确数值手册相关表"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '240,290p' docs/知识库/05-数据-精确数值手册.md && echo ---- && sed -n '55,80p' docs/知识库/05-数据-精确数值手册.md","description":"读取精确数值手册相关表"}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"受击\\|判定框\\|碰撞\\|防御域\\|横偏\\|横宽\" 知识库/05-数据-精确数值手册.md | head -30","description":"查找受击框数据"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"受击\\|判定框\\|碰撞\\|防御域\\|横偏\\|横宽\" docs/知识库/05-数据-精确数值手册.md | head -30","description":"查找受击框数据"}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '20,55p' 知识库/05-数据-精确数值手册.md","description":"读取防御域表"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '20,55p' docs/知识库/05-数据-精确数值手册.md","description":"读取防御域表"}
 <result><omitted /></result>
 </previous_tool_call>
 
@@ -155703,7 +155703,7 @@ Arguments: {"command":"cd \"D:/PVZ endless\" && C:/Users/Welun_Laptop/.workbuddy
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"50\\|饱和\\|每波\" 知识库/09-维基-出怪机制.md | head -30","description":"查饱和出怪的每波数量"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"50\\|饱和\\|每波\" docs/知识库/09-维基-出怪机制.md | head -30","description":"查饱和出怪的每波数量"}
 <result><omitted /></result>
 </previous_tool_call>
 
@@ -155843,7 +155843,7 @@ Arguments: {"cwd":"D:/PVZ endless","explanation":"v4.2 运阵报告：冰道持�
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"红字\\|a huge wave\\|more zombies\" 知识库/01-基础-场地坐标与术语.md | head -20","description":"查红字时间"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && grep -n \"红字\\|a huge wave\\|more zombies\" docs/知识库/01-基础-场地坐标与术语.md | head -20","description":"查红字时间"}
 <result><omitted /></result>
 </previous_tool_call>
 
@@ -156195,7 +156195,7 @@ Arguments: {"command":"cd \"D:/PVZ endless\" && C:/Users/Welun_Laptop/.workbuddy
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && grep -rn \"血线\\|剩余血量\\|下一波\\|刷新条件\" 知识库/*.md | head -20","description":"查血线机制"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && grep -rn \"血线\\|剩余血量\\|下一波\\|刷新条件\" docs/知识库/*.md | head -20","description":"查血线机制"}
 <result><omitted /></result>
 </previous_tool_call>
 
@@ -157455,19 +157455,19 @@ Arguments: {"command":"cd \"D:/PVZ endless\" && C:/Users/Welun_Laptop/.workbuddy
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && grep -rn \"大蒜\" 知识库/*.md | head -20 && echo ==== && grep -rn \"大蒜\" 原始资料/*.txt | head -10","description":"查大蒜机制资料"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && grep -rn \"大蒜\" docs/知识库/*.md | head -20 && echo ==== && grep -rn \"大蒜\" docs/原始资料/*.txt | head -10","description":"查大蒜机制资料"}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '40,75p' 知识库/14-技术-搭梯与前期发育.md && echo ==== && sed -n '288,300p' 知识库/05-数据-精确数值手册.md","description":"读大蒜机制细节"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '40,75p' docs/知识库/14-技术-搭梯与前期发育.md && echo ==== && sed -n '288,300p' docs/知识库/05-数据-精确数值手册.md","description":"读大蒜机制细节"}
 <result><omitted /></result>
 </previous_tool_call>
 
 <previous_tool_call>
 Tool: Bash
-Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '150,200p' tools/trackcheck/data.py && echo ==== && grep -n \"大蒜\\|Garlic\" 知识库/05-数据-精确数值手册.md | head","description":"看植物表与大蒜血量"}
+Arguments: {"command":"cd \"D:/PVZ endless\" && sed -n '150,200p' tools/trackcheck/data.py && echo ==== && grep -n \"大蒜\\|Garlic\" docs/知识库/05-数据-精确数值手册.md | head","description":"看植物表与大蒜血量"}
 <result><omitted /></result>
 </previous_tool_call>
 
