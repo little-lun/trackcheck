@@ -346,7 +346,7 @@ table.lygrid td{padding:0}
 <div class="panel">
   <div class="ptitle">1. 出怪（勾选允许出现的僵尸）</div>
   <div id="kinds"></div>
-  <div class="presets"><span class="lab">四套推荐组合：</span><span id="presets"></span>
+  <div class="presets"><span class="lab">推荐组合：</span><span id="presets"></span>
     <button class="ghost" id="selnone">全不选</button>
     <span class="hint" id="pickinfo"></span>
     <span class="hint" style="margin-left:8px">蹦极只在旗帜波出现；其余波会自动补普通</span>
@@ -469,6 +469,7 @@ __PLANPAGE__
       <div class="row" style="margin-top:8px">
         <button id="help-load">载入示例阵容</button>
         <button id="help-plan">载入示例阵解</button>
+        <button id="help-classic8">载入 PE.经典八炮（炮阵样板）</button>
         <span class="hint" id="help-msg"></span>
       </div>
       <h3>示例阵型字符串（PvZ Tools）</h3>
@@ -983,6 +984,36 @@ async function tcLoadExamplePlan(){
 document.getElementById('help-load').onclick = tcLoadExampleArray;
 document.getElementById('help-plan').onclick = tcLoadExamplePlan;
 
+/* ★ 2026-10-22：PE.经典八炮 —— 常规炮阵的样板（阵型 + P4 阵解一起载入） */
+async function tcLoadClassic8(){
+  const msg = document.getElementById('help-msg');
+  // 阵解编辑器还没 boot 过（没进过 ③ 页）→ 先把 catalog 拉下来
+  if (typeof plEnterPlan === 'function' && (typeof PLAN === 'undefined' || !PLAN.cat)) {
+    try { await plEnterPlan(); } catch (e) {}
+  }
+  const r = await fetch('/api/example/classic8');
+  const d = await r.json();
+  if (!d.ok) { msg.textContent = '载入失败：' + (d.error || ''); return; }
+  LY.field = d.field || 'PE';
+  LY.array = {};
+  Object.keys(d.array || {}).forEach(k => {
+    LY.array[k] = Object.assign({ plant: null, pumpkin: false, ladder: false,
+                                  awake: true, base: null, grave: false }, d.array[k]);
+  });
+  LY.name = lyBareName(d.name || '经典八炮');
+  localStorage.setItem(LY_NAME_KEY, LY.name);
+  localStorage.setItem('tc.field', LY.field);
+  LY.sel = null;
+  lyNormalizeRules();
+  lyRender();
+  if (typeof plAddBank === 'function' && d.plan) {
+    plAddBank(d.plan, d.name || '经典八炮');
+  }
+  msg.textContent = '已载入「' + lyFullName() + '」的阵型与 P4 阵解（9s 一对炮）';
+  tcTab('layout');
+}
+document.getElementById('help-classic8').onclick = tcLoadClassic8;
+
 lyRender();
 
 /* ---------------- 出怪勾选 ---------------- */
@@ -1054,6 +1085,19 @@ META.presets.forEach(p => {
   b.textContent = p.name; b.onclick = () => { setSel(p.kinds); document.getElementById('name').value = p.name + '关'; };
   presetsEl.appendChild(b);
 });
+/* ★ 2026-10-22：推荐组合增加「全出怪」—— 勾选这个场地**允许出现的所有僵尸**
+   （自动排除场地禁出的：DE/NE 无水生、NE 无冰车、RE 无舞王/矿工…） */
+{
+  const all = document.createElement('button');
+  all.textContent = '全出怪';
+  all.title = '勾选当前场地允许出现的所有僵尸';
+  all.onclick = () => {
+    const ban = lyBanned();
+    setSel(META.kinds.map(k => k.name).filter(n => !ban.has(n)));
+    document.getElementById('name').value = '全出怪·' + LY.field;
+  };
+  presetsEl.appendChild(all);
+}
 document.getElementById('selnone').onclick = () => setSel([]);
 renderFieldPick();
 

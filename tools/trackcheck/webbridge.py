@@ -59,6 +59,8 @@ def handle(path, query='', body=''):
                                          ladder=bool(v.get('ladder')),
                                          base=('睡莲' if k[0] in (3, 4) else None))
                        for k, v in CFG.ARRAY.items()}))
+        if path == '/api/example/classic8':
+            return _json(200, PL.example_classic8())
         if path == '/api/plan/example':
             return _json(200, PL.example_split_aa())
         if path == '/api/plan/list':

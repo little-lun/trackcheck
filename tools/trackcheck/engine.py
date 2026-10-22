@@ -352,6 +352,8 @@ class Sim:
         self.joker_row_n = {r: 0 for r in range(1, self.rows + 1)}
         self.wave_ctrl = {}           # 每波的控制手段：冰 / 灰烬 / 无
         self.bungee_risk = []         # 本波有蹦极却没点冰
+        self.bungee_log = []          # ★ 2026-10-22：蹦极的逐波判定明细（保护伞/炮/冰/被偷）
+        self._bungee_cur = None
         self._chili_freed_at = -1
         self.wogua_pending = None     # 窝瓜：种下待命 → 判定域命中即刻生效
         self.garlic_slots = [tuple(rc) for rc in (self.slots.get('garlic') or [])]
@@ -590,6 +592,9 @@ class Sim:
         if script.get('蹦极'):
             has_ice = any(nm in ice_names for nm, _o, _a, _t in acts)
             self.bungee_risk.append(dict(wave=w, n=script['蹦极'], ice=has_ice))
+            # ★ 2026-10-22：真判一次"会偷谁、谁能救"
+            self._bungee_resolve()          # 上一波若还没结算，先收尾
+            self._bungee_cur = self._bungee_plan(w)
 
         # ---- hover 快照：计划内 / 机会性 分开记
         #   计划内 = N / A / A' / I / 窝瓜压车 / 种大喷（轨道明确排的动作）
@@ -719,7 +724,9 @@ class Sim:
         for _, kind, row, x, w in due:
             z = Zombie(kind, row, x, w, self.rng)
             if kind == '小丑':
-                early = self.rng.random() < D.JOKER_EARLY_P
+                # ★ 2026-10-22 用户口径：早爆 / 晚爆的权重看**这一路最靠前的植物**在几列
+                #   —— 前排（7~9 列）重点模拟早爆，后排（2~4 列）重点模拟晚爆。
+                early = self.rng.random() < D.joker_early_p(self._front_plant_col(row))
                 lo, hi = (D.JOKER_BOX_EARLY if early else D.JOKER_BOX_LATE)
                 z.box_in = self.rng.randint(lo, hi)
                 z.joker_early = early
@@ -1158,6 +1165,8 @@ class Sim:
                             spec['dy'], (cx, cy)))
         self.actions.append(dict(t=self.t, wave=ev.get('wave') or 1,
                                  name='玉米炮', ok=True))
+        # ★ 2026-10-22：炮阵的蹦极靠"炮炸"救 —— 爆炸判定域盖到目标格就算救下
+        self._bungee_mark('cob', center=(cx, cy))
         self._log('ASH', '玉米炮开炮 → %s-%s（%s）'
                   % (_num(row), _num(col),
                      '即刻爆' if fuse == 0 else '%.0f cs 后爆' % fuse),
@@ -1441,6 +1450,8 @@ class Sim:
             d2 = self.rng.randint(300, 400) if z.slowed_until > self.t else dur
             z.frozen_until = max(z.frozen_until, self.t + d2)
             z.slowed_until = max(z.slowed_until, self.t + D.ICE_TOTAL_CS)
+        # ★ 2026-10-22：冰真的生效了 → 被"冰杀定式"覆盖的蹦极目标保住了
+        self._bungee_mark('ice')
 
     # ------------------------------------------------ 主循环
     def run(self):
@@ -1738,6 +1749,164 @@ class Sim:
             if self.wave_meta is not None:
                 self.wave_meta['zs'].append(b)
                 self.wave_meta['total_hp'] += b.hp0
+
+    def _front_plant_col(self, row):
+        """这一路**最靠前（列号最大）**的植物在第几列；没有就 None
+
+        用户 2026-10-22：小丑重点模拟哪一型由它决定。
+        """
+        best = None
+        for col in range(1, 10):
+            c = self.cells.get((row, col))
+            if c is not None and (c.has_content() or c.tail):
+                best = col
+        return best
+
+    def _umbrella_covers(self, rc):
+        """这一格是不是被**叶子保护伞**罩住
+
+        [知识库 05 / 记忆]：伞覆盖 **3×3 且含自身格**；放第 2 列才罩得住第 3 列的关键植物。
+        """
+        r, c = rc
+        for dr in (-1, 0, 1):
+            for dc in (-1, 0, 1):
+                cc = self.cells.get((r + dr, c + dc))
+                if cc is not None and cc.plant == '保护伞':
+                    return True
+        return False
+
+    def _is_umbrella(self, rc):
+        cell = self.cells.get(rc)
+        return cell is not None and cell.plant == '保护伞'
+
+    def _ice_kill_cover(self, rc):
+        """这一格是不是被「冰杀定式」覆盖（二曾 / 瓜曾喷）
+
+        用户 2026-10-22：这类格子的植物**必须让寒冰菇真的生效**才保得住。
+        简化口径：3×3 内的忧郁菇 ≥ 2（二曾），或者 1 曾 + 同路 3 格内有冰瓜（瓜曾喷）。
+        """
+        r, c = rc
+        n_zeng = 0
+        for dr in (-1, 0, 1):
+            for dc in (-1, 0, 1):
+                cc = self.cells.get((r + dr, c + dc))
+                if cc is not None and cc.plant == '忧郁菇':
+                    n_zeng += 1
+        if n_zeng >= D.BUNGEE_ICE_KILL_ZENG:
+            return True
+        if n_zeng >= 1:
+            for dc in (-3, -2, -1, 1, 2, 3):
+                cc = self.cells.get((r, c + dc))
+                if cc is not None and cc.plant in ('冰瓜', '冰西瓜'):
+                    return True
+        return False
+
+    def _plant_status(self):
+        """这一局结束时**全场每一株植物**的状态（报告总概述用）
+
+        ★ 2026-10-22 用户要求：报告里所有固定文本都换成"按实际阵型 & 阵解"
+          得到的可替换文本 —— 所以植物的初始 / 当前 / 血量 / 南瓜 / 梯子
+          全部按格列出，界面只负责排版。
+        """
+        out = []
+        for (r, c) in sorted(self.array):
+            spec = self.array[(r, c)] or {}
+            cell = self.cells.get((r, c))
+            init = spec.get('plant') or ''
+            now = (cell.plant if cell is not None else None) or ''
+            max_hp = D.PLANTS.get(init, {}).get('hp', D.PLANT_HP_DEFAULT) if init else 0
+            out.append(dict(
+                row=r, col=c, init=init, now=now,
+                hp=round(cell.plant_hp) if cell is not None and cell.plant else 0,
+                max_hp=max_hp,
+                pumpkin=bool(cell.pumpkin) if cell is not None else False,
+                pumpkin_init=bool(spec.get('pumpkin')),
+                pumpkin_hp=round(cell.pumpkin_hp) if cell is not None else 0,
+                ladder=bool(cell.ladder) if cell is not None else False,
+                alive=bool(now),
+            ))
+        return out
+
+    def _bungee_plan(self, w):
+        """蹦极的简化判定（用户 2026-10-22 口径）
+
+        · **保护伞覆盖的植物 / 玉米炮** → 不做任何操作也不会被偷
+        · 被**冰杀定式**覆盖（二曾 / 瓜曾喷）的植物 → 必须让寒冰菇生效
+        · 炮阵还可以**用炮炸蹦极**（爆炸判定域盖到那一格就算救下）
+        · 其余植物 → 会被偷
+        """
+        if not self.wave_script(w).get('蹦极'):
+            return None
+        n = int(self.wave_script(w).get('蹦极') or 0)
+        cand = []
+        for (r, c), cell in self.cells.items():
+            if not (cell.plant or cell.tail):
+                continue
+            name = cell.plant or '玉米炮'
+            if name in D.BUNGEE_SAFE_PLANTS or self._umbrella_covers((r, c)):
+                continue
+            cand.append(dict(rc=(r, c), plant=name,
+                             need=('ice' if self._ice_kill_cover((r, c)) else 'none'),
+                             saved=None))
+        # 按"价值"排：曾 / 冰瓜 > 一般输出 > 其他；同价值取更靠后（玩家更在意的后场）
+        rank = {'忧郁菇': 0, '冰瓜': 0, '冰西瓜': 0, '香蒲': 1, '双发射手': 1,
+                '机枪射手': 1, '大喷菇': 2, '阳光菇': 3, '向日葵': 3}
+        cand.sort(key=lambda t: (rank.get(t['plant'], 2), -t['rc'][1]))
+        targets = cand[:n]
+        return dict(wave=w, n=n, targets=targets,
+                    stolen=[], saved_ice=0, saved_cob=0, safe_umbrella=0)
+
+    def _bungee_mark(self, kind, rc=None, center=None):
+        """冰 / 炮 救下蹦极目标；`center=(cx,cy)` = 爆炸判定域（盖到那格就算救）"""
+        b = getattr(self, '_bungee_cur', None)
+        if not b:
+            return
+        for t in b['targets']:
+            if t['saved']:
+                continue
+            if kind == 'ice':
+                if t['need'] == 'ice':
+                    t['saved'] = 'ice'
+                    b['saved_ice'] += 1
+                continue
+            if kind == 'cob':
+                tr, tc = t['rc']
+                if center is None:
+                    continue
+                cx, cy = center
+                px, py = D.cell_x(tc), self.py(tr, tc)
+                if (px - cx) ** 2 + (py + 20 - cy) ** 2 <= 220 ** 2:
+                    t['saved'] = 'cob'
+                    b['saved_cob'] += 1
+
+    def _bungee_resolve(self):
+        """一波结束时结算：没被救下的目标被偷走"""
+        b = getattr(self, '_bungee_cur', None)
+        self._bungee_cur = None
+        if not b:
+            return
+        for t in b['targets']:
+            if t['saved']:
+                continue
+            r, c = t['rc']
+            cell = self.cells.get((r, c))
+            if cell is None or not cell.plant:
+                continue
+            name = cell.plant
+            cell.plant, cell.plant_hp = None, 0
+            cell.pumpkin, cell.pumpkin_hp = False, 0
+            cell.ladder = False
+            b['stolen'].append(dict(rc=(r, c), plant=name))
+            self._log('BUNGEE', '蹦极偷走 %d-%d 的%s' % (r, c, name),
+                      row=r, col=c,
+                      detail='保护伞/炮之外、冰杀定式之外的植物，没点冰就会被偷')
+        self.bungee_log.append(b)
+        if b['stolen']:
+            self._log('WARN', '本波蹦极偷走 %d 株（%s）'
+                      % (len(b['stolen']),
+                         '、'.join('%d-%d %s' % (x['rc'][0], x['rc'][1], x['plant'])
+                                  for x in b['stolen'])),
+                      detail='w%d 蹦极 %d 只' % (b['wave'], b['n']))
 
     def _tick_joker(self):
         """
@@ -2876,6 +3045,7 @@ class Sim:
                     nxt = self.t
 
         if nxt is not None:
+            self._bungee_resolve()      # ★ 2026-10-22：这一波的蹦极到点结算
             if w >= self.total_waves:
                 self.done = True
                 return
@@ -3082,29 +3252,32 @@ class Sim:
                                       for c in self.car_audit), default=None)),
                 pumpkins_alive=sum(1 for (r, c), cell in self.cells.items()
                                    if self.array.get((r, c), {}).get('pumpkin') and cell.pumpkin),
+                # ★ 2026-10-22：南瓜存活数的**分母**用"实际识别阵型"的结果，
+                #   不再硬编码 24。
+                pumpkins_init=sum(1 for sp in self.array.values() if sp.get('pumpkin')),
                 plants_lost=[x['what'] for x in self.log if x['sev'] == 'WARN'],
                 repairs=sum(1 for x in self.log if x['sev'] == 'REPAIR'),
                 kernel_log=self.kernel_log,
                 joker=dict(
                     spawned=getattr(self, '_joker_n', 0),
                     spawned_rows={str(r): v for r, v in self.joker_row_n.items()},
-                    # ★ 用户 2026-10-19 定义的"炸率"：
-                    #   **小丑爆炸导致 CORE 被摧毁的概率**，在 PE.电波钟里
-                    #   特指 **2 路 / 5 路** 小丑爆炸的概率 —— 只有这两路
-                    #   的小丑爆炸会死 core（1/6 路 CORE 在 3 列，7-8 列炸不到；
-                    #   3/4 路根本不出小丑）。
-                    boom25=sum(1 for b in self.joker_boom if b['row'] in (2, 5)),
-                    spawn25=(self.joker_row_n.get(2, 0) + self.joker_row_n.get(5, 0)),
-                    core_kill=sum(1 for b in self.joker_boom
-                                  if any(k in ('忧郁菇', '冰瓜')
-                                         for k in b['killed'])),
                     booms=len(self.joker_boom),
                     boom_rows={str(r): sum(1 for b in self.joker_boom if b['row'] == r)
                                for r in range(1, self.rows + 1)},
+                    # ★ 2026-10-22：控丑判定改成**按实际结果**分类，不再假设"只有 2/5 路会死"
+                    boom_empty=sum(1 for b in self.joker_boom if not b['killed']),
+                    boom_hit=sum(1 for b in self.joker_boom if b['killed']),
+                    core_kill=sum(1 for b in self.joker_boom
+                                  if any(k in ('忧郁菇', '冰瓜')
+                                         for k in b['killed'])),
                     kill=[b for b in self.joker_boom if b['killed']],
-                    detail=self.joker_boom[:30],
+                    detail=self.joker_boom[:60],
                 ),
+                # ★ 2026-10-22：蹦极逐波明细（谁被偷 / 谁被伞·炮·冰救下）
                 bungee=self.bungee_risk,
+                bungee_detail=self.bungee_log,
+                # ★ 2026-10-22：全场植物状态（报告总概述的表格用它，不写死任何文本）
+                plants_end=self._plant_status(),
                 wave_ctrl={str(k): v for k, v in self.wave_ctrl.items()},
                 rebuilds=self.rebuilds,
             ),
@@ -3115,10 +3288,13 @@ class Sim:
                 booms=len(self.joker_boom),
                 boom_rows={r: sum(1 for b in self.joker_boom if b['row'] == r)
                            for r in range(1, self.rows + 1)},
+                boom_empty=sum(1 for b in self.joker_boom if not b['killed']),
+                boom_hit=sum(1 for b in self.joker_boom if b['killed']),
                 kill=[b for b in self.joker_boom if b['killed']],
-                detail=self.joker_boom[:30],
+                detail=self.joker_boom[:60],
             ),
             bungee=self.bungee_risk,
+            bungee_detail=self.bungee_log,
             wave_ctrl={str(k): v for k, v in self.wave_ctrl.items()},
             rebuilds=self.rebuilds,
             avg_gap=round((self.waves[-1]['t'] - self.waves[0]['t']) /

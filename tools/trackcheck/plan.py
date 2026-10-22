@@ -920,7 +920,9 @@ def check_spectrum(beats, gaps, n_cob=None, deck=None):
     ops = cycle_ops(beats)
     gaps = [float(g) for g in (gaps or [])]
     if not gaps:
-        return [dict(level='warn', msg='还没填波长串 —— 波长校验要它才能做')]
+        # ★ 2026-10-22 用户口径：波长串**可选** ——
+        #   IO 高的阵波长本来就难以精确控制，不填就不校验。
+        return []
     L = sum(gaps) * 100.0                    # cs
     n_beat = len([b for b in (beats or []) if cycle_ops([b])])
     if n_beat and len(gaps) != n_beat:
@@ -1216,7 +1218,9 @@ def validate(plan):
             bad(where, '未知积木 %r' % b.get('op'))
             return
         spec = OP_BY_NAME[op]
-        if deck and op not in allowed and op not in ('窝瓜压车',):
+        # ★ 2026-10-22：P（玉米炮）只看**场上有没有炮**，跟卡槽无关
+        #   —— 炮是阵型的一部分，不是"这次带没带这张卡"。
+        if deck and op != '玉米炮' and op not in allowed:
             warn(where, '%s 不在选卡里 —— 这一块永远打不出去' % op)
         if op.startswith('模仿') and engine_card(op) is None:
             warn(where, '引擎还没建模「%s」—— 能写进阵解，但跑起来会被记为未知卡片' % op)
@@ -1306,11 +1310,11 @@ def validate(plan):
     if simple.get('targets') and not simple.get('resources'):
         warn('简化救场', '没有任何救场资源 —— 有危险也不会出手')
 
-    # ---- 波长串校验（用户 2026-10-22）
+    # ---- 波长串校验（用户 2026-10-22）：**可选**，填了才校验
     rh = plan.get('rhythm') or {}
     gaps = rh.get(GAPS_KEY) or []
-    beats_txt = '|'.join(rh.get('beats') or [])
     if gaps:
+        beats_txt = '|'.join(rh.get('beats') or [])
         d = parse_track_full(beats_txt, None)
         beats = (d['variants'][0] if d['variants'] else [])
         for it in check_spectrum(beats, gaps, None, deck):
@@ -1318,8 +1322,6 @@ def validate(plan):
                 bad('波长', it['msg'])
             elif it['level'] == 'warn':
                 warn('波长', it['msg'])
-    elif beats_txt:
-        warn('波长', '还没填波长串 —— 波长和校验要它才能做')
     return out
 
 
@@ -1581,7 +1583,7 @@ def default_dianbozhong():
     def row(w, sets, note=''):
         rows.append(dict(w=w, role=role_of(w), note=note, sets=sets))
 
-    row(1, [_set(N, _b('毁灭菇', [2, 9]),
+    row(1, [_set(N, _b('毁灭菇', [2, 8]),
                  _b('寒冰菇', [2, 7], trig={'kind': 'time', 'at': 0}),
                  _b('模仿寒冰菇', [5, 7], trig={'kind': 'time', 'at': 400})),
             _set(ICE1, _b('咖啡豆')),
@@ -1591,7 +1593,7 @@ def default_dianbozhong():
     def regular(w, note):
         row(w, [
             _set({'kind': 'all', 'of': [N, ANY_ASH, {'kind': 'kernel_slack'}]},
-                 _b('毁灭菇', [5, 8])),
+                 _b('毁灭菇', [5, 9])),
             _set(AA, _b('樱桃', [2, 8]), _b('辣椒')),
             _set(ANY_ASH, _b('樱桃', [5, 8])),
             _set(ICE1, _b('咖啡豆')),
@@ -1688,6 +1690,91 @@ def builtin(name='电波钟无炮'):
     return default_dianbozhong()
 
 
+# ══════════════════════════════════════════════════════════════════
+# 示例：PE.经典八炮（常规炮阵，用户 2026-10-22 提供的阵型字符串）
+# ══════════════════════════════════════════════════════════════════
+CLASSIC8_STR = (
+    '0,2C 1 2 0 0 0,1E 1 2 0 0 1,30 1 2 0 0 0,2C 1 3 0 0 0,1E 1 3 0 0 1,'
+    '30 1 3 0 0 0,2C 1 4 0 0 0,1E 1 4 0 0 1,30 1 4 0 0 0,2F 1 5 0 0 0,'
+    '2A 2 2 1 0 0,1E 2 2 0 0 1,30 2 2 0 0 0,25 2 3 0 0 0,1E 2 3 0 0 1,'
+    '30 2 3 0 0 0,2C 2 4 0 0 0,1E 2 4 0 0 1,30 2 4 0 0 0,2F 2 5 0 0 0,'
+    '10 3 1 0 0 0,2F 3 1 0 0 0,10 3 2 0 0 0,10 3 3 0 0 0,2F 3 3 0 0 0,'
+    '10 3 4 0 0 0,10 3 5 0 0 0,2C 3 5 0 0 0,1E 3 5 0 0 0,10 3 6 0 0 0,'
+    '25 3 6 0 0 0,1E 3 6 0 0 0,10 3 7 0 0 0,2A 3 7 1 0 0,1E 3 7 0 0 0,'
+    '10 4 1 0 0 0,2F 4 1 0 0 0,10 4 2 0 0 0,10 4 3 0 0 0,2F 4 3 0 0 0,'
+    '10 4 4 0 0 0,10 4 5 0 0 0,2C 4 5 0 0 0,1E 4 5 0 0 0,10 4 6 0 0 0,'
+    '29 4 6 0 0 0,1E 4 6 0 0 0,10 4 7 0 0 0,2A 4 7 1 0 0,1E 4 7 0 0 0,'
+    '2A 5 2 1 0 0,1E 5 2 0 0 1,30 5 2 0 0 0,25 5 3 0 0 0,1E 5 3 0 0 1,'
+    '30 5 3 0 0 0,2C 5 4 0 0 0,1E 5 4 0 0 1,30 5 4 0 0 0,2F 5 5 0 0 0,'
+    '2C 6 2 0 0 0,1E 6 2 0 0 1,30 6 2 0 0 0,2C 6 3 0 0 0,1E 6 3 0 0 1,'
+    '30 6 3 0 0 0,2C 6 4 0 0 0,1E 6 4 0 0 1,30 6 4 0 0 0,2F 6 5 0 0 0')
+
+
+def example_classic8():
+    """PE.经典八炮：**常规炮阵的样板**（用户 2026-10-22 给的阵型字符串）
+
+    阵型：8 门玉米炮（1-5 / 2-5 / 3-1 / 3-3 / 4-1 / 4-3 / 5-5 / 6-5）、
+          10 张冰瓜、4 张忧郁菇、3 把保护伞、1 个双子花、4 个水上睡莲；
+          岸路 1/2/5/6 的路障段是梯子南瓜。
+    阵解：**P4 = P|P|P|P(9,9,9,9)** —— 9s 一对炮，打了就触发下一波（运算量定理）。
+    """
+    from . import layout as LY
+    arr, _fld, _rake = LY.decode_tools(CLASSIC8_STR, 'PE')
+    p = template('PE')
+    p['name'] = '经典八炮'
+    p['note'] = ('P4：P|P|P|P(9,9,9,9)，9s 一对炮。起手直接进轨道；'
+                 '收尾在轨道一对炮的基础上再开一对炮，用垫材拖时间；旗波额外操作。'
+                 '⚠️ 这是**结构样板**：落点用引擎默认（优先打最危险那一路）、'
+                 '时机给 +120cs 等僵尸进入可伤线。'
+                 '冰车 / 红眼这类要临场点名的目标，请自己按实战改落点与时机。')
+    p['deck'] = ['玉米炮', '寒冰菇', '咖啡豆', '南瓜', '樱桃', '辣椒', '荷叶',
+                 '毁灭菇', '窝瓜', '大蒜']
+    p['rhythm'].update(system='P', id='P4', name='P4', beats=['P', 'P', 'P', 'P'],
+                       gaps=[9, 9, 9, 9], pair='short')
+    p, _n = quick_layout(p, 'P|P|P|P', pair='short', gaps_text='(9,9,9,9)')
+
+    # 快捷布置只给"做什么"。示例里给一个**通用**的时机与落点：
+    #   · 落点留空 → 引擎按"最危险的那一路"自动挑（有冰车优先打冰车那一路）
+    #   · 时机 +120cs → 等僵尸走进可伤线（x ≤ 764）再炸
+    #   真打请按实战改落点与时机（冰车 / 红眼这类要临场点名）。
+    for row in p['waves']:
+        for st in row['sets'] or []:
+            for b in st.get('ops') or []:
+                if b.get('op') == '玉米炮':
+                    b['aim'] = None
+                    b['trig'] = {'kind': 'time', 'at': 120}
+
+    def row(w):
+        return next(r for r in p['waves'] if int(r['w']) == w)
+
+    # 起手 w1：四条陆路各来一发（先把开局的冰车 / 快僵尸压下去）
+    row(1)['sets'] = [dict(when={'kind': 'always'}, ops=[
+        _b('玉米炮', None, trig={'kind': 'time', 'at': 120}),
+        _b('玉米炮', None, trig={'kind': 'time', 'at': 120}),
+        _b('玉米炮', None, trig={'kind': 'time', 'at': 400}),
+        _b('玉米炮', None, trig={'kind': 'time', 'at': 400})])]
+    row(1)['note'] = '起手：直接进轨道，连开两对炮把开局压下去'
+    for w in (10, 20):
+        r = row(w)
+        r['sets'] = [dict(when={'kind': 'always'}, ops=[
+            _b('玉米炮', None, trig={'kind': 'time', 'at': 120}),
+            _b('玉米炮', None, trig={'kind': 'time', 'at': 120}),
+            _b('寒冰菇', None, trig={'kind': 'spawn'})])]
+        r['note'] = '旗波：一对炮 + 冰（冰杀蹦极 / 控丑）'
+    for w in (9, 19):
+        r = row(w)
+        r['sets'] = [dict(when={'kind': 'always'}, ops=[
+            _b('玉米炮', None, trig={'kind': 'time', 'at': 120}),
+            _b('玉米炮', None, trig={'kind': 'time', 'at': 120}),
+            _b('玉米炮', None, trig={'kind': 'after', 'at': 0}),
+            _b('玉米炮', None, trig={'kind': 'after', 'at': 0})])]
+        r['note'] = '收尾：再补一对炮 + 垫材拖时间（垫材自己排）'
+    p = norm(p)
+    return dict(ok=True, field='PE', name='经典八炮',
+                array={'%d-%d' % k: v for k, v in arr.items()},
+                string=CLASSIC8_STR, plan=p)
+
+
 def example_split_aa():
     """示例：**把 C4io 的 AA′ 拆到两波**（`prev` 条件最典型的用法）"""
     p = default_dianbozhong()
@@ -1702,7 +1789,7 @@ def example_split_aa():
                 {'kind': 'card_ready', 'card': '毁灭菇'},
                 {'kind': 'card_ready', 'card': '樱桃'},
                 {'kind': 'card_ready', 'card': '辣椒'}]},
-                _b('毁灭菇', [5, 8])),
+                _b('毁灭菇', [5, 9])),
             _set({'kind': 'card_ready', 'card': '辣椒'}, _b('辣椒')),
             _set({'kind': 'card_ready', 'card': '樱桃'}, _b('樱桃', [2, 8])),
             _set(None, _b('咖啡豆')),

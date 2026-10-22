@@ -43,31 +43,35 @@ ABBR = {
     '窝瓜': 'W', '窝瓜压车': 'W',
     '垫材': 'C', '垫材2': 'C',
     '种大喷': 'F', '大喷菇': 'F', '种冰': '·', '种冰2': '·', '种临时冰': '·',
+    # ★ 2026-10-22：P（玉米炮）单独一条泳道 —— 炮阵的核心操作必须能一眼数出来
+    '玉米炮': 'P',
     # ★ 极速关的 N 换成大蒜（2-9 / 5-9），它也是**结构性动作**，要画出来
     '大蒜': '·',
 }
 ABBR_COLOR = {
+    'P': '#7c3aed',
     'N': '#b91c1c', 'A': '#ea580c', "A'": '#7f1d1d',
     'I': '#1d4ed8', 'W': '#4d7c0f', 'C': '#94a3b8', 'F': '#0891b2', '·': '#cbd5e1',
 }
-ABBR_DESC = {'N': '核弹', 'A': '樱桃', "A'": '辣椒', 'I': '冰', 'W': '窝瓜',
-             'C': '垫材', 'F': '补大喷'}
+ABBR_DESC = {'P': '玉米炮', 'N': '核弹', 'A': '樱桃', "A'": '辣椒', 'I': '冰',
+             'W': '窝瓜', 'C': '垫材', 'F': '补大喷'}
 
 # 泳道：(缩写, y_top, height)。None = 波次行
 LANES = [
     (None,  4, 22),
-    ('N',  28, 13),
-    ('A',  41, 13),
-    ("A'", 54, 13),
-    ('I',  69, 16),
-    ('CW', 85, 16),
+    ('P',  28, 14),
+    ('N',  43, 13),
+    ('A',  57, 13),
+    ("A'", 71, 13),
+    ('I',  85, 16),
+    ('CW', 102, 16),
 ]
-LANE_OF = {'N': 1, 'A': 2, "A'": 3, 'I': 4, 'W': 5, 'C': 5, 'F': 5, '·': 5}
-GRAPH_TOP = 106
+LANE_OF = {'P': 1, 'N': 2, 'A': 3, "A'": 4, 'I': 5, 'W': 6, 'C': 6, 'F': 6, '·': 6}
+GRAPH_TOP = 122
 GRAPH_H = 74
-SUN_TOP = 186
+SUN_TOP = 202
 SUN_H = 56
-TL_H = 254
+TL_H = 270
 
 # ★★ 2026-10-20 用户要求：偏离设计要**分级**，而不是一律标红。
 #   「评定这是：能补的、在人类游戏手感和游戏直觉内可以避免的、致命的或者其它更多档」
@@ -621,15 +625,10 @@ def divergence_html(r, dev=None):
 
 def garlic_html(r):
     """
-    大蒜台账 —— 只有极速关（无冰车/投篮，核换大蒜）才有内容。
+    大蒜台账 —— **只有阵解里真的用了大蒜**才出现，内容全部按实际数据生成。
 
-    记的是"换行把僵尸赶到哪了"。
-
-    ★ 2026-10-20 更正：大蒜**不能跨水陆** ——
-      2-9 的大蒜只能把 2 路僵尸赶去 **1 路**，5-9 的只能赶去 **6 路**
-      （3 / 4 路是水池，陆路僵尸下不去）。
-      所以它不是"分流"，而是**单向驱赶**：岸路压力整股灌进边路。
-      这条表就是用来对账"灌了多少进去、边路吃不吃得下"。
+    ★ 2026-10-20 更正：大蒜**不能跨水陆** —— 岸路的大蒜只能把僵尸赶去相邻的边路
+      （3/4 路是水池，陆路僵尸下不去）。它不是"分流"，而是**单向驱赶**。
     """
     g = r.get('garlic') or {}
     n = g.get('n', 0)
@@ -643,122 +642,32 @@ def garlic_html(r):
             frm[x['frm']] = frm.get(x['frm'], 0) + 1
             to[x['to']] = to.get(x['to'], 0) + 1
 
-    def bar(d, total):
-        return '　'.join('%d路 %d' % (k, v) for k, v in sorted(d.items()))
+    def bar(d):
+        return '　'.join('%d路 %d' % (k, v) for k, v in sorted(d.items())) or '—'
 
     return '''
   <table class="mini">
-    <tr><th>大蒜台账（2-9 / 5-9）</th><th>数值</th><th>说明</th></tr>
+    <tr><th>大蒜台账（按阵解里实际种下的位置）</th><th>数值</th><th>说明</th></tr>
     <tr><td>换行次数</td><td class="b">%d</td><td>僵尸被大蒜赶走的次数（不跨水陆，去向唯一）</td></tr>
-    <tr><td>啃碎次数</td><td>%d</td><td>大蒜 400 血，一口 100 → 每 4 口碎一次，补种靠大蒜卡 7.5s</td></tr>
+    <tr><td>啃碎次数</td><td>%d</td><td>大蒜 400 血、一口 100 → 每 4 口碎一次</td></tr>
     <tr><td>来源</td><td colspan="2" style="text-align:left">%s</td></tr>
     <tr><td>去向</td><td colspan="2" style="text-align:left">%s</td></tr>
-    <tr><td class="b">压力转移</td><td colspan="2" style="text-align:left" class="dim">2 路的量全部压到 1 路、5 路的全部压到 6 路 —— 边路 CORE（3 列冰瓜）独自吃下</td></tr>
-  </table>''' % (n, g.get('broke', 0), bar(frm, n), bar(to, n))
+    <tr><td class="b">压力转移</td><td colspan="2" style="text-align:left" class="dim">岸路的压力整股灌进相邻边路 —— 边路吃不吃得下看下面植物状态</td></tr>
+  </table>''' % (n, g.get('broke', 0), bar(frm), bar(to))
 
 
 def fog_html(r):
-    """
-    结构位大喷台账 —— 只有"极速关 + 出怪里有冰车/投篮"才有内容。
-
-    ★ 用户 2026-10-20（第 14 轮）：极速关带车时**不带大蒜**（车会碾），
-      改用 2-7 / 5-7 的大喷抬丑抗。5-7 被车压的概率不低，被压就补。
-      这张表对账"补了几次、被车碾了几次"。
-    """
+    """结构位补种台账 —— **只有阵解里真的补种过结构位**才出现，内容按实际数据生成"""
     f = r.get('fog') or {}
     n = f.get('n', 0)
     if not n:
         return ''
     return '''
   <table class="mini">
-    <tr><th>结构位大喷台账（2-7 / 5-7）</th><th>数值</th><th>说明</th></tr>
-    <tr><td>补种次数</td><td class="b">%d</td><td>极速关有冰车/投篮：大蒜让位给结构，大喷卡 CD 7.5s</td></tr>
-    <tr><td>被车碾</td><td class="%s">%d</td><td>5-7 被压的概率不低 —— 被压就补，不额外操作</td></tr>
+    <tr><th>结构位补种台账</th><th>数值</th><th>说明</th></tr>
+    <tr><td>补种次数</td><td class="b">%d</td><td>按阵解里排的补种动作统计</td></tr>
+    <tr><td>被车碾</td><td class="%s">%d</td><td>被压就补，不额外操作</td></tr>
   </table>''' % (n, 'bad' if f.get('crushed') else '', f.get('crushed', 0))
-
-
-def ledger_html(r):
-    """存冰台账 + 冰车台账 + 逐路最险位置 —— 三张对账表"""
-    es = r.get('end_state', {}) or {}
-    refill = es.get('ice_refill', 0)
-    skip = es.get('ice_refill_skip', 0)
-    used = es.get('ice_used', 0)
-    emerg = es.get('ice_emerg', 0)
-    reuse = es.get('ice_chili_reuse', 0)
-    track_use = max(0, used - emerg - reuse)
-    end = es.get('ice_stock', 0)
-    temp = es.get('ice_temp_planted', 0)
-    supply = 4 + temp + refill
-    slots = es.get('ice_slots', {})
-
-    tslots = es.get('temp_ice', {})
-    slot_txt = '永久：' + '　'.join('%s %s' % (k, v) for k, v in sorted(slots.items()))
-    if tslots:
-        slot_txt += '<br>　临时：' + '　'.join('%s %s' % (k, v) for k, v in sorted(tslots.items()))
-
-    ice_tbl = '''
-  <table class="mini">
-    <tr><th>存冰台账</th><th>个数</th><th>说明</th></tr>
-    <tr><td>开局预置（永久位）</td><td>4</td><td>3-2 / 3-3 / 4-3 / 5-3</td></tr>
-    <tr><td>前场临时位（w1 种）</td><td>+%d</td><td>2-7 / 5-7；仅慢速/变速（快速/极速的 2-7 要留给别的用途）</td></tr>
-    <tr><td>补种（冰卡 / 复制冰）</td><td>+%d</td><td>冰一好就补；5-3 让给辣椒跳过 %d 次</td></tr>
-    <tr><td class="b">合计供给</td><td class="b">%d</td><td>4 + 临时 %d + 补种 %d</td></tr>
-    <tr><td>点冰 · 轨道（早冰控丑）</td><td>−%d</td><td>常规波 / 收尾波 / 旗波的控丑冰</td></tr>
-    <tr><td>点冰 · 5-3 复用辣椒位</td><td>−%d</td><td>先点冰腾格，下一波再补</td></tr>
-    <tr><td>点冰 · 救急（要砸裸曾）</td><td>−%d</td><td>换下来的是一次不可逆崩阵</td></tr>
-    <tr><td class="b">结余</td><td class="%s">%d</td><td>%s</td></tr>
-  </table>''' % (temp, refill, skip, supply, temp, refill,
-                 track_use, reuse, emerg,
-                 'bad' if end == 0 else 'ok', end, slot_txt)
-
-    cars = es.get('cars_spawned', 0)
-    crush = es.get('cars_crushed', 0)
-    car_tbl = '''
-  <table class="mini">
-    <tr><th>冰车台账</th><th>数值</th><th>说明</th></tr>
-    <tr><td>出现的冰车</td><td>%d</td><td>只在 1/2/5/6 路（陆生）</td></tr>
-    <tr><td>碾压次数</td><td class="%s">%d</td><td>%s</td></tr>
-    <tr><td>最靠左到达的 x</td><td>%s</td><td>碾压判定线 = 植物 x ± 58</td></tr>
-    <tr><td class="b">离最近 CORE 的余量</td><td class="%s">%s</td>
-        <td>余量 &gt; 0 即"没摸到 CORE"</td></tr>
-    <tr><td>碾到的植物</td><td colspan="2">%s</td></tr>
-  </table>''' % (cars, 'ok' if crush == 0 else 'bad', crush,
-                 ('本档出怪里没有冰车' if cars == 0 else
-                  '全图 0 碾压 —— 与"本阵全图有车抗"一致' if crush == 0 else
-                  '本档无救场（死了就补），碾的是非 CORE 耗材，按预期'
-                  if not r.get('_rescue', True) else '有碾压，需复核'),
-                 ('—' if cars == 0 else es.get('cars_min_x')),
-                 'ok' if (es.get('cars_min_margin') or 0) > 0 else 'bad',
-                 ('—' if cars == 0 else '+%d px' % es.get('cars_min_margin')),
-                 (lambda cs: ('无' if not cs else
-                              '、'.join('%d-%d %s' % (c['row'], c['col'], c['plant'] or '南瓜')
-                                       for c in cs[:6])
-                              + ('　<span class="dim">（都是 CORE 之外的耗材 / 临时施工位，'
-                                 '本档无救场，死了就补）</span>' if cs else '')))(r.get('crush', [])))
-
-    # 逐路最靠前位置 vs 本路最靠前 CORE
-    cores = es.get('core_x', {})
-    rmin = es.get('row_min', {})
-    rows = []
-    for rr in range(1, 7):
-        x = rmin.get(str(rr), rmin.get(rr))
-        if x is None:
-            continue
-        cx = cores.get(str(rr), cores.get(rr))
-        if cx is None:
-            rows.append('<tr><td>%d 路</td><td>%d</td><td>—</td><td>—</td></tr>' % (rr, x))
-            continue
-        margin = x - cx
-        cls = 'ok' if margin > 60 else ('warn' if margin > 0 else 'bad')
-        rows.append('<tr><td>%d 路</td><td>%d</td><td>%d</td>'
-                    '<td class="%s">%+d</td></tr>' % (rr, x, cx, cls, margin))
-    row_tbl = '''
-  <table class="mini">
-    <tr><th>路</th><th>僵尸最靠左到过 x</th><th>本路最靠前 CORE</th><th>余量</th></tr>
-    %s
-  </table>''' % ''.join(rows)
-
-    return '<div class="ledgers">%s%s%s</div>' % (ice_tbl, car_tbl, row_tbl)
 
 
 def wave_table(r):
@@ -831,116 +740,165 @@ def kernel_table(r):
   </table>''' % (''.join(rows), peak)
 
 
-def _control_level(r, row):
+def _control_level(r, row=None):
+    """控丑等级的**按实际结果**判定（用户 2026-10-22 口径）
+
+    · **严谨控丑**：每一只小丑要么在爆炸前被打死，要么爆炸**炸空**
+      （= 一个植物都没炸到）
+    · **有限控丑**：炸到植物的概率极低（这里取 < 5%）
+    · 否则：失控
+
+    不再假设"只有 2/5 路的小丑会死 CORE"这类某一阵型专属的口径 ——
+    阵型换了，判定照样成立。
     """
-    按**策略覆盖**判定这一路的控丑等级（不看炸率）。
-
-    ★ 用户 2026-10-19：
-      「快速与极速在控丑严谨性上**绝对不是严谨控丑而是有限控丑**
-        （快速关 2 路是有限控丑、5 路是严谨控丑），只是炸率被结构压得比较低罢了。」
-
-    所以"炸率 0%" ≠ "严谨控丑"。严谨看的是**每一波有没有做控制动作**：
-      · 20 波里每一波都有 冰 / 灰烬 / （该路的结构性补种） → 严谨
-      · 有空窗波 → 有限，并列出空窗波号
-
-    ★ 2026-10-20 补充：**极速关的"不操作"是策略，不是缺陷** ——
-      极速关整档放弃控丑（靠结构与炸率兜底），所以这里返回
-      `('策略性放弃', [])`，报告里不会把它当成"漏了控制"。
-    """
-    tier = r.get('_tier', '').split(' / ')[0]
-    if tier == '极速':
-        return '策略性放弃', []
-    ctrl = r.get('end_state', {}).get('wave_ctrl', {})
-    gaps = []
-    for w in range(1, 21):
-        v = ctrl.get(str(w))
-        if not v:
-            continue
-        if (v.get('ice_act', v.get('ice')) is not None
-                or v.get('ash_act', v.get('ash')) is not None):
-            continue
-        if row in (2, 5) and v.get('fog'):
-            continue          # 该波补了大喷，算结构性覆盖
-        gaps.append(w)
-    return ('严谨', []) if not gaps else ('有限', gaps)
+    es = r.get('end_state', {}) or {}
+    j = es.get('joker') or {}
+    spawned = j.get('spawned', 0)
+    booms = j.get('booms', 0)
+    hit = j.get('boom_hit', 0)
+    if not spawned:
+        return '本档不出小丑', []
+    # 炸空 = 该次爆炸 killed 为空
+    detail = j.get('detail') or []
+    hit_waves = sorted({b.get('wave') for b in detail if b.get('killed')})
+    if hit == 0:
+        return '严谨', []
+    rate = 100.0 * hit / max(1, booms)
+    if rate < 5.0:
+        return '有限', hit_waves
+    return '失控', hit_waves
 
 
 def joker_table(r):
-    """
-    控丑台账：**按路**给"策略等级 + 实测炸率"。
-
-    炸率口径（用户定义）：小丑爆炸导致 CORE 被摧毁的概率。
-    PE.电波钟里只有 **2 路 / 5 路** 的小丑爆炸会死 CORE
-    （3/4 路是水路，小丑下不了水；1/6 路的边路小丑**在 6 列就被化解**）。
-    """
-    es = r.get('end_state', {})
-    j = es.get('joker', {})
+    """控丑台账：**按实际模拟结果**逐路给数字与具体后果（不再写死任何阵型文本）"""
+    es = r.get('end_state', {}) or {}
+    j = es.get('joker') or {}
     n = j.get('spawned', 0)
     if not n:
         return '<div class="dim small">本档不出小丑。</div>'
-    sp_rows = j.get('spawned_rows', {})
-    bo_rows = j.get('boom_rows', {})
+    sp = j.get('spawned_rows', {}) or {}
+    bo = j.get('boom_rows', {}) or {}
+    # 逐路的"炸到了什么"：从 detail 里按行聚合
+    hits_by_row = {}
+    for b in (j.get('detail') or []):
+        if b.get('killed'):
+            hits_by_row.setdefault(b['row'], []).append(b)
     rows = []
-    for rr in (2, 5):
-        sp = sp_rows.get(str(rr), 0)
-        bo = bo_rows.get(str(rr), 0)
-        rate = (100.0 * bo / sp) if sp else 0.0
-        lvl, gaps = _control_level(r, rr)
-        gtxt = ('—' if lvl in ('严谨', '策略性放弃')
-                else '空窗 w' + ',w'.join(str(x) for x in gaps[:6])
-                + ('…' if len(gaps) > 6 else ''))
+    for rr in sorted(int(x) for x in sp):
+        s = sp.get(str(rr), 0)
+        b = bo.get(str(rr), 0) if str(rr) in bo else bo.get(rr, 0)
+        hb = hits_by_row.get(rr, [])
+        dmg = '—'
+        if hb:
+            seen = []
+            for x in hb[:3]:
+                seen.append('w%s 炸 %s' % (x.get('wave'), '、'.join(x['killed'])))
+            dmg = '；'.join(seen) + ('…' if len(hb) > 3 else '')
         rows.append(
-            '<tr><td><b>%d 路</b></td><td>%d</td><td>%d</td>'
-            '<td class="%s">%.2f%%</td><td class="%s">%s</td><td class="dim">%s</td></tr>'
-            % (rr, sp, bo, 'ok' if rate < 5 else 'warn', rate,
-               'ok' if lvl == '严谨' else 'dim' if lvl == '策略性放弃' else 'warn',
-               lvl, gtxt))
-    # 1/6 路只作参考。
-    # ★ 2026-10-20 用户纠正过程（结论对、理由错）：
-    #   「PE.电波钟无炮中最受**边路小丑**威胁的 core 是**岸路第 6 列眼曾**；
-    #     减速小丑被双大喷攻击可以消除边路小丑对它的威胁，即早爆炸空或被喷死。」
-    #   → 所以 1/6 路"不致死"不是因为"CORE 在 3 列炸不到"，
-    #     而是 **小丑在 6 列（1-4/1-5、6-4/6-5 双大喷的火力线）就被打死或炸空**。
-    ref = ''.join('<tr><td>%d 路</td><td>%d</td><td>%d</td>'
-                  '<td class="dim">%.1f%%</td><td class="dim">不致死</td>'
-                  '<td class="dim">边路小丑在 6 列被双大喷打死 / 早爆炸空</td></tr>'
-                  % (rr, sp_rows.get(str(rr), 0), bo_rows.get(str(rr), 0),
-                     100.0 * bo_rows.get(str(rr), 0) / max(1, sp_rows.get(str(rr), 0)))
-                  for rr in (1, 6) if sp_rows.get(str(rr), 0))
-    ck = j.get('core_kill', 0)
+            '<tr><td><b>%d 路</b></td><td>%d</td><td>%d</td><td>%d</td>'
+            '<td class="%s">%s</td></tr>'
+            % (rr, s, b, len(hb), 'ok' if not hb else 'bad', dmg))
+    lvl, waves = _control_level(r)
+    lvl_cls = 'ok' if lvl == '严谨' else ('warn' if lvl == '有限' else 'bad')
+    span = ('空窗 w' + ',w'.join(str(x) for x in waves[:6])
+            + ('…' if len(waves) > 6 else '')) if waves else '—'
     return '''
   <table class="mini">
-    <tr><th>路</th><th>小丑</th><th>爆炸</th><th>炸率</th><th>控丑等级</th><th>空窗</th></tr>
+    <tr><th>路</th><th>出现</th><th>爆炸</th><th>炸到植物</th><th>具体炸了什么</th></tr>
     %s
-    %s
-    <tr><td class="b">炸掉 CORE</td><td colspan="5" class="%s">
-        <b>%d 个</b> —— 严谨/有限是**策略**判定，炸率是**结果**，两者要分开看</td></tr>
-  </table>''' % (''.join(rows), ref, 'ok' if ck == 0 else 'bad', ck)
+    <tr><td class="b">控丑等级</td><td colspan="4" class="%s">
+        <b>%s</b>　<span class="dim">%s</span>
+        <br><span class="dim">口径：每只小丑要么炸前死亡、要么炸空 = 严谨；
+        炸到植物的概率 &lt; 5%% = 有限。早爆 / 晚爆的权重按「这一路最靠前的植物在第几列」取
+        （7~9 列重点模拟早爆，2~4 列重点模拟晚爆）。</span></td></tr>
+  </table>''' % (''.join(rows), lvl_cls, lvl, span)
 
 
 def bungee_table(r):
-    es = r.get('end_state', {})
-    bg = es.get('bungee', [])
-    if not bg:
+    """蹦极台账：**按实际判定**列出"谁被偷 / 谁被伞·炮·冰救下"（用户 2026-10-22 口径）"""
+    es = r.get('end_state', {}) or {}
+    det = es.get('bungee_detail') or []
+    if not det:
         return '<div class="dim small">本档不出蹦极。</div>'
-    rows = ''.join('<tr><td>w%d</td><td>%d</td><td class="%s">%s</td></tr>'
-                   % (b['wave'], b['n'], 'ok' if b['ice'] else 'bad',
-                      '有早冰 → 冰杀蹦极' if b['ice'] else '无冰 → 会被偷植物')
-                   for b in bg)
-    ok = all(b['ice'] for b in bg)
+    rows = []
+    for b in det:
+        tg = b.get('targets') or []
+        by_ice = [t for t in tg if t.get('saved') == 'ice']
+        by_cob = [t for t in tg if t.get('saved') == 'cob']
+        stolen = b.get('stolen') or []
+        free = [t for t in tg if not t.get('saved')]
+        def fmt(lst):
+            return '、'.join('%d-%d%s' % (x['rc'][0], x['rc'][1], x['plant'])
+                            for x in lst) or '—'
+        rows.append(
+            '<tr><td>w%s</td><td>%d</td><td class="dim">%s</td>'
+            '<td class="ok">%s</td><td class="ok">%s</td>'
+            '<td class="%s">%s</td></tr>'
+            % (b.get('wave'), b.get('n', 0), fmt(tg), fmt(by_ice), fmt(by_cob),
+               'bad' if stolen else 'dim', fmt(stolen)))
+    n_stolen = sum(len(b.get('stolen') or []) for b in det)
     return '''
   <table class="mini">
-    <tr><th>旗帜波</th><th>蹦极</th><th>冰杀</th></tr>
+    <tr><th>波</th><th>蹦极</th><th>会偷的目标</th><th>冰杀救下</th><th>炮炸救下</th><th>被偷</th></tr>
     %s
-    <tr><td class="b">结论</td><td colspan="2" class="%s">%s</td></tr>
-  </table>''' % (rows, 'ok' if ok else 'bad',
-                 'w10/w20 都有早冰 → 蹦极全杀' if ok else '有旗帜波没冰，蹦极会偷')
+    <tr><td class="b">结论</td><td colspan="5" class="%s">
+      被偷 <b>%d</b> 株　<span class="dim">口径：保护伞覆盖的植物与玉米炮不做操作也不会被偷；
+      被「冰杀定式」（二曾 / 瓜曾喷）覆盖的必须让寒冰菇真的生效；炮阵可以用炮炸蹦极。</span></td></tr>
+  </table>''' % (''.join(rows), 'ok' if not n_stolen else 'bad', n_stolen)
+
+
+def plant_status_html(r):
+    """全场植物状态表（报告总概述）—— **完全按实际阵型逐格生成**"""
+    st = (r.get('plants_end')
+          or (r.get('end_state') or {}).get('plants_end')
+          or [])
+    if not st:
+        return '<div class="dim small">这一局没有阵型信息。</div>'
+    lost = [x for x in st if x.get('init') and not x.get('alive')]
+    changed = [x for x in st if x.get('init') and x.get('now') and x['now'] != x['init']]
+    pump0 = sum(1 for x in st if x.get('pumpkin_init'))
+    pump1 = sum(1 for x in st if x.get('pumpkin'))
+    rows = []
+    for x in st:
+        nm = x.get('now') or ''
+        if not x.get('init') and not nm and not x.get('pumpkin'):
+            continue
+        hp = x.get('hp') or 0
+        mx = x.get('max_hp') or 0
+        bar = ''
+        if nm and mx:
+            pct = max(0, min(100, round(100.0 * hp / mx)))
+            cls = 'ok' if pct >= 60 else ('warn' if pct >= 25 else 'bad')
+            bar = ('<span class="%s">%d/%d</span>' % (cls, hp, mx))
+        stat = ('<span class="ok">在</span>' if nm
+                else ('<span class="bad">没了</span>' if x.get('init') else '<span class="dim">空</span>'))
+        if x.get('init') and nm and x['now'] != x['init']:
+            stat = '<span class="warn">被换成%s</span>' % nm
+        pump = ('🎃%d' % x['pumpkin_hp']) if x.get('pumpkin') else (
+            '<span class="bad">南瓜没了</span>' if x.get('pumpkin_init') else '')
+        rows.append('<tr><td class="b">%d-%d</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>'
+                    % (x['row'], x['col'], x.get('init') or '—', stat, bar,
+                       pump + ('🪜' if x.get('ladder') else '')))
+    return '''
+  <table class="mini">
+    <tr><th>格</th><th>阵型里</th><th>结束状态</th><th>血量</th><th>南瓜</th></tr>
+    %s
+    <tr><td class="b">汇总</td><td colspan="4">
+      阵型共 <b>%d</b> 格有植物　·　结束存活 <b class="%s">%d</b> 株　·
+      损失 <b class="%s">%d</b> 株%s　·　南瓜 <b>%d/%d</b> 完好</td></tr>
+  </table>''' % (''.join(rows), sum(1 for x in st if x.get('init')),
+                 'ok' if not lost else 'bad', sum(1 for x in st if x.get('alive')),
+                 'ok' if not lost else 'bad', len(lost),
+                 ('（%s）' % '、'.join('%d-%d %s' % (x['row'], x['col'], x['init'])
+                                     for x in lost[:6])
+                  + ('…' if len(lost) > 6 else '')) if lost else '',
+                 pump1, pump0)
 
 
 def legend_html():
     """时间轴图例：字母为主，颜色为辅"""
-    items = [('N', '核弹'), ('A', '樱桃'), ("A'", '辣椒'), ('I', '冰 / 存冰'),
-             ('W', '窝瓜'), ('C', '垫材'), ('F', '补大喷')]
+    items = [('P', '玉米炮'), ('N', '核弹'), ('A', '樱桃'), ("A'", '辣椒'),
+             ('I', '冰 / 存冰'), ('W', '窝瓜'), ('C', '垫材'), ('F', '补大喷')]
     out = ['<div class="legend big">', '<span class="lg-t">时间轴字母</span>']
     for ab, name in items:
         out.append('<span><b style="color:%s">%s</b> %s</span>'
@@ -948,7 +906,7 @@ def legend_html():
     out.append('<span><b style="color:#a16207">·</b> 补大蒜</span>')
     out.append('<span><b style="color:#cbd5e1">·</b> 补存冰</span>')
     out.append('<span style="margin-left:10px" class="dim">'
-               '（N / A / A′ 各占一行，不会再叠在一起；'
+               '（P / N / A / A′ 各占一行，不会叠在一起；'
                '点状标记是维护性动作，不算轨迹。鼠标悬停任一波可看该波明细）</span></div>')
     return ''.join(out)
 
@@ -987,15 +945,13 @@ def card_html(r, dev=None):
   <div class="kpis">
     <div class="k"><span>阳光结余（8000 起）</span><b class="__SUNCLS__">__SUN__</b>
       <span style="font-size:10px;color:#94a3b8">峰值 __SUNPEAK__</span></div>
-    <div class="k"><span>存冰结余</span><b class="__ICECLS__">__ICE__ / 4</b>__ICETMP__</div>
-    <div class="k"><span>补种存冰</span><b>__REFILL__ 次</b></div>
-    <div class="k"><span>点冰</span><b>__USED__ 次</b></div>
-    <div class="k"><span>冰车碾压</span><b class="__CRCLS__">__CRUSH__</b></div>
-    <div class="k"><span>南瓜存活</span><b>__PK__ / 24</b></div>
+    <div class="k"><span>南瓜存活</span><b>__PK__ / __PK0__</b></div>
     <div class="k"><span>补南瓜</span><b>__REP__ 次</b></div>
     <div class="k"><span>植物损失</span><b>__NLOST__</b></div>
     <div class="k"><span>结束卡槽</span><b class="sm">__DARK__</b></div>
   </div>
+  <div class="sec">全场植物状态（结束那一刻 · 按实际阵型逐格列出）</div>
+  __PSTATUS__
   <div class="sec">脱离设计清单（分级）</div>
   __DIVG__
   <div class="sec">时间轴（字母标记 · 悬停看明细）</div>
@@ -1024,17 +980,15 @@ def card_html(r, dev=None):
          if r.get('sun_capped') else '%d' % r.get('sun_peak', 0)),
         ('__ICECLS__', 'bad' if es.get('ice_stock_perm', 0) == 0 else 'ok'),
         ('__ICE__', str(es.get('ice_stock_perm', 0))),
-        ('__ICETMP__', (' ＋临时 %d' % es['ice_stock_temp'])
-         if es.get('ice_stock_temp') else ''),
-        ('__REFILL__', str(es.get('ice_refill', 0))),
-        ('__USED__', str(es.get('ice_used', 0))),
-        ('__CRCLS__', 'ok' if es.get('cars_crushed', 0) == 0 else 'bad'),
-        ('__CRUSH__', str(es.get('cars_crushed', 0))),
+        ('__ICEMAX__', str(len(es.get('ice_slots') or {}) or 4)),
+        ('__ICETMP__', ''),
         ('__PK__', str(es.get('pumpkins_alive', 0))),
+        ('__PK0__', str(es.get('pumpkins_init', 0))),
         ('__REP__', str(es.get('repairs', 0))),
         ('__NLOST__', str(len(lost))),
         ('__DARK__', dark_html),
         ('__DIVG__', divergence_html(r, dev)),
+        ('__PSTATUS__', plant_status_html(r)),
         ('__SVG__', svg_for(r)),
         ('__LEGEND__', legend_html()),
         ('__WT__', wave_table(r)),

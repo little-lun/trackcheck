@@ -230,9 +230,9 @@ def render_job(job, rep, dev):
 
     struct_txt = ''
     if s.get('fog'):
-        struct_txt = '<span>结构位大喷 <b>%.1f</b> 次/局（2-7 / 5-7）</span>' % s['fog']
+        struct_txt = '<span>结构位补种 <b>%.1f</b> 次/局</span>' % s['fog']
     elif s.get('garlic'):
-        struct_txt = '<span>大蒜换行 <b>%.0f</b> 次/局（2-9 / 5-9）</span>' % s['garlic']
+        struct_txt = '<span>大蒜换行 <b>%.0f</b> 次/局</span>' % s['garlic']
 
     # ★ v0.2.2：这组跑的是哪套阵解（空轨道 / 编辑出来的积木阵解）
     pname = (job.get('plan') or {}).get('name')

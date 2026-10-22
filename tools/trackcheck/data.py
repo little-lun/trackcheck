@@ -555,6 +555,25 @@ JOKER_FUSE = 110
 JOKER_BOOM_DX = 20
 JOKER_BOOM_H = 80
 
+# ★ 2026-10-22 用户口径：**早爆 / 晚爆的比例由「这一路最靠前的植物在第几列」决定**
+#   · 最靠前的植物在 **7~9 列** → 早爆型才是威胁（它可能正好炸在你的前排上）
+#   · 最靠前的植物在 **2~4 列** → 晚爆型才是威胁（它得走进来才炸得到东西）
+#   所以"重点模拟"的那一型给很高的权重，另一型只留 wiki 的基线概率。
+JOKER_EARLY_P_FRONT = 0.85      # 最靠前植物 ≥ 7 列
+JOKER_EARLY_P_MID = 0.05        # 5~6 列（wiki 基线）
+JOKER_EARLY_P_BACK = 0.05       # 最靠前植物 ≤ 4 列（晚爆为主）
+
+
+def joker_early_p(front_col):
+    """按「最靠前植物」的列号给早爆型的概率（None = 本路没植物）"""
+    if not front_col:
+        return JOKER_EARLY_P
+    if front_col >= 7:
+        return JOKER_EARLY_P_FRONT
+    if front_col >= 5:
+        return JOKER_EARLY_P_MID
+    return JOKER_EARLY_P_BACK
+
 # [精] 核坑：一个坑 18000cs（180s）才能再用
 KERNEL_CRATER_CS = 18000
 # 用户点名：w1 必须 2-9、w11 必须 5-9，否则坑位不够
@@ -564,6 +583,12 @@ KERNEL_ANCHOR = {1: (2, 9), 11: (5, 9)}
 BUNGEE_DROP = (375, 394)
 BUNGEE_STAY = 300
 BUNGEE_GRAB = 63
+# ★ 2026-10-22 用户口径（蹦极的简化判定）：
+#   · **保护伞覆盖的植物**、以及 **玉米炮**，不做任何操作也不会被偷
+#   · 有**冰杀定式**覆盖的植物（二曾 / 瓜曾喷），必须让寒冰菇真的生效
+#   · 炮阵可以**用炮炸蹦极**（爆炸判定域盖到那一格就算救下）
+BUNGEE_SAFE_PLANTS = ('保护伞', '玉米炮')
+BUNGEE_ICE_KILL_ZENG = 2        # 二曾：目标 3×3 内忧郁菇 ≥ 2
 
 # [精] 投篮：攻击间隔 300cs；动画进度 0.545 时扔出
 CATAPULT_INTERVAL = 300

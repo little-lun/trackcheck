@@ -294,7 +294,8 @@ function plDeckOps() {
 function plOps() {
   const allowed = plDeckOps();
   const ops = PLAN.cat.ops.filter(function (o) {
-    return o.group === '特技' || allowed.indexOf(o.name) >= 0;
+    // ★ 2026-10-22：P（玉米炮）永远可选 —— 它属于阵型，不属于选卡
+    return o.group === '炮' || o.group === '特技' || allowed.indexOf(o.name) >= 0;
   });
   // 模仿了 OPS 里没有的植物 → 补一块（引擎未建模，校验会提示）
   allowed.forEach(function (o) {
@@ -813,6 +814,11 @@ async function plSpectrum() {
       + plEsc((d && d.error) || '') + '</span>';
     return;
   }
+  if (!d.gaps || !d.gaps.length) {
+    box.innerHTML = '<span class="hint">波长串（可选）：填了才会校验波长和够不够炮 / 卡的 CD 转完。'
+      + 'IO 高的阵波长本来就难精确控制，可以不填。</span>';
+    return;
+  }
   const head = '波长和 <b>' + (Math.round(d.total * 100) / 100)
     + 's</b>　拍数 ' + d.beats + '　P ' + d.n_p + ' 发'
     + (d.unknown && d.unknown.length ? '　<span style="color:#b45309">不认识的记号：'
@@ -1320,6 +1326,7 @@ document.getElementById('pl-file').addEventListener('change', function (ev) {
 /* ---------------- 阵解库 ---------------- */
 function plAddBank(plan, name) {
   if (!plan || !plan.waves) { alert('不是阵解'); return; }
+  if (!PLAN.cat) { plBoot(); return; }        // catalog 还没到 → 先 boot，用户再点一次
   plan = JSON.parse(JSON.stringify(plan));
   if (name) plan.name = plBare(name);
   PLAN.bank.push({ id: 'p' + Date.now().toString(36) + PLAN.bank.length, plan: plan });

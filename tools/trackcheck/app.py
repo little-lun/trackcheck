@@ -176,6 +176,11 @@ class Handler(BaseHTTPRequestHandler):
                                        ladder=bool(v.get('ladder')),
                                        base=('睡莲' if k[0] in (3, 4) else None))
                                           for k, v in CFG.ARRAY.items()}))
+        if path == '/api/example/classic8':
+            try:
+                return self._json(PL.example_classic8())
+            except Exception as e:                           # noqa: BLE001
+                return self._json({'ok': False, 'error': str(e)}, 500)
         if path == '/api/plan/example':
             return self._json(PL.example_split_aa())
         if path == '/api/spec':
