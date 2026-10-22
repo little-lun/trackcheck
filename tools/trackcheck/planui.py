@@ -334,6 +334,16 @@ function plPreset(id) {
   return null;
 }
 
+/* 选中节奏型时，把它的**波长串**自动填进输入框（26 版速查表给的官方波长）。
+   gaps 里有 null / 缺项 → 不填，留给用户自己按实战改。 */
+function plFillGaps(q) {
+  const g = (q && q.gaps) || [];
+  const box = document.getElementById('pl-gaps');
+  if (!box) return;
+  if (!g.length || g.some(function (x) { return x === null || x === undefined; })) return;
+  box.value = '(' + g.join(',') + ')';
+}
+
 const PL_CMP = ['>=', '<=', '>', '<', '=='];
 const PL_STATE = [['ice_stock', '存冰数（场上有几颗寒冰菇）'], ['sun', '阳光'],
                   ['zombies_in_row', '本路僵尸数'], ['zombies_total', '场上僵尸数'],
@@ -1150,6 +1160,7 @@ PL_ROOT.addEventListener('change', async function (e) {
       p.rhythm.id = s.presets[0].id;
       p.rhythm.name = s.presets[0].id;
       p.rhythm.beats = s.presets[0].beats.slice();
+      plFillGaps(s.presets[0]);
     }
     return plRender();
   }
@@ -1158,7 +1169,7 @@ PL_ROOT.addEventListener('change', async function (e) {
     const p = plP(), q = plPreset(el.value);
     p.rhythm.id = el.value;
     p.rhythm.name = el.value;
-    if (q) p.rhythm.beats = q.beats.slice();
+    if (q) { p.rhythm.beats = q.beats.slice(); plFillGaps(q); }
     return plRender();
   }
   if (el.id === 'pl-bank') { PLAN.active = +el.value; PLAN.marks = new Set(); return plRender(); }

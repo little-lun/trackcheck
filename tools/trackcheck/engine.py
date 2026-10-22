@@ -267,6 +267,12 @@ class Sim:
                     tcell = self.cells[(r, c + 1)] = Cell(r, c + 1)
                 tcell.tail = True
                 tcell.base = cell.base
+        # ★★ 2026-10-22 用户：「FE 是夜场，蘑菇种植就醒着，不能存冰存核弹」
+        #   夜场里**阵图预置的蘑菇全是醒的** —— 不存在"存冰"这种状态。
+        #   （存冰位的记账在下面建好之后立刻清空，见 `ice_slots`。）
+        if self.fld.night:
+            for cc in self.cells.values():
+                cc.awake = True
         # ★ NE：墓碑。开局在 5~9 列随机放几格（[01 §四.3]：场上墓碑 < 12 就补一个）
         if self.fld.graves:
             free = [(r, c) for r in self.fld.all_rows() for c in range(5, 10)
@@ -337,6 +343,9 @@ class Sim:
                 continue
             if spec.get('plant') == '存冰':
                 self.ice_slots[(r, c)] = True
+        # ★ 2026-10-22：夜场没有"存冰"这回事（蘑菇种下就醒，核弹也不能存）
+        if self.fld.night:
+            self.ice_slots.clear()
         # 前场临时存冰位（2-7 / 5-7）：开局空着，w1 用冰卡种上，不再补种
         self.temp_ice = {}
         for rc in (self.slots.get('temp_ice') or []):
@@ -886,8 +895,15 @@ class Sim:
                                             why='%d-%d 缺基座（荷叶/花盆）' % pos))
                     return
             self._plant_into(cell, '寒冰菇')
-            # ★ 2026-10-22（用户第二轮澄清）：**新种下的蘑菇一定是睡着的** ——
-            #   所以"种下即冻"这件事在模型里是做不到的：先睡下，再用咖啡豆唤醒。
+            if self.fld.night:
+                # ★ 夜场（FE/NE）：蘑菇种下就醒 → 立刻全场冰冻。
+                #   结果导向：种植即生效，没有"睡一夜再点豆"这一步。
+                self._log('ICE', '种寒冰菇（%s）→ 夜场种下即醒 · 全场冰冻'
+                          % card, row=pos[0], col=pos[1],
+                          detail='夜场蘑菇免唤醒；冰冻时长同白天')
+                self._freeze()
+                return
+            # 白天：**新种下的蘑菇一定是睡着的** → 先睡下，再用咖啡豆唤醒
             self._log('ICE', '种寒冰菇（%s）→ 睡下了，要咖啡豆唤醒才冻'
                       % card, row=pos[0], col=pos[1],
                       detail='新种的蘑菇一律先睡；唤醒后永久清醒')
@@ -1663,7 +1679,9 @@ class Sim:
         """
         cell.plant = name
         cell.plant_hp = D.PLANTS.get(name, {}).get('hp', D.PLANT_HP_DEFAULT)
-        if name in D.MUSHROOMS:
+        # ★ 2026-10-22 用户：「FE 是夜场，蘑菇种植就醒着」
+        #   → **只有白天场**新种的蘑菇才是睡着的；夜场种下即生效。
+        if name in D.MUSHROOMS and not self.fld.night:
             cell.awake = False
             cell.atk_t = 0
             self._log('INFO', '新种下的%s（%d-%d）是睡着的'

@@ -266,8 +266,14 @@ def role_of(w):
 
 
 def is_regular(w):
-    """能被"快捷布置阵解"填的波：除 w1（起手）与旗波以外"""
-    return int(w or 0) > 1 and int(w or 0) not in (10, 20)
+    """能被"快捷布置阵解"填的波。
+
+    ★ 2026-10-22 改：**20 波全填**（以前跳 w1 / w10 / w20）。
+      用户口径「以后仅仅只有 w1 是起手」—— 起手也要开炮，旗波更是要打；
+      跳过它们只会留下一堆空波，跑起来就是"僵尸一路进家"。
+      填完用户照样可以逐波改（起手/收尾/旗波该加的操作自己加）。
+    """
+    return int(w or 0) >= 1
 
 
 # ------------------------------------------------------------------ 编译
@@ -1037,10 +1043,19 @@ def check_spectrum(beats, gaps, n_cob=None, deck=None):
         for name in longs:
             copies[name] = copies.get(name, 0) + 1
         if L < C_MIN:
-            out.append(dict(level='warn',
-                            msg='含长 CD 卡（%s）但波长和 %.2fs < 54s：'
-                                '同一张卡的复用要靠模仿者或存冰顶'
-                                % ('/'.join(sorted(set(longs))), L / 100.0)))
+            # ★ 2026-10-22：54s 这条是"**同一张卡**要复用"的下限。
+            #   如果每张长 CD 卡都配了模仿者（或者冰能靠存冰顶），
+            #   复用不靠"等 CD" → 这条警告没意义，不报。
+            bases = sorted({(n.split(':', 1)[1] if n.startswith('模仿者:') else n)
+                            for n in longs})
+            covered = all(
+                (deck and ('模仿者:' + b) in deck) or b == '寒冰菇'
+                for b in bases)
+            if not covered:
+                out.append(dict(level='warn',
+                                msg='含长 CD 卡（%s）但波长和 %.2fs < 54s：'
+                                    '同一张卡的复用要靠模仿者或存冰顶'
+                                    % ('/'.join(bases), L / 100.0)))
         per = max(1, int(L // LONG_CARD_CD))
         for name, u in sorted(copies.items()):
             base = name.split(':', 1)[1] if name.startswith('模仿者:') else name
@@ -1394,6 +1409,23 @@ def validate(plan):
                 bad('波长', it['msg'])
             elif it['level'] == 'warn':
                 warn('波长', it['msg'])
+
+    # ---- 白昼场：种下去的冰是睡着的，同一波没有咖啡豆就白种（用户 2026-10-22）
+    fld_code = plan.get('field') or 'PE'
+    try:
+        from tools.trackcheck import fields as _F
+        _night = bool((_F.FIELDS.get(fld_code) or _F.FIELDS['PE']).night)
+    except Exception:
+        _night = False
+    if not _night:
+        for row in rows:
+            for si, st in enumerate(row.get('sets') or []):
+                ops = [LEGACY_OP.get(b.get('op'), b.get('op'))
+                       for b in st.get('ops') or []]
+                if any(o in ('寒冰菇', '模仿寒冰菇') for o in ops) \
+                        and '咖啡豆' not in ops:
+                    warn('w%s 候选%d' % (row.get('w'), si + 1),
+                         '白天场：新种的寒冰菇是睡着的，同一候选里没有咖啡豆 → 这颗冰不会生效')
     return out
 
 
