@@ -1783,14 +1783,25 @@ def example_classic8():
                               repeat={'every': 350, 'times': times}))
         return out
 
+    def pad_bar():
+        """收尾波的第二对炮：**只有"两对炮都好了"才开**（用户口径）
+        —— 别再无限垫下去，直接开一对，另一对留给下一波。"""
+        return [_b('玉米炮', [2, 8], trig={'kind': 'state', 'what': 'cobs_ready',
+                                          'cmp': '>=', 'value': 4, 'ttl': 9000}),
+                _b('玉米炮', [5, 8], trig={'kind': 'state', 'what': 'cobs_ready',
+                                          'cmp': '>=', 'value': 4, 'ttl': 9000})]
+
     for r in p['waves']:
         w = int(r['w'])
         ops = pair()
-        if w not in (9, 19):          # 收尾波靠 drag 时间，垫材照旧、炮不加倍
+        if w not in (9, 19):
             ops += pads()
+            if w == 20:                 # 最后一波：不留余量，能开几对开几对
+                ops += pad_bar()
         else:
-            ops += pads(times=12)     # 45s 拖时间里要一直钉住
-            r['note'] = '收尾：一对炮 + 垫材拖满 45s（挤炮的装填）'
+            # 收尾：45s 拖时间里，先垫着；一旦两对炮（4 门）装填完毕就直接开一对。
+            ops += pad_bar() + pads(times=6)
+            r['note'] = '收尾：垫材拖时间；两对炮好了就开一对，另一对留给下一波'
         r['sets'] = [dict(when={'kind': 'always'}, ops=ops)]
     p['waves'][0]['note'] = '起手：一对炮打 2-8 / 5-8，边路开始垫材'
     for w in (10, 20):
@@ -2198,5 +2209,6 @@ if __name__ == '__main__':
     print('parse N|AA\'|I|I ->', parse_track("N|AA'|I|I"))
     q, n = quick_layout(p, "N|AA'|I|I")
     print('quick_layout filled', n, 'regular waves')
+
 
 

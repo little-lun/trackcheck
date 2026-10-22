@@ -335,7 +335,9 @@ function plPreset(id) {
 const PL_CMP = ['>=', '<=', '>', '<', '=='];
 const PL_STATE = [['ice_stock', '存冰数（场上有几颗寒冰菇）'], ['sun', '阳光'],
                   ['zombies_in_row', '本路僵尸数'], ['zombies_total', '场上僵尸数'],
-                  ['wave_hp', '本波剩余血量']];
+                  ['wave_hp', '本波剩余血量'],
+                  ['cobs_ready', '已装填完毕的玉米炮门数'],
+                  ['front_x', '本路最靠前僵尸的 x（px）']];
 const PL_DEFAULTS = {
   dist: { zombie: '任意', row: 6, col: 6, axis: 'x', cmp: '<=', value: 160 },
   state: { what: 'sun', cmp: '>=', value: 100 },
@@ -396,7 +398,8 @@ function plCond(c, path, kinds) {
       + '<span class="hint">px</span>';
   } else if (k === 'state') {
     extra = plSel(path, 'what', c.what || 'sun', PL_STATE)
-      + (c.what === 'zombies_in_row' ? plNum(path, 'row', c.row || 6, 36) : '')
+      + ((c.what === 'zombies_in_row' || c.what === 'front_x')
+         ? plNum(path, 'row', c.row || 6, 36) : '')
       + plSel(path, 'cmp', c.cmp || '>=', PL_CMP) + plNum(path, 'value', c.value || 0, 54);
   } else if (k === 'prev') {
     const tgt = c.target || 'set';
@@ -449,7 +452,13 @@ function plTrigLabel(t) {
   if (t.kind === 'card') return '等' + (t.name || '') + '好';
   if (t.kind === 'since') return '距' + (t.op || '上次') + '生效+' + (t.at || 0) + 'cs';
   if (t.kind === 'dist') return '等到' + (t.zombie || '任意') + '距 ' + (t.row || '') + '-' + (t.col || '') + (t.cmp || '') + (t.value || '');
-  if (t.kind === 'state') return '等到场况' + (t.what || '');
+  if (t.kind === 'state') {
+    const nm = { cobs_ready: '炮已装填门数', front_x: '本路最靠前 x',
+                 zombies_in_row: '本路僵尸数', zombies_total: '场上僵尸数',
+                 wave_hp: '本波剩余血量', ice_stock: '存冰数', sun: '阳光' };
+    return '等到' + (nm[t.what] || t.what || '') + (t.row ? ('(' + t.row + '路)') : '')
+      + (t.cmp || '>=') + (t.value === undefined ? '' : t.value);
+  }
   if (t.kind === 'all') return '等全部';
   if (t.kind === 'any') return '等任一';
   if (t.kind === 'not') return '等非';

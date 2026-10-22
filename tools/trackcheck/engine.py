@@ -735,6 +735,21 @@ class Sim:
             return sum(1 for z in self.zombies if z.alive and z.hp > 0)
         if what == 'wave_hp':
             return (self.wave_meta or {}).get('remain', 0)
+        # ★ 2026-10-22 炮阵常用：**有几门炮装填完毕**
+        #   用户口径：「收尾时如果两对炮好了，就别再无限垫了，直接开一对
+        #   （另一对留到下一波）」。一对 = 2 门，两对 = 4 门。
+        if what == 'cobs_ready':
+            return sum(1 for c in self.cells.values()
+                       if c.plant == '玉米炮' and c.plant_hp > 0
+                       and c.cob_cd <= self.t)
+        if what == 'cobs_total':
+            return sum(1 for c in self.cells.values()
+                       if c.plant == '玉米炮' and c.plant_hp > 0)
+        # ★ 本路最靠前（最左）那只活僵尸的 x；本路空着返回 None（= 继续等）
+        if what == 'front_x':
+            row = trig.get('row') or 1
+            zs = [z for z in self.by_row.get(row, ()) if z.alive and z.hp > 0]
+            return min((z.x for z in zs), default=None)
         return None
 
     def _tick_spawn(self):

@@ -15,7 +15,7 @@ metainfo.py —— 全局元信息：命名方案、节奏表、**模型清单**
    `note` 一律用自然语言写"简化模型等价于什么"，供设置页展示、也供回答"做了什么"。
 """
 
-VERSION = '0.2.10'
+VERSION = '0.2.11'
 SCHEMA = 'trackcheck-plan/3'
 
 from . import fields as _fl
