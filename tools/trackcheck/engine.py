@@ -45,14 +45,16 @@ _OP_ALIAS = {
     '核': '毁灭菇', '模仿核': '模仿毁灭菇',
     '冰': '寒冰菇', '模仿冰': '模仿寒冰菇',
     '存冰': '咖啡豆',
-    '垫材': '小喷菇', '垫材2': '花盆',
+    '垫材': '小喷菇', '垫材2': '花盆', '垫材3': '阳光菇', '垫材4': '胆小菇',
     '种大喷': '大喷菇',
 }
 _CARD_OF = {
     '毁灭菇': '核', '模仿毁灭菇': '模仿核',
     '寒冰菇': '冰', '模仿寒冰菇': '模仿冰',
     '樱桃': '樱桃', '辣椒': '辣椒', '窝瓜': '窝瓜',
-    '小喷菇': '垫材', '花盆': '垫材2', '南瓜': '南瓜',
+    '小喷菇': '垫材', '花盆': '垫材2',
+    '阳光菇': '垫材3', '胆小菇': '垫材4',
+    '南瓜': '南瓜',
     '大蒜': '大蒜', '咖啡豆': '咖啡豆', '大喷菇': '大喷菇',
     '玉米炮': '玉米炮', '荷叶': '荷叶', '保护伞': '保护伞',
     '双子花': '双子花',
@@ -1008,21 +1010,24 @@ class Sim:
                 return
             return
 
-        # ★ 阵解栏：轨道里也能排「小喷菇 / 花盆」—— 指定了落点行就只救那一路。
-        #   （原版只在救场层用这两张卡，所以老代码里 do_action 根本没处理它们）
-        if name in ('小喷菇', '花盆'):
-            card = _CARD_OF[name]
+        # ★ 阵解栏：轨道里也能排「小喷菇 / 花盆 / 阳光菇 / 胆小菇」——
+        #   指定了落点格子就只在那格下。
+        #   ★ 2026-10-22：阵解里的垫材是**机会性**的（窗口没开就跳过），
+        #     不算"断裂"，否则每波都会刷一堆无意义的报错。
+        if name in D.PAD_OF_PLANT:
+            card = D.PAD_OF_PLANT[name]
             if isinstance(aim, (tuple, list)) and len(aim) == 2:
                 if self.stall_at(aim, cards=(card,)):
                     self.actions.append(dict(t=self.t, wave=ev['wave'], name=name, ok=True))
-                else:
+                elif getattr(self, 'pad_fail', None) not in (None, 'no_target'):
                     self.broken.append(dict(t=self.t, wave=ev['wave'], what=name,
-                                            why='%d-%d 现在下不了垫材' % (aim[0], aim[1])))
+                                            why='%d-%d 现在下不了垫材（%s）'
+                                               % (aim[0], aim[1], self.pad_fail)))
                 return
             rows = [aim[0]] if isinstance(aim, (tuple, list)) and aim else None
             if self.try_stall(rows, cards=(card,)):
                 self.actions.append(dict(t=self.t, wave=ev['wave'], name=name, ok=True))
-            else:
+            elif getattr(self, 'pad_fail', None) != 'no_card':
                 self.broken.append(dict(t=self.t, wave=ev['wave'], what=name,
                                         why='这一路没有可下垫材的时机'))
             return
@@ -2432,23 +2437,31 @@ class Sim:
         self.try_wogua()
         self._rescue_ice_emergency()
 
-    def stall_at(self, rc, cards=('垫材', '垫材2')):
+    def stall_at(self, rc, cards=None):
         """
-        在**指定格子**下垫材（小喷菇 / 花盆）挡僵尸。
+        在**指定格子**下垫材（小喷菇 / 花盆 / 阳光菇 / 胆小菇）挡僵尸。
 
         ★ v0.3：以前垫材只能下在固定的 STALL_SLOTS（1/5/6 列的 6 列位），
           那是"救场自动挑位"的口径。现在阵解里可以直接写"在某格种小喷菇"，
           这条是它的执行体。
+
+        ★ 2026-10-22 用户口径：**巨人一锤就把 300hp 的垫材砸没**，
+          所以钉住巨人的时长是砸击周期 `STALL_CS_GIANT`（330cs），不是啃食的 300cs。
+          `self.pad_fail` 记录失败原因，供阵解层区分"没窗口"/"没卡"。
         """
+        self.pad_fail = None
+        cards = cards or D.PAD_CARDS
         rc = (int(rc[0]), int(rc[1]))
         cell = self.cells.get(rc)
         if cell is None:
             cell = self.cells[rc] = Cell(rc[0], rc[1])
         if cell.plant is not None or cell.tail or cell.grave:
+            self.pad_fail = 'occupied'
             return False
         # ★ 水上要先荷叶、屋顶要先花盆（自动补基座）
         if not self._base_ok(rc):
             if not self._seed_base(rc):
+                self.pad_fail = 'occupied'
                 return False
         cx = D.cell_x(rc[1])
         zs = [z for z in self.by_row.get(rc[0], ())
@@ -2456,14 +2469,17 @@ class Sim:
               and z.stall_until <= self.t
               and -40 <= z.x - cx <= 170]
         if not zs:
+            self.pad_fail = 'no_target'
             return False
         used = next((nm for nm in cards if self._try_card(nm)), None)
         if used is None:
+            self.pad_fail = 'no_card'
             return False
         z = min(zs, key=lambda x: x.x)
-        self._plant_into(cell, '小喷菇' if used == '垫材' else '花盆')
-        z.stall_until = self.t + (D.STALL_CS_SLOWED if z.slowed_until > self.t
-                                  else D.STALL_CS)
+        self._plant_into(cell, D.PAD_PLANT.get(used, '小喷菇'))
+        z.stall_until = self.t + (D.STALL_CS_GIANT if z.giant
+                                  else (D.STALL_CS_SLOWED if z.slowed_until > self.t
+                                        else D.STALL_CS))
         z.rescued = True
         z.stall_n = getattr(z, 'stall_n', 0) + 1
         self.last_rescue[z.row] = self.t
@@ -2520,16 +2536,14 @@ class Sim:
         _, _, row, col_spot, z = cands[0]
         if cards:
             used = next((nm for nm in cards if self._try_card(nm)), None)
-        elif self._try_card('垫材'):
-            used = '垫材'
-        elif self._try_card('垫材2'):
-            used = '垫材2'
         else:
-            used = None
+            used = next((nm for nm in D.PAD_CARDS if self._try_card(nm)), None)
         if not used:
+            self.pad_fail = 'no_card'
             return False
-        z.stall_until = self.t + (D.STALL_CS_SLOWED if z.slowed_until > self.t
-                                  else D.STALL_CS)
+        z.stall_until = self.t + (D.STALL_CS_GIANT if z.giant
+                                  else (D.STALL_CS_SLOWED if z.slowed_until > self.t
+                                        else D.STALL_CS))
         z.rescued = True
         z.stall_n = getattr(z, 'stall_n', 0) + 1
         self.last_rescue[row] = self.t

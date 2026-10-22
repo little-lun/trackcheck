@@ -44,11 +44,15 @@ CARD_KEY = {
     '毁灭菇': '核', '模仿毁灭菇': '模仿核',
     '寒冰菇': '冰', '模仿寒冰菇': '模仿冰',
     '樱桃': '樱桃', '辣椒': '辣椒', '窝瓜': '窝瓜',
-    '小喷菇': '垫材', '花盆': '垫材2', '南瓜': '南瓜',
+    '小喷菇': '垫材', '花盆': '垫材2',
+    '阳光菇': '垫材3', '胆小菇': '垫材4',
+    '南瓜': '南瓜',
     '大蒜': '大蒜', '咖啡豆': '咖啡豆', '大喷菇': '大喷菇',
     '玉米炮': '玉米炮', '荷叶': '荷叶', '保护伞': '保护伞', '双子花': '双子花',
 }
 KEY_NAME = {v: k for k, v in CARD_KEY.items()}
+# 四张垫材的植物名（校验时豁免"同一候选两张同名卡"）
+PAD_NAMES = ('小喷菇', '花盆', '阳光菇', '胆小菇')
 
 # 选卡：初代全部 48 张卡（SeedType 0~47）+ 模仿者（模仿者带二级选项，写成 `模仿者:寒冰菇`）
 PLANT_ALL = MI.PLANTS
@@ -123,7 +127,8 @@ LEGACY_OP = {
     '冰': '寒冰菇', '模仿冰': '模仿寒冰菇',
     '存冰': '咖啡豆', '救急冰': '咖啡豆',
     '种冰': '寒冰菇', '种冰2': '模仿寒冰菇', '种临时冰': '寒冰菇',
-    '垫材': '小喷菇', '垫材2': '花盆', '种大喷': '大喷菇',
+    '垫材': '小喷菇', '垫材2': '花盆',
+    '垫材3': '阳光菇', '垫材4': '胆小菇', '种大喷': '大喷菇',
     # ★ 2026-10-22：特技「窝瓜压车」取消，退化成"在 5-9 种窝瓜"
     '窝瓜压车': '窝瓜',
 }
@@ -150,9 +155,13 @@ OPS = [
     dict(name='窝瓜', group='卡', need_aim=False, aim_kind='cell',
          note='不给落点则按最危险的一路自动挑'),
     dict(name='小喷菇', group='卡', need_aim=False, aim_kind='row',
-         note='垫材：给了行就只在那一路下'),
+         note='垫材①：给行列就只在那格下；只给行就按该路固定垫材位'),
     dict(name='花盆', group='卡', need_aim=False, aim_kind='row',
-         note='第二张垫材'),
+         note='垫材②'),
+    dict(name='阳光菇', group='卡', need_aim=False, aim_kind='row',
+         note='垫材③（0/25 阳光、7.5s 充能）'),
+    dict(name='胆小菇', group='卡', need_aim=False, aim_kind='row',
+         note='垫材④。四张垫材轮着用，2 张短 cd 卡就能把一路巨人钉在炮的判定域里'),
     dict(name='南瓜', group='卡', need_aim=True, aim_kind='cell', note='补南瓜'),
     dict(name='大蒜', group='卡', need_aim=True, aim_kind='cell', note='换行'),
     dict(name='大喷菇', group='卡', need_aim=False, aim_kind='cell',
@@ -487,7 +496,7 @@ def urgency_px(target):
 def run_rescue_resource(sim, res, row=None, target_rc=None):
     """用一份救场资源；返回 True = 用掉了"""
     op = LEGACY_OP.get(res.get('op'), res.get('op'))
-    if op in ('小喷菇', '花盆'):
+    if op in ('小喷菇', '花盆', '阳光菇', '胆小菇'):
         card = _card_key(op)
         if res.get('aim'):
             return run_plan_op(sim, op, res.get('aim'))
@@ -661,7 +670,7 @@ def _bare_core_threat(sim):
 
 def _run_rescue_op(sim, op, aim=None):
     op = LEGACY_OP.get(op, op)
-    if op in ('小喷菇', '花盆'):
+    if op in ('小喷菇', '花盆', '阳光菇', '胆小菇'):
         rows = (aim or {}).get('rows') if isinstance(aim, dict) else None
         return bool(sim.try_stall(rows, cards=(_card_key(op),)))
     if op == '窝瓜' and not _cell(aim):
@@ -1281,6 +1290,11 @@ def validate(plan):
                 #   所以"同一候选里两块玉米炮"完全合法 —— 那就是一对炮。
                 if name == '玉米炮':
                     continue
+                # ★ 垫材是**机会性**的：窗口没开 / 卡没好就静默跳过，
+                #   所以"同一候选里 1 路一张、6 路一张"完全合法，
+                #   多路轮着垫正是它该有的写法。
+                if name in PAD_NAMES:
+                    continue
                 key = _card_key(name)
                 if key in CARD_KEY.values():
                     if key in seen:
@@ -1720,57 +1734,68 @@ def example_classic8():
     """PE.经典八炮：**常规炮阵的样板**（用户 2026-10-22 给的阵型字符串）
 
     阵型：8 门玉米炮（1-5 / 2-5 / 3-1 / 3-3 / 4-1 / 4-3 / 5-5 / 6-5）、
-          10 张冰瓜、4 张忧郁菇、3 把保护伞、1 个双子花、4 个水上睡莲；
-          岸路 1/2/5/6 的路障段是梯子南瓜。
-    阵解：**P4 = P|P|P|P(9,9,9,9)** —— 9s 一对炮，打了就触发下一波（运算量定理）。
+          10 张冰瓜、4 张忧郁菇、3 把保护伞、1 个双子花；岸路（2/5）2 列曾 + 梯子南瓜。
+    阵解：**P4 = P|P|P|P(9,9,9,9)** —— 9s 一对炮，落点 2-8 / 5-8。
+
+    两门炮的分工（**这是落点必须分开写的原因**）：
+      仰 2-8 → 爆心 y = 2 路植物 y + 40，圆 R=115 纵向上盖住 **1/2/3/4 路**
+      仰 5-8 → 同法盖住 **4/5/6 路**
+    `aim` 留空时两门炮各自自动索敌，会一起挑"最密的那一路"→ 另三路整场没挨炸。
+
+    边路（1/6）没有曾哥，红眼吃满 3 次炮（5400）后还差"约一个路障的输出"，
+    所以按用户口径带满 **4 张垫材**（小喷菇/花盆/阳光菇/胆小菇）：
+    巨人一锤就把 300hp 的垫材砸没（攻击是离散的，周期 330cs），
+    所以 2 张短 cd 卡就能把一路巨人**钉在炮的判定域里打死**。
     """
     from . import layout as LY
     arr, _fld, _rake = LY.decode_tools(CLASSIC8_STR, 'PE')
     p = template('PE')
     p['name'] = '经典八炮'
-    p['note'] = ('P4：P|P|P|P(9,9,9,9)，9s 一对炮，落点 2-8 / 5-8。'
-                 '⚠️ 本模型里波长由「血量掉到 R2 阈值」决定（不是"打了必刷"），'
-                 '一对炮 + 冰瓜 IO 实测约 12.1s 一波；想把节奏压到 9s 需要手算开炮时机，'
-                 '可用触发器 since（距上次某积木生效后 N cs）表达。'
-                 '冰车 / 红眼这类要临场点名的目标，请自己按实战改落点与时机。')
-    p['deck'] = ['玉米炮', '寒冰菇', '咖啡豆', '南瓜', '樱桃', '辣椒', '荷叶',
-                 '毁灭菇', '窝瓜', '大蒜']
+    p['note'] = ('P4：P|P|P|P(9,9,9,9)，9s 一对炮。一门仰 2-8 盖 1~4 路、'
+                 '一门仰 5-8 盖 4~6 路 —— **落点必须分开写**，留空会让两门炮'
+                 '一起挑最密的一路、另三路整场不挨炸。'
+                 '边路红眼靠 4 张垫材钉在 8 列（判定域内）慢慢打死；'
+                 '总血 6 万+/波时这就是全部运算量。')
+    # 这个阵基本不需要灰烬/冰 → 按用户口径带满 4 张垫材；
+    # 咖啡豆留给"新种的蘑菇是睡着的"（补曾 / 补大喷要顺手唤醒）
+    p['deck'] = ['玉米炮', '小喷菇', '花盆', '阳光菇', '胆小菇',
+                 '南瓜', '樱桃', '辣椒', '窝瓜', '咖啡豆']
     p['rhythm'].update(system='P', id='P4', name='P4', beats=['P', 'P', 'P', 'P'],
                        gaps=[9, 9, 9, 9], pair='short')
-    p, _n = quick_layout(p, 'P|P|P|P', pair='short', gaps_text='(9,9,9,9)')
 
-    # 快捷布置只给"做什么"。这里按用户口径给：落点 **2-8 / 5-8**（一门盖 1~3 路、
-    # 一门盖 4~6 路，纵向刚好全覆盖），时机 +1000cs（等僵尸走进判定域）。
-    # 9s 节奏想用"手算的跨波锚点"，把 trig 换成 {"kind":"since","op":"玉米炮","at":...}。
-    for row in p['waves']:
-        for st in row['sets'] or []:
-            for b in st.get('ops') or []:
-                if b.get('op') == '玉米炮':
-                    b['aim'] = None
-                    b['trig'] = {'kind': 'time', 'at': 1000}
+    # 常规波：一对炮 + 边路连续垫材。
+    #   at=700（7s）——僵尸走进判定域的下限；再晚换波就追不上 9s。
+    #   垫材 repeat：每 350cs 试一次（≈ 巨人一个砸击周期 + 余量），
+    #   四张卡轮着用，卡没好 / 窗口没开就静默跳过（垫材是机会性的）。
+    PAD_ROWS = (1, 6)
+    PAD_COL = 8               # x=600，正好在炮的判定域（z.x∈[482,712]）正中
+    PAD_PLANTS = ('小喷菇', '花盆', '阳光菇', '胆小菇')
 
-    def row(w):
-        return next(r for r in p['waves'] if int(r['w']) == w)
+    def pair(at=700):
+        return [_b('玉米炮', [2, 8], trig={'kind': 'time', 'at': at}),
+                _b('玉米炮', [5, 8], trig={'kind': 'time', 'at': at})]
 
-    def pair(at=1000, extra=None):
-        ops = [_b('玉米炮', [2, 8], trig={'kind': 'time', 'at': at}),
-               _b('玉米炮', [5, 8], trig={'kind': 'time', 'at': at})]
-        return ops + list(extra or [])
+    def pads(at=800, times=4):
+        out = []
+        for r in PAD_ROWS:
+            for nm in PAD_PLANTS:
+                out.append(_b(nm, [r, PAD_COL], trig={'kind': 'time', 'at': at},
+                              repeat={'every': 350, 'times': times}))
+        return out
 
-    # 起手 w1：一对炮
-    row(1)['sets'] = [dict(when={'kind': 'always'}, ops=pair())]
-    row(1)['note'] = '起手：一对炮打 2-8 / 5-8'
+    for r in p['waves']:
+        w = int(r['w'])
+        ops = pair()
+        if w not in (9, 19):          # 收尾波靠 drag 时间，垫材照旧、炮不加倍
+            ops += pads()
+        else:
+            ops += pads(times=12)     # 45s 拖时间里要一直钉住
+            r['note'] = '收尾：一对炮 + 垫材拖满 45s（挤炮的装填）'
+        r['sets'] = [dict(when={'kind': 'always'}, ops=ops)]
+    p['waves'][0]['note'] = '起手：一对炮打 2-8 / 5-8，边路开始垫材'
     for w in (10, 20):
-        r = row(w)
-        r['sets'] = [dict(when={'kind': 'always'},
-                          ops=pair(extra=[_b('寒冰菇', None, trig={'kind': 'spawn'})]))]
-        r['note'] = '旗波：一对炮 + 冰（冰杀蹦极 / 控丑）'
-    for w in (9, 19):
-        r = row(w)
-        r['sets'] = [dict(when={'kind': 'always'}, ops=pair(extra=[
-            _b('玉米炮', [2, 8], trig={'kind': 'after', 'at': 0}),
-            _b('玉米炮', [5, 8], trig={'kind': 'after', 'at': 0})]))]
-        r['note'] = '收尾：再补一对炮 + 垫材拖时间（垫材自己排）'
+        next(x for x in p['waves'] if int(x['w']) == w)['note'] = \
+            '旗波：一对炮（旗波出怪整体右移 40px，落点不变）'
     p = norm(p)
     return dict(ok=True, field='PE', name='经典八炮',
                 array={'%d-%d' % k: v for k, v in arr.items()},
@@ -2173,3 +2198,5 @@ if __name__ == '__main__':
     print('parse N|AA\'|I|I ->', parse_track("N|AA'|I|I"))
     q, n = quick_layout(p, "N|AA'|I|I")
     print('quick_layout filled', n, 'regular waves')
+
+
