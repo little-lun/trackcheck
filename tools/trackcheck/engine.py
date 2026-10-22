@@ -181,7 +181,8 @@ class Zombie:
                  'frozen_until', 'slowed_until', 'wave', 'alive', 'eating',
                  'stall_until', 'rescued', 'summoned', 'no_eat_x', 'smash_at', 'stall_n',
                  'min_x', 'box_in', 'fuse_in', 'joker_early',
-                 'phase', 'vaulted', 'slid', 'armor', 'spd_alt', 'never_eat')
+                 'phase', 'vaulted', 'slid', 'armor', 'spd_alt', 'never_eat',
+                 'hold_until', 'vault_until', 'vault_to_x')
 
     def __init__(self, kind, row, x, wave, rng):
         self.kind = kind
@@ -214,8 +215,18 @@ class Zombie:
         self.fuse_in = -1
         self.joker_early = False
         # ★ 2026-10-22：分阶段速度 / 撑杆跳 / 舞王滑步 / 金属护具
+        # ★ 2026-10-23（《僵尸时间表》）：**起步偏差**
+        #   正值 = 生成后先停顿（足球/投篮车/撑杆的起步加速）；
+        #   负值 = 一出场就已经在场内走了一段（跳跳 / 扶梯），改成把出生点左移。
+        adj = D.SPAWN_ADJ_CS.get(kind, 0)
+        self.hold_until = -1          # 正值那部分由 Sim 在真正刷出来时补（它知道 t）
+        if adj < 0:
+            self.x = x + adj * self.spd
+            self.min_x = self.x
         self.phase = 'run' if kind == '撑杆' else 'walk'
         self.vaulted = False
+        self.vault_until = -1
+        self.vault_to_x = 0.0
         self.slid = False
         self.armor = D.ARMOR.get(kind, 0)
         # 撑杆跳完改成"慢速"档（只有这一只有第二速度）
@@ -774,6 +785,10 @@ class Sim:
         self.queue = [q for q in self.queue if q[0] > self.t]
         for _, kind, row, x, w in due:
             z = Zombie(kind, row, x, w, self.rng)
+            _adj = D.SPAWN_ADJ_CS.get(kind, 0)
+            if _adj > 0:
+                # 起步加速：《僵尸时间表》反解的常数偏差（橄榄 92 / 投篮 105 / 撑杆 136 …）
+                z.hold_until = self.t + _adj
             if kind == '小丑':
                 # ★ 2026-10-22 用户口径：早爆 / 晚爆的权重看**这一路最靠前的植物**在几列
                 #   —— 前排（7~9 列）重点模拟早爆，后排（2~4 列）重点模拟晚爆。
@@ -2273,8 +2288,20 @@ class Sim:
                 continue
             if z.frozen_until > self.t or z.stall_until > self.t:
                 continue
+            # ★ 起步偏差（《僵尸时间表》）：还没"起步完"就原地不动
+            if z.hold_until > self.t:
+                continue
             if z.kind == '冰车':
                 continue
+            # ★ 2026-10-23（《僵尸时间表》）：**撑杆起跳到落地 = 181cs**。
+            #   滞空期间不前进、也不啃 —— 以前这里是瞬移（落点立刻生效），
+            #   等于把这一跳的时间白白省掉了。落地那一刻才把 x 挪到落点。
+            if z.vault_until > 0:
+                if self.t >= z.vault_until:
+                    z.x = z.vault_to_x
+                    z.vault_until = -1
+                else:
+                    continue
             if z.no_eat_x is not None and z.x > z.no_eat_x:
                 z.x -= self._speed_of(z) * D.TICK
                 continue
@@ -2324,12 +2351,14 @@ class Sim:
             if (z.kind == '撑杆' and not z.vaulted and target is not None
                     and not self._is_tall(target)):
                 z.vaulted = True
-                z.x = target.x - 70
+                z.vault_until = self.t + D.ACT_CS['撑杆起跳到落地']
+                z.vault_to_x = target.x - 70
                 z.phase = 'walk'
                 self._log('INFO', '撑杆跃过 %d-%d %s'
                           % (target.row, target.col, target.plant or '南瓜'),
                           row=target.row, col=target.col,
-                          detail='落地 x=%d（目标 x−70）· 之后按慢速档走' % int(z.x))
+                          detail='滞空 %dcs（表）→ 落地 x=%d（目标 x−70）· 之后按慢速档走'
+                                 % (D.ACT_CS['撑杆起跳到落地'], int(z.vault_to_x)))
                 continue
             if target is not None and target.plant == '大蒜':
                 # ★★ 2026-10-20：大蒜不是"被啃的墙"，它**啃一口就换行**。
