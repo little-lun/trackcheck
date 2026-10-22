@@ -74,8 +74,17 @@ def handle(path, query='', body=''):
                 d = json.loads(body or '{}')
             except Exception:
                 return _json(400, {'error': 'bad json'})
-            p, n = PL.quick_layout(d.get('plan') or {}, d.get('track') or '')
+            p, n = PL.quick_layout(d.get('plan') or {}, d.get('track') or '',
+                                   d.get('pair'), d.get('gaps'))
             return _json(200, {'ok': True, 'plan': p, 'filled': n})
+        if path == '/api/plan/spectrum':
+            try:
+                d = json.loads(body or '{}')
+            except Exception:
+                return _json(400, {'error': 'bad json'})
+            return _json(200, PL.spectrum_report(
+                d.get('plan') or {}, d.get('track'), d.get('gaps'),
+                d.get('n_cob')))
         if path == '/api/plan/batch':
             try:
                 d = json.loads(body or '{}')

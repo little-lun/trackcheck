@@ -243,10 +243,22 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 return self._json({'error': 'bad json'}, 400)
             try:
-                p, n = PL.quick_layout(d.get('plan') or {}, d.get('track') or '')
+                p, n = PL.quick_layout(d.get('plan') or {}, d.get('track') or '',
+                                       d.get('pair'), d.get('gaps'))
                 return self._json({'ok': True, 'plan': p, 'filled': n})
             except Exception as e:                           # noqa: BLE001
                 return self._json({'error': str(e)}, 500)
+        if path == '/api/plan/spectrum':
+            try:
+                d = json.loads(raw or b'{}')
+            except Exception:
+                return self._json({'error': 'bad json'}, 400)
+            try:
+                return self._json(PL.spectrum_report(
+                    d.get('plan') or {}, d.get('track'), d.get('gaps'),
+                    d.get('n_cob')))
+            except Exception as e:                           # noqa: BLE001
+                return self._json({'ok': False, 'error': str(e)}, 500)
         if path == '/api/plan/batch':
             try:
                 d = json.loads(raw or b'{}')

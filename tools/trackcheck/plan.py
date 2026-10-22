@@ -21,6 +21,7 @@ plan.py —— **阵解栏**的数据模型：可编辑的阵解 / 编译成引�
 """
 
 import json
+import math
 import os
 import re
 import sys
@@ -28,8 +29,6 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
-
-from tools.trackcheck import config_dianbozhong as CFG   # noqa: E402
 
 from tools.trackcheck import config_dianbozhong as CFG   # noqa: E402
 from tools.trackcheck import metainfo as MI              # noqa: E402
@@ -91,7 +90,8 @@ def template(field='PE'):
         format=FORMAT, name='新建阵解', note='',
         field=field,
         deck=[], rhythm=dict(system='C', id='C4io', name='C4io',
-                             beats=['N', "AA'", 'I', 'I']),
+                             beats=['N', "AA'", 'I', 'I'],
+                             gaps=[], pair='auto'),
         waves=[dict(w=w, role=role_of(w), sets=[]) for w in range(1, 21)],
         globals=[], rescue=[], rescue_simple=dict(enabled=False,
                                                  resources=[], targets=[]),
@@ -124,6 +124,8 @@ LEGACY_OP = {
     '存冰': '咖啡豆', '救急冰': '咖啡豆',
     '种冰': '寒冰菇', '种冰2': '模仿寒冰菇', '种临时冰': '寒冰菇',
     '垫材': '小喷菇', '垫材2': '花盆', '种大喷': '大喷菇',
+    # ★ 2026-10-22：特技「窝瓜压车」取消，退化成"在 5-9 种窝瓜"
+    '窝瓜压车': '窝瓜',
 }
 
 
@@ -160,8 +162,11 @@ OPS = [
     dict(name='荷叶', group='卡', need_aim=True, aim_kind='cell', note=''),
     dict(name='保护伞', group='卡', need_aim=True, aim_kind='cell', note=''),
     dict(name='双子花', group='卡', need_aim=True, aim_kind='cell', note=''),
-    dict(name='玉米炮', group='卡', need_aim=True, aim_kind='cell',
-         note='**开炮**：落点=准星（可任意行）。CD 3475cs，378cs 后 R=115 炸 1800'),
+    # ★ 2026-10-22 用户口径：**轨道里能做的操作只有 P 和种植物（卡片）**。
+    #   P 不指定具体哪一门炮，只看每门炮各自的 3475cs 装填；落点可带一位小数。
+    dict(name='玉米炮', group='炮', need_aim=True, aim_kind='aim',
+         note='**开炮（P）**：任意一门装填好的炮，爆炸 R=115 / 1800 即刻生效；'
+              '落点可带一位小数（如 3-4.5），与僵尸受击框有重合就吃满 1800'),
     # ---- v0.2.1 新增的积木
     dict(name='地刺', group='卡', need_aim=True, aim_kind='cell',
          note='不挡路、不被啃；101cs 一次 20，判定 x+21~+49'),
@@ -181,9 +186,10 @@ OPS = [
          note='**秒杀全场气球**'),
     dict(name='墓碑吞噬者', group='卡', need_aim=False, aim_kind='cell',
          note='直接清掉一格墓碑（NE 用）'),
-    dict(name='窝瓜压车', group='特技', need_aim=False, aim_kind='none',
-         note='w10 固定：等 5 路冰车进 5-9 再压，保住核坑（"在 5-9 种窝瓜"的定时版）'),
 ]
+# ★ 2026-10-22：**"窝瓜压车"这个操作取消了** —— 轨道里只写"在 5-9 种窝瓜"，
+#   "什么时候种"交给触发器（例如"5 路冰车距 5-9 还有 N px"）。
+#   旧阵解导入时按这个映射自动迁移。
 OP_NAMES = [o['name'] for o in OPS]
 OP_BY_NAME = {o['name']: o for o in OPS}
 
@@ -685,56 +691,410 @@ def tick_rescue(sim, rules):
             else sim.t + int(rule.get('every') or 30)
 
 
-# ------------------------------------------------------------------ 快捷布置
-def parse_track(text):
-    """"N|AA'|I|I" → [['毁灭菇'], ['樱桃','辣椒'], ['寒冰菇'], ['寒冰菇']]"""
-    beats = []
-    for tok in re.split(r'[|｜/]+', text or ''):
-        tok = ''.join(tok.split())
+# ------------------------------------------------------------------ 轨道串
+#
+# ★ 2026-10-22 用户口径（依据《轨道语言与运算量》§3.2 结构符号）：
+#
+#    `|`  隔离符  区分不同波次刷新的僵尸          → 一段 = 一波
+#    `-`  刷新符  区分同一波中的过渡/刷新操作      → 同一波里的**第二个时机**
+#                 （`-` 之前的操作不会导致刷新）
+#    `/`  分场符  区分上下半场在同一时机的不同操作  → 同一时机的两组操作
+#    `~`  波动符  串联两个基础节奏                 → 两套轨道逐循环摆动
+#
+#   解析只求"初步识别"：认得出分隔符、知道它意味着什么，
+#   具体落点/时机/兜底**一律留空**让用户填。
+TRACK_SEP = {'|': 'wave', '｜': 'wave', '-': 'late', '－': 'late',
+             '/': 'split', '／': 'split', '~': 'variant', '～': 'variant'}
+# 简写里"一次写一响"能代表一对炮的操作（核/冰/灰烬本来就只有一张卡）
+PAIRABLE = {'P'}
+
+
+def _track_chars(text):
+    """把 `P|P` 拆成 [(字符, 分隔符)] —— 支持 `AA'`、`N'` 这种两字符记号"""
+    s = ''.join((text or '').split())
+    out = []
+    i = 0
+    while i < len(s):
+        ch = s[i]
+        if ch in TRACK_SEP:
+            out.append(('', TRACK_SEP[ch]))
+            i += 1
+            continue
+        two = s[i:i + 2]
+        if two in LAYOUT_LETTERS:
+            out.append((two, None))
+            i += 2
+            continue
+        if ch in LAYOUT_LETTERS:
+            out.append((ch, None))
+        else:
+            out.append((ch, 'unknown'))
+        i += 1
+    return out
+
+
+def _letters(txt, pair, split, unknown):
+    """一个片段里的记号 → 植物名列表。
+
+    `split=True`（该片段用过 `/`）时**不按简写翻倍** —— 分场本身就表达了"一对"。
+    """
+    names = []
+    for ch, sep in _track_chars(txt):
+        if sep == 'unknown':
+            if ch not in unknown:
+                unknown.append(ch)
+            continue
+        if sep:                       # 片段里残留的分隔符（`/`）跳过
+            continue
+        for n in (LAYOUT_LETTERS.get(ch) or []):
+            names.append(n)
+            if pair and ch in PAIRABLE and not split:
+                names.append(n)
+    return names
+
+
+def _parse_beat(seg, pair, unknown):
+    """一段（两个 `|` 之间）→ beat
+
+    `-` 把这一波切成多个时机：第 1 段是主时机（刷怪即刻），后面的都是"过渡"。
+    `/` 表示同一时机的上下半场 —— 只记标记，落点留给用户。
+    """
+    parts = re.split(r'[-－]', seg)
+    split = bool(re.search(r'[/／]', seg))
+
+    def names_of(txt):
+        return _letters(txt, pair, split, unknown)
+
+    beat = dict(ops=names_of(parts[0]), late=[], split=split)
+    for p in parts[1:]:
+        grp = names_of(p)
+        if grp:
+            beat['late'].append(grp)
+    return beat if (beat['ops'] or beat['late'] or split) else None
+
+
+def resolve_pair(text, mode='auto'):
+    """简写 / 复写 → 是否按"一次写 = 一对炮"翻倍
+
+    · `short` 简写：`P|P|P|P` = 4 对炮（8 门）
+    · `full`  复写：`PP|PP|PP|PP` = 4 对炮，`P` = 单门
+    · `auto` 自动辨认：串里出现连续两个 P（`PP`）就按复写，否则按简写
+
+    ★ 用户 2026-10-22：「简写与复写选项放入设置，涉及到对称操作写一个还是一对」
+    """
+    if mode == 'short':
+        return True
+    if mode == 'full':
+        return False
+    return not re.search(r'[Pp]{2,}', ''.join((text or '').split()))
+
+
+def parse_track_full(text, pair=None):
+    """轨道串 → {'variants': [[beat, …], …], 'unknown': [...], 'seps': [...]}
+
+    `beat = dict(ops=[植物名…], late=[[植物名…]…], split=bool)`
+      · `ops`   这一波的**主时机**（刷怪即刻）
+      · `late`  用 `-` 分隔出来的后续时机（每个是一组操作）
+      · `split` 这段里用过 `/` → 上下半场各自填落点
+    `pair=None` = 自动辨认简写/复写（见 `resolve_pair`）。
+    """
+    raw = ''.join((text or '').split())
+    # 去掉开头的节奏名标签（`N6s:` / `P4:` / `ch6：`），它不是操作
+    m = re.match(r'^([A-Za-z]*\d+[A-Za-z]*)[:：]', raw)
+    if m:
+        raw = raw[m.end():]
+    if pair is None:
+        pair = resolve_pair(raw, 'auto')
+    unknown, variants, seps = [], [], []
+    for vt in re.split(r'[~～]', raw):
+        beats = []
+        for seg in re.split(r'[|｜]', vt):
+            if not seg:
+                continue
+            b = _parse_beat(seg, pair, unknown)
+            if b:
+                beats.append(b)
+        if beats:
+            variants.append(beats)
+    for ch in raw:
+        if ch in TRACK_SEP:
+            seps.append(ch)
+    return dict(variants=variants, unknown=unknown, seps=seps, pair=pair)
+
+
+def parse_track(text, pair=None):
+    """"N|AA'|I|I" → [['毁灭菇'], ['樱桃','辣椒'], ['寒冰菇'], ['寒冰菇']]
+
+    只取**主时机**（`-` 之后的忽略），给"看看认不认识"用。
+    """
+    d = parse_track_full(text, pair)
+    out = []
+    for beat in (d['variants'][0] if d['variants'] else []):
+        if beat['ops']:
+            out.append(list(beat['ops']))
+    return out
+
+
+# ------------------------------------------------------------------ 波长串
+GAPS_KEY = 'gaps'
+
+
+def parse_gaps(text):
+    """波长串 → [秒, …]
+
+    接受 `(9,9,9,9)`、`(9|9|9|9)`、`9 9 9 9`、`(18,18,9,9)`；
+    也接受 cs 写法（任何一项 ≥ 100 时整串按 cs 解，如 `(1800,1800,900,900)`）。
+    """
+    s = (text or '').strip()
+    if not s:
+        return []
+    s = s.strip('()（）[]').replace('|', ',').replace('｜', ',')
+    s = s.replace('/', ',').replace('，', ',').replace(' ', ',')
+    out = []
+    for tok in s.split(','):
+        tok = tok.strip()
         if not tok:
             continue
-        ops, i = [], 0
-        while i < len(tok):
-            for size in (2, 1):
-                piece = tok[i:i + size]
-                if piece in LAYOUT_LETTERS:
-                    ops.extend(LAYOUT_LETTERS[piece])
-                    i += size
-                    break
+        try:
+            v = float(tok)
+        except ValueError:
+            raise ValueError('波长串里「%s」不是数字' % tok)
+        if v <= 0:
+            raise ValueError('波长必须 > 0（读到 %s）' % tok)
+        out.append(v)
+    if out and max(out) >= 100:          # 按 cs 写的
+        out = [v / 100.0 for v in out]
+    return out
+
+
+def format_gaps(gaps, sep=','):
+    if not gaps:
+        return ''
+    return '(' + sep.join(('%g' % float(g)) for g in gaps) + ')'
+
+
+# ------------------------------------------------------------------ 波长校验
+COB_CD = 3475                 # cs，每门炮的独立装填
+LONG_CARD_CD = 5000           # cs，灰烬 / 冰的卡 CD（[精] 通通 50s）
+P_MIN = 3600                  # 含 P 的循环，波长和的理论下限（35/36 是极限）
+P_HARD = 3400                 # 34s 以下直接判不可能
+C_MIN = 5400                  # 含长 CD 卡（灰烬 / 冰）的循环下限
+
+
+def _is_long_card(name):
+    from . import data as D
+    core = name.split(':', 1)[1] if name.startswith('模仿者:') else name
+    return core in ('毁灭菇', '樱桃', '辣椒', '窝瓜', '寒冰菇')
+
+
+def _op_of_block(b):
+    """积木/资源 → 植物名（含旧名迁移）"""
+    if isinstance(b, dict):
+        return LEGACY_OP.get(b.get('op'), b.get('op'))
+    return LEGACY_OP.get(b, b)
+
+
+def cycle_ops(beats):
+    """一个循环里所有时机的操作名（按顺序拍平）"""
+    out = []
+    for beat in beats or []:
+        out.extend(beat.get('ops') or [])
+        for grp in (beat.get('late') or []):
+            out.extend(grp or [])
+    return out
+
+
+def check_spectrum(beats, gaps, n_cob=None, deck=None):
+    """**波长和校验**（用户 2026-10-22 口径）
+
+    返回 `[dict(level='ok'|'warn'|'bad', msg=…), …]`
+
+    规则：
+      ① 含 P：波长和 ≥ 36s；34~35s 算极限（warn）；< 34s 直接不可能（bad）
+         —— 并据此算「这个循环至少要几门炮」
+      ② 含 C（长 CD 卡：灰烬 / 冰）：波长和 ≥ 54s，否则 warn
+      ③ 波长和过去之后，循环的第一个操作必须重新可用（换算成"炮/卡都转好了"）
+      ④ 不认识的记号不参与计算，只提示
+    """
+    out = []
+    ops = cycle_ops(beats)
+    gaps = [float(g) for g in (gaps or [])]
+    if not gaps:
+        return [dict(level='warn', msg='还没填波长串 —— 波长校验要它才能做')]
+    L = sum(gaps) * 100.0                    # cs
+    n_beat = len([b for b in (beats or []) if cycle_ops([b])])
+    if n_beat and len(gaps) != n_beat:
+        out.append(dict(level='warn',
+                        msg='波长串有 %d 项，轨道有 %d 拍 —— 一般应相等'
+                            % (len(gaps), n_beat)))
+    if not ops:
+        return out + [dict(level='warn', msg='轨道是空的')]
+
+    # ---- ① P
+    n_p = sum(1 for o in ops if o == '玉米炮')
+    if n_p:
+        if L < P_HARD:
+            out.append(dict(level='bad',
+                            msg='含 P 但波长和只有 %.2fs < 34s —— 一次装填（34.75s）'
+                                '都走不完，这个循环不可能成立' % (L / 100.0)))
+        elif L < P_MIN:
+            out.append(dict(level='warn',
+                            msg='含 P 且波长和 %.2fs 在 34~36s 的极限区：'
+                                '刚好够一门炮装填一次，容错极低（建议 ≥ 36s）'
+                                % (L / 100.0)))
+        cap = L / COB_CD                 # 每门炮一个循环能打几发（可含小数）
+        if cap < 1:
+            out.append(dict(level='bad',
+                            msg='循环 %.2fs 不到一次装填（%.2fs），P 打不出去'
+                                % (L / 100.0, COB_CD / 100.0)))
+        else:
+            need = int(math.ceil(n_p / cap))
+            msg = ('循环 %.2fs ≈ %.2f 个炮 CD → %d 发 P 至少要 **%d 门炮**'
+                   % (L / 100.0, cap, n_p, need))
+            if n_cob is None:
+                out.append(dict(level='ok', msg=msg + '（阵型页数一下炮）'))
+            elif n_cob < need:
+                out.append(dict(level='bad',
+                                msg=msg + '，但阵型里只有 %d 门 —— 差 %d 门'
+                                    % (n_cob, need - n_cob)))
             else:
-                i += 1
-        if ops:
-            beats.append(ops)
-    return beats
+                out.append(dict(level='ok',
+                                msg=msg + '（阵型里有 %d 门，够）' % n_cob))
+
+    # ---- ② 长 CD 卡
+    longs = [o for o in ops if _is_long_card(o)]
+    if longs:
+        copies = {}
+        for name in longs:
+            copies[name] = copies.get(name, 0) + 1
+        if L < C_MIN:
+            out.append(dict(level='warn',
+                            msg='含长 CD 卡（%s）但波长和 %.2fs < 54s：'
+                                '同一张卡的复用要靠模仿者或存冰顶'
+                                % ('/'.join(sorted(set(longs))), L / 100.0)))
+        per = max(1, int(L // LONG_CARD_CD))
+        for name, u in sorted(copies.items()):
+            base = name.split(':', 1)[1] if name.startswith('模仿者:') else name
+            have = 1 + (1 if (deck and ('模仿者:' + base) in deck) else 0)
+            # ★ 寒冰菇另有「存冰」这条免费路径（预置好、只需咖啡豆唤醒），
+            #   所以只提示不判死
+            if u > have * per:
+                lvl = 'warn' if base in ('寒冰菇',) else 'bad'
+                out.append(dict(level=lvl,
+                                msg='%s 一个循环要用 %d 次，但只有 %d 张卡 × '
+                                    '%d 次冷却 = %d 次%s'
+                                    % (name, u, have, per, have * per,
+                                       '（冰还能靠存冰顶）' if lvl == 'warn' else '')))
+
+    # ---- ③ 首操作可行性
+    first = ops[0]
+    if first == '玉米炮':
+        if L < COB_CD:
+            pass                     # ①里已经报过"打不出去"
+        elif n_cob is None or n_cob * (L / COB_CD) >= n_p:
+            out.append(dict(level='ok',
+                            msg='循环首操作「P」在下一循环开始时已有炮转好'))
+    elif _is_long_card(first):
+        if L < LONG_CARD_CD:
+            out.append(dict(level='bad',
+                            msg='循环首操作「%s」的卡 CD 是 50s，波长和只有 %.2fs '
+                                '—— 下一循环开头还没转好' % (first, L / 100.0)))
+        else:
+            out.append(dict(level='ok',
+                            msg='循环首操作「%s」在下一循环开始时已转好' % first))
+    return out
 
 
-def quick_layout(plan, track_text=None):
+def spectrum_report(plan=None, track=None, gaps=None, n_cob=None):
+    """给界面用的波长校验（轨道 + 波长串 + 阵型炮数 → 结论）"""
+    p = plan or {}
+    rh = p.get('rhythm') or {}
+    text = track if track is not None else '|'.join(rh.get('beats') or [])
+    raw = gaps if gaps is not None else rh.get(GAPS_KEY)
+    if isinstance(raw, str):
+        try:
+            g = parse_gaps(raw)
+        except ValueError as e:
+            return dict(ok=False, error=str(e))
+    else:
+        g = [float(x) for x in (raw or [])]
+    mode = rh.get('pair') or 'auto'
+    d = parse_track_full(text, None if mode == 'auto' else (mode == 'short'))
+    beats = d['variants'][0] if d['variants'] else []
+    ops = cycle_ops(beats)
+    items = check_spectrum(beats, g, n_cob, p.get('deck'))
+    return dict(ok=True, gaps=g, total=sum(g), beats=len(beats),
+                n_p=sum(1 for o in ops if o == '玉米炮'),
+                items=items, unknown=d['unknown'], pair=d.get('pair'))
+
+
+def quick_layout(plan, track_text=None, pair=None, gaps_text=None):
     """
     把简式轨道铺进**常规波**（w2~w20，跳过旗波 w10/w20）。
 
     ★ 只填"做什么"：落点、时机、兜底一律留空，由用户补 ——
       这就是"快捷布置阵解"的全部职责。
+
+    分隔符的处置（用户 2026-10-22）：
+      · `|` → 下一波
+      · `-` → 同一波里再排一组积木，触发器用「上一块之后」并把时间**留空**
+      · `/` → 两组操作放进同一时机，落点全部留空（分场上/下半场自己填）
+      · `~` → 两套轨道**逐循环交替**铺进去
     """
     p = norm(plan or {})
-    beats = parse_track(track_text if track_text is not None
-                        else '|'.join((p.get('rhythm') or {}).get('beats') or []))
-    if not beats:
+    rh = p.get('rhythm') or {}
+    text = track_text if track_text is not None else \
+        '|'.join(rh.get('beats') or [])
+    if track_text is not None:
+        # 轨迹串同步进 rhythm.beats，保证 JSON / 校验看到的是同一份
+        rh['beats'] = [s.strip() for s in track_text.split('|')
+                       if s.strip()] or rh.get('beats') or []
+    mode = pair if pair is not None else (rh.get('pair') or 'auto')
+    parsed = parse_track_full(text, None if mode == 'auto' else (mode == 'short'))
+    variants = [v for v in parsed['variants'] if any(cycle_ops([b]) for b in v)]
+    if not variants:
         return p, 0
+
+    # 波长串
+    raw_gaps = gaps_text if gaps_text is not None else rh.get(GAPS_KEY)
+    if isinstance(raw_gaps, str):
+        try:
+            rh[GAPS_KEY] = parse_gaps(raw_gaps)
+        except ValueError:
+            rh[GAPS_KEY] = []
+    rh['pair'] = mode
+    p['rhythm'] = rh
+
     targets = [w for w in range(1, WAVES + 1) if is_regular(w)]
     rows = {int(r['w']): r for r in (p.get('waves') or [])}
     filled = 0
+    cycle_i = 0          # 第几轮循环（用于 `~` 交替）
+    beats = variants[0]
     for i, w in enumerate(targets):
-        ops = beats[i % len(beats)]
+        if i and i % len(beats) == 0:
+            cycle_i += 1
+            beats = variants[cycle_i % len(variants)]
+        beat = beats[i % len(beats)]
         row = rows.get(w)
         if row is None:
             row = dict(w=w, role=role_of(w), sets=[])
             p['waves'].append(row)
             rows[w] = row
         row['role'] = role_of(w)
-        row['sets'] = [dict(when={'kind': 'always'},
-                            ops=[dict(op=op, aim=None, trig={'kind': 'spawn'})
-                                 for op in ops])]
-        row['note'] = '快捷布置：' + ' + '.join(ops)
+        blocks = [dict(op=op, aim=None, trig={'kind': 'spawn'})
+                  for op in (beat.get('ops') or [])]
+        for grp in (beat.get('late') or []):
+            for op in grp or []:
+                # `-` 之后的时机：留空给用户填（默认"上一块之后 + 0"）
+                blocks.append(dict(op=op, aim=None,
+                                   trig={'kind': 'after', 'at': 0}))
+        row['sets'] = [dict(when={'kind': 'always'}, ops=blocks)]
+        label = ' + '.join(b.get('op') for b in blocks) or '（空）'
+        row['note'] = '快捷布置：' + label
+        if beat.get('split'):
+            row['note'] += '　· 分场（`/`）：上下半场的落点自己填'
+        if len(variants) > 1:
+            row['note'] += '　· 波动（`~`）第 %d 套' % (cycle_i % len(variants) + 1)
         filled += 1
     p['waves'].sort(key=lambda r: int(r['w']))
     return p, filled
@@ -906,7 +1266,12 @@ def validate(plan):
             seen = set()
             for b in st.get('ops') or []:
                 check_op(sw, b)
-                key = _card_key(LEGACY_OP.get(b.get('op'), b.get('op')))
+                name = LEGACY_OP.get(b.get('op'), b.get('op'))
+                # ★ 2026-10-22：P 不占卡片 CD（只看每门炮自己的装填），
+                #   所以"同一候选里两块玉米炮"完全合法 —— 那就是一对炮。
+                if name == '玉米炮':
+                    continue
+                key = _card_key(name)
                 if key in CARD_KEY.values():
                     if key in seen:
                         bad(sw, '同一候选里两张同名卡 —— 第二块必然卡在 CD')
@@ -940,13 +1305,33 @@ def validate(plan):
             bad(tw, '没填要保护的格子')
     if simple.get('targets') and not simple.get('resources'):
         warn('简化救场', '没有任何救场资源 —— 有危险也不会出手')
+
+    # ---- 波长串校验（用户 2026-10-22）
+    rh = plan.get('rhythm') or {}
+    gaps = rh.get(GAPS_KEY) or []
+    beats_txt = '|'.join(rh.get('beats') or [])
+    if gaps:
+        d = parse_track_full(beats_txt, None)
+        beats = (d['variants'][0] if d['variants'] else [])
+        for it in check_spectrum(beats, gaps, None, deck):
+            if it['level'] == 'bad':
+                bad('波长', it['msg'])
+            elif it['level'] == 'warn':
+                warn('波长', it['msg'])
+    elif beats_txt:
+        warn('波长', '还没填波长串 —— 波长和校验要它才能做')
     return out
 
 
 # ------------------------------------------------------------------ 序列化
 def _mig_block(b):
     if isinstance(b, dict) and 'op' in b:
-        b['op'] = LEGACY_OP.get(b['op'], b['op'])
+        was = b['op']
+        b['op'] = LEGACY_OP.get(was, was)
+        # ★ 2026-10-22：取消的「窝瓜压车」→ 「在 5-9 种窝瓜」；
+        #   触发时机原本写死在引擎里，现在留给用户用触发器表达。
+        if was == '窝瓜压车' and b['op'] == '窝瓜' and not b.get('aim'):
+            b['aim'] = [5, 9]
     return b
 
 
@@ -971,7 +1356,8 @@ def norm(plan):
     p.setdefault('field', 'PE')
     p.setdefault('deck', list(DEFAULT_DECK))
     p.setdefault('rhythm', dict(system='C', id='C4io', name='C4io',
-                                beats=['N', "AA'", 'I', 'I']))
+                                beats=['N', "AA'", 'I', 'I'],
+                                gaps=[], pair='auto'))
     p.setdefault('waves', [])
     p.setdefault('globals', [])
     p.setdefault('rescue', [])
@@ -1030,6 +1416,16 @@ def norm(plan):
         r['beats'] = list(preset['beats']) if preset else ['N', "AA'", 'I', 'I']
     r.setdefault('system', 'C')
     r.setdefault('name', r['id'])
+    # ★ 2026-10-22：波长串 / 简写复写
+    g = r.get('gaps')
+    if isinstance(g, str):
+        try:
+            g = parse_gaps(g)
+        except ValueError:
+            g = []
+    r['gaps'] = [float(x) for x in (g or []) if float(x) > 0]
+    if r.get('pair') not in ('auto', 'short', 'full'):
+        r['pair'] = 'auto'
     p['rhythm'] = r
     p['waves'].sort(key=lambda r: r['w'])
     return p
@@ -1134,6 +1530,18 @@ def catalog():
         naming=dict(options=MI.NAMINGS, default=MI.DEFAULT_NAMING),
         roles={str(w): role_of(w) for w in range(1, WAVES + 1)},
         regular=[w for w in range(1, WAVES + 1) if is_regular(w)],
+        # ★ 2026-10-22：轨道结构符号 / 简写复写 / 波长串
+        track_seps=[dict(ch=k, kind=v) for k, v in TRACK_SEP.items()
+                    if k in '|-/~'],
+        pair_modes=[
+            dict(id='auto', label='自动辨认（出现 PP 就当复写）'),
+            dict(id='short', label='简写：P = 一对炮'),
+            dict(id='full', label='复写：P = 单门炮（自己写 PP）'),
+        ],
+        pair_default='auto',
+        gaps_key=GAPS_KEY,
+        cob_cd=COB_CD, long_card_cd=LONG_CARD_CD,
+        p_min=P_MIN, c_min=C_MIN,
     )
 
 
@@ -1202,9 +1610,14 @@ def default_dianbozhong():
                 _set(None, _b('寒冰菇', None, trig={'kind': 'card', 'name': '寒冰菇'}))],
             '收尾波：照常控丑，但不点核（留给下一个旗波锚点）')
 
-    row(10, [_set(None, _b('咖啡豆'), _b('窝瓜压车', trig={'kind': 'time', 'at': 0})),
+    row(10, [_set(None, _b('咖啡豆'),
+                  # ★ 2026-10-22：「窝瓜压车」取消，改成"在 5-9 种窝瓜" +
+                  #   由"5 路冰车快到 5-9"这个距离条件触发
+                  _b('窝瓜', [5, 9], trig={'kind': 'dist', 'zombie': '冰车',
+                                          'row': 5, 'col': 9, 'axis': 'x',
+                                          'cmp': '<=', 'value': 80})),
              _set(ICE0, _b('寒冰菇', None, trig={'kind': 'card', 'name': '寒冰菇'}))],
-        '旗波：冰杀蹦极 + w10 窝瓜压车保 5-9 核坑')
+        '旗波：冰杀蹦极 + 5 路冰车将近 5-9 时种窝瓜，保住核坑')
     row(20, [_set(None, _b('咖啡豆')),
              _set(ICE0, _b('寒冰菇', None, trig={'kind': 'card', 'name': '寒冰菇'}))],
         'w20：清账')
@@ -1429,7 +1842,9 @@ _SPEC_PLAN = """# TrackCheck 阵解 JSON 格式说明（format = {fmt}）
   **玉米炮 / 地刺 / 钢地刺 / 高坚果 / 双向射手 / 机枪射手 / 火炬树桩 / 磁力菇 /
   三叶草 / 墓碑吞噬者**，以及 `模仿者:寒冰菇`、`模仿者:毁灭菇`；
   其余卡能选可写，跑起来会记「未知卡片」。
-- `玉米炮` 的 `aim` 是**准星落点**（可以任意行），不是"种在哪"。
+- `玉米炮` 的 `aim` 是**爆炸中心**（可以任意行，**行列都允许一位小数**，如 `[3, 7.5]`），
+  不是"种在哪"。P 不指定具体哪一门炮 —— 引擎自动挑"装填好了、剩余 CD 最短"的那门，
+  每门炮各自有 3475cs 的独立计时器；**忽略释放到爆炸的时延**（写下的那一刻就爆）。
 - `rhythm.id` 是节奏型的**规范 id**（`C4io` / `N4` / `D5` / `I6` …）。
   显示名按「设置 → 节奏命名方案」在 **2021 传统 / 2026 新版 / 双轨**之间切换，
   所以 JSON 只存 id，不存显示名。
@@ -1449,10 +1864,37 @@ _SPEC_PLAN = """# TrackCheck 阵解 JSON 格式说明（format = {fmt}）
 
 ## 节奏（rhythm）
 
-`beats` 是社区简式轨道，按 `|` 分隔；「快捷布置阵解」把它循环铺到
-w2~w{waves} 的常规波（跳过旗波 w10/w20），只填"做什么"，落点/时机/兜底留空。
+```json
+"rhythm": {{"system": "C", "id": "P4", "beats": ["P","P","P","P"],
+            "gaps": [9, 9, 9, 9], "pair": "auto"}}
+```
+
+- `beats` 是社区简式轨道，按 `|` 分隔；「快捷布置阵解」把它循环铺到
+  w2~w{waves} 的常规波（跳过旗波 w10/w20），只填"做什么"，落点/时机/兜底留空。
+- `gaps` 是**波长串**（秒）：每拍 → 下一波刷新的间隔。界面上写 `(9,9,9,9)` 或 `(9|9|9|9)`。
+- `pair` 决定**对称操作写一个还是一对**：
+  - `"auto"`（默认）出现连续两个 P（`PP`）就按复写，否则按简写
+  - `"short"` 简写：`P|P|P|P` = 4 对炮（8 门）
+  - `"full"` 复写：`PP|PP|PP|PP` 才是一对，`P` = 单门
+
+### 轨道能认的分隔符
+
+| 符 | 名称 | 快捷布置怎么处置 |
+|---|---|---|
+| `|` | 隔离符（换波） | 下一拍 |
+| `-` | 刷新符（同一波的第二个时机） | 同一波里再排一组积木，触发器 = `after`，**时间留空** |
+| `/` | 分场符（上下半场同时） | 两组操作进同一个时机，落点全部留空；分场本身就表示"一对"，不再按简写翻倍 |
+| `~` | 波动符（两套节奏摆动） | 两套**逐循环交替**铺进去 |
 
 字母表：{letters}
+
+### 波长校验（`gaps` 填了就会查）
+
+- 含 P：波长和 ≥ **36s**；34~35s 是极限（警告）；< 34s 直接不可能
+- 含长 CD 卡（灰烬 / 冰，卡 CD 50s）：波长和 ≥ **54s**，否则警告
+- 据此推算「这个循环至少要几门炮」：`ceil(发数 ÷ (波长和 ÷ 34.75s))`
+  —— 例 `I-PP|I-PP|N|PP(18,18,9,9)`：54s ≈ 1.55 个炮 CD，6 发 P → **4 门炮**够
+- 还会查"波长和过去之后，循环的第一个操作能不能重新用"
 
 ## 表层轨道（waves[]）
 
@@ -1533,6 +1975,26 @@ w2~w{waves} 的常规波（跳过旗波 w10/w20），只填"做什么"，落点/
    "ops":[{{"op":"樱桃","aim":[2,8]}},{{"op":"辣椒"}}]}},
   {{"when":{{"kind":"always"}},"ops":[{{"op":"咖啡豆","aim":[3,2]}}]}}]}}
 ```
+
+> 「八炮 P4：每波一对炮打 8 列，波长 9 秒」
+```json
+{{"rhythm":{{"id":"P4","beats":["P","P","P","P"],
+            "gaps":[9,9,9,9],"pair":"auto"}},
+  "waves":[{{"w":2,"sets":[{{"when":{{"kind":"always"}},"ops":[
+      {{"op":"玉米炮","aim":[3,8],"trig":{{"kind":"spawn"}}}},
+      {{"op":"玉米炮","aim":[4,8],"trig":{{"kind":"spawn"}}}}]}}]}}]}}
+```
+（`pair:"short"` 时写一个 P 就会自动变成两门；上面是"自己写两块"的等价写法）
+
+## 这个模型里"操作"只有两种
+
+1. **P** —— `玉米炮`：不指定哪一门炮，只看每门炮各自的 3475cs 装填；
+   爆炸 R=115 / 1800 **即刻生效**，落点可带一位小数。
+2. **种植物（卡片）** —— 其余所有 op 都是"在某格种下某种植物"。
+   种的瞬间就是触发（"种植即触发"的植物——樱桃 / 辣椒 / 窝瓜 / 核 —— 不额外算种植-生效时延）。
+
+所以旧版的「窝瓜压车」这种**特技操作已经取消**：它就是
+`窝瓜` + `aim:[5,9]` + 一个「5 路冰车距 5-9 还有 N px」的触发器。
 """
 
 _SPEC_SPAWN = """# TrackCheck 出怪列表 JSON 格式

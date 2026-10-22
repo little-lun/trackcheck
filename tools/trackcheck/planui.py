@@ -126,13 +126,18 @@ MARKUP = r"""
       <label class="hint">节奏型</label><select id="pl-preset"></select>
       <span class="hint" id="pl-rhythm-info"></span>
       <label class="hint">轨道</label><input type="text" id="pl-beats" style="width:190px"
-        placeholder="N|AA'|I|I">
+        placeholder="P|P|P|P">
+      <label class="hint">波长串</label><input type="text" id="pl-gaps" style="width:150px"
+        placeholder="(9,9,9,9)">
       <button class="primary mini2" data-act="quick">⚡ 快捷布置阵解</button>
       <button class="ghost mini2" data-act="validate">✓ 校验</button>
     </div>
     <div class="hint" style="margin-top:4px">
-      快捷布置只把「做什么」铺进常规波（w2~w20，跳过旗波 w10/w20），落点 / 时机 / 兜底留给你填。
+      快捷布置只把「做什么」铺进常规波（w2~w20，跳过旗波 w10/w20），落点 / 时机 / 兜底留给你填。<br>
+      轨道认得 <code>|</code> 波次、<code>-</code> 同一波的第二个时机、<code>/</code> 上下半场、
+      <code>~</code> 两套节奏摆动；波长串写 <code>(9,9,9,9)</code> 或 <code>(9|9|9|9)</code>。
     </div>
+    <div class="hint" id="pl-spectrum" style="margin-top:6px"></div>
   </div>
 
   <div class="panel">
@@ -445,7 +450,14 @@ function plAimLabel(b) {
   const a = b.aim;
   if (a === 'stock') return ' · 空存冰位';
   if (a === 'temp') return ' · 前场临时冰位';
-  if (Array.isArray(a)) return ' ' + a[0] + '-' + a[1];
+  if (Array.isArray(a)) {
+    const num = function (v) {
+      const f = parseFloat(v);
+      return isNaN(f) ? String(v) : ((f === Math.round(f)) ? String(Math.round(f))
+                                                           : f.toFixed(1));
+    };
+    return ' ' + num(a[0]) + '-' + num(a[1]);
+  }
   return '';
 }
 function plBlockChip(b, i, si, on) {
@@ -584,16 +596,20 @@ function plAimEditor(bp, b) {
   else if (a === 'temp') mode = 'temp';
   else if (Array.isArray(a)) mode = 'cell';
   const arr = Array.isArray(a) ? a : [3, 2];
+  const isCob = b.op === '玉米炮';
   return '<span data-aimmode="' + bp + '">'
     + '<select data-aim="' + bp + '">'
-    + [['none', '不给（默认策略）'], ['cell', '指定格子'], ['stock', '空着的永久存冰位'], ['temp', '前场临时冰位']]
+    + [['none', '不给（默认策略）'], ['cell', isCob ? '指定爆心（可带小数）' : '指定格子'],
+       ['stock', '空着的永久存冰位'], ['temp', '前场临时冰位']]
       .map(function (o) {
         return '<option value="' + o[0] + '"' + (o[0] === mode ? ' selected' : '') + '>' + o[1] + '</option>';
       }).join('')
     + '</select> '
     + (mode === 'cell'
-      ? ('<input type="number" data-aimrc="' + bp + '" data-k="0" value="' + arr[0] + '" style="width:42px"> - '
-        + '<input type="number" data-aimrc="' + bp + '" data-k="1" value="' + arr[1] + '" style="width:42px">')
+      ? ('<input type="number" step="0.1" data-aimrc="' + bp + '" data-k="0" value="' + arr[0]
+        + '" style="width:56px" title="行（可带一位小数）"> - '
+        + '<input type="number" step="0.1" data-aimrc="' + bp + '" data-k="1" value="' + arr[1]
+        + '" style="width:56px" title="列（可带一位小数）">')
       : '')
     + '</span>';
 }
@@ -751,11 +767,70 @@ function plFull(p) {
   p = p || plP();
   return plBare(p.name) || '未命名阵解';
 }
+
+/* ★ 2026-10-22：波长串 `(9,9,9,9)` / `(9|9|9|9)`，以及简写/复写设置 */
+function plGapsParse(text) {
+  var s = String(text || '').trim().replace(/[()（）\[\]]/g, '')
+    .replace(/[|｜/,，\s]+/g, ' ').trim();
+  if (!s) return [];
+  var out = [], cs = false;
+  s.split(' ').forEach(function (t) {
+    var v = parseFloat(t);
+    if (!isNaN(v) && v > 0) { out.push(v); if (v >= 100) cs = true; }
+  });
+  if (cs) out = out.map(function (v) { return v / 100; });
+  return out;
+}
+function plGapsText(g) {
+  if (!g || !g.length) return '';
+  return '(' + g.map(function (v) { return (Math.round(v * 100) / 100); }).join(',') + ')';
+}
+const PAIR_KEY = 'tc.pairmode';
+function plPairMode() {
+  var ok = (PLAN.cat && PLAN.cat.pair_modes || []).map(function (x) { return x.id; });
+  var v = localStorage.getItem(PAIR_KEY);
+  return ok.indexOf(v) >= 0 ? v : ((PLAN.cat && PLAN.cat.pair_default) || 'auto');
+}
+function plSetPairMode(v) {
+  localStorage.setItem(PAIR_KEY, v);
+  plSpectrumSoon();
+  if (typeof renderSettings === 'function') renderSettings();
+}
+let plSpecTimer = null;
+function plSpectrumSoon() {
+  clearTimeout(plSpecTimer);
+  plSpecTimer = setTimeout(plSpectrum, 260);
+}
+async function plSpectrum() {
+  const box = document.getElementById('pl-spectrum');
+  if (!box) return;
+  const track = document.getElementById('pl-beats').value;
+  const gaps = document.getElementById('pl-gaps').value;
+  const d = await plPost('/api/plan/spectrum', { plan: plP(), track: track,
+    gaps: gaps, n_cob: (typeof plCobCount === 'function') ? (plCobCount() || null) : null });
+  if (!d || d.error || d.ok === false) {
+    box.innerHTML = '<span style="color:#b91c1c">波长串读不出来：'
+      + plEsc((d && d.error) || '') + '</span>';
+    return;
+  }
+  const head = '波长和 <b>' + (Math.round(d.total * 100) / 100)
+    + 's</b>　拍数 ' + d.beats + '　P ' + d.n_p + ' 发'
+    + (d.unknown && d.unknown.length ? '　<span style="color:#b45309">不认识的记号：'
+       + plEsc(d.unknown.join(' ')) + '</span>' : '');
+  const cls = { bad: 'err', warn: 'warn', ok: 'ok' };
+  const tag = { bad: '不可行', warn: '警告', ok: '通过' };
+  box.innerHTML = head + (d.items || []).map(function (it) {
+    return '<div class="issue ' + (cls[it.level] || 'ok') + '"><b>'
+      + (tag[it.level] || it.level) + '</b> ' + plEsc(it.msg) + '</div>';
+  }).join('');
+}
 function plRender() {
   if (!PLAN.bank.length) return;
   const p = plP();
   document.getElementById('pl-name').value = plBare(p.name);
   document.getElementById('pl-beats').value = (p.rhythm.beats || []).join(' | ');
+  const gEl = document.getElementById('pl-gaps');
+  if (gEl && document.activeElement !== gEl) gEl.value = plGapsText(p.rhythm.gaps);
   document.getElementById('pl-note').textContent = p.note || '';
   const sys = document.getElementById('pl-sys');
   sys.innerHTML = PLAN.cat.rhythms.map(function (r) {
@@ -779,6 +854,7 @@ function plRender() {
   }
   plRenderBank(); plRenderDeck(); plRenderWaveList(); plRenderWave();
   plRenderGlobals(); plRenderSimple(); plRenderRescue(); plRenderMap();
+  plSpectrumSoon();
 }
 
 /* ---------------- JSON 说明（i 按钮） ---------------- */
@@ -1013,7 +1089,8 @@ PL_ROOT.addEventListener('change', async function (e) {
   if (el.dataset.aimrc !== undefined) {
     const bp = el.dataset.aimrc, b = plPath(plP(), bp);
     if (!Array.isArray(b.aim)) b.aim = [3, 2];
-    b.aim[+el.dataset.k] = +el.value;
+    const raw = parseFloat(el.value);
+    if (!isNaN(raw)) b.aim[+el.dataset.k] = Math.round(raw * 10) / 10;
     return plRender();
   }
   if (el.dataset.gEn !== undefined) {
@@ -1079,6 +1156,12 @@ PL_ROOT.addEventListener('input', function (e) {
   if (el.id === 'pl-name') { plP().name = plBare(el.value); plRenderBank(); return; }
   if (el.id === 'pl-beats') {
     plP().rhythm.beats = el.value.split('|').map(function (s) { return s.trim(); }).filter(Boolean);
+    plSpectrumSoon();
+    return;
+  }
+  if (el.id === 'pl-gaps') {
+    plP().rhythm.gaps = plGapsParse(el.value);
+    plSpectrumSoon();
     return;
   }
   if (el.id === 'pl-wavenote') {
@@ -1126,13 +1209,17 @@ async function plValidate() {
 }
 async function plQuick() {
   const track = document.getElementById('pl-beats').value;
-  if (!track.trim()) { alert('先填轨道，比如 N|AA\'|I|I'); return; }
+  const gaps = document.getElementById('pl-gaps').value;
+  if (!track.trim()) { alert('先填轨道，比如 P|P|P|P 或 N|AA\'|I|I'); return; }
   if (!confirm('会把 w2~w20（跳过旗波）的候选整组替换成轨道的动作，落点留空。继续？')) return;
   plSnap();
-  const d = await plPost('/api/plan/quick', { plan: plP(), track: track });
+  const d = await plPost('/api/plan/quick', { plan: plP(), track: track,
+    pair: plPairMode(), gaps: gaps });
   if (d.error) { alert('失败：' + d.error); return; }
   PLAN.bank[PLAN.active].plan = d.plan;
   alert('已布置 ' + d.filled + ' 个常规波 —— 落点/时机/兜底还空着，接着填吧');
+  plRender();
+  plSpectrumSoon();
 }
 async function plBatch(op, delta) {
   const marks = Array.from(PLAN.marks);

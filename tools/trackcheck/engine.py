@@ -64,6 +64,15 @@ _CARD_OF = {
 }
 
 
+def _num(v):
+    """1.0 → '1'、1.5 → '1.5'（落点坐标的显示口径）"""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return str(v)
+    return ('%d' % f) if f == int(f) else ('%.1f' % f)
+
+
 def _norm_act(a):
     """积木 → (name, off, aim, trig)。顺手把旧动作名换成植物名（v0.3 统一说法）"""
     if isinstance(a, dict):
@@ -895,6 +904,11 @@ class Sim:
             return self._plant_ice(ev, aim, name)
         if name == '咖啡豆':
             return self._use_coffee(ev, aim)
+        # ★ 2026-10-22 用户口径：**P（玉米炮）不是"种卡"** —— 它不占卡片 CD、
+        #   不花阳光，只看**每门炮自己的 3475cs 装填计时器**。
+        #   所以必须排在下面的卡片 CD / 阳光检查之前。
+        if name == '玉米炮':
+            return self._fire_cob(ev, aim)
         # ★ 用户："w10 窝瓜压冰车" —— 这是**固定起手动作**，不是救场。
         #   压哪一行由"最靠前的冰车"决定（`_pick_row` 已经优先挑冰车所在行）。
         if name == '窝瓜压车':
@@ -1062,20 +1076,44 @@ class Sim:
         # ══════════════════════════════════════════════════════════════
         # v0.2.1 新增的植物动作
         # ══════════════════════════════════════════════════════════════
-        if name == '玉米炮':
-            return self._fire_cob(ev, aim)
         if name == '三叶草':
             return self._blover(ev)
         if name == '墓碑吞噬者':
             return self._grave_eat(ev, aim)
 
-    def _fire_cob(self, ev, aim):
-        """玉米炮开炮。`aim=(row, col)` 是**准星落点**（可以在任意行）。
+    def _aim_py(self, row, col):
+        """落点所在行的**植物 y**（允许小数行 → 相邻两行线性插值）
 
-        [精 三] 释放到爆炸：非屋顶水路 378 / 非屋顶陆路 373~376 / 屋顶 359~392
+        ★ 2026-10-22 用户口径：P 的落点"允许行列坐标带一位小数"。
+          行 1.5 = 1 路与 2 路正中；屋顶逐格给 y，所以列也要参与。
+        """
+        c = int(round(float(col)))
+        c = max(1, min(9, c))
+        r = float(row)
+        r0 = int(r)
+        frac = r - r0
+        rows = sorted(self.fld.all_rows())
+        if not rows:
+            return D.plant_y(r0)
+        r0 = max(rows[0], min(rows[-1], r0))
+        nxt = r0 + 1 if r0 + 1 in rows else r0
+        y0 = self.py(r0, c)
+        y1 = self.py(nxt, c)
+        return y0 + (y1 - y0) * frac
+
+    def _fire_cob(self, ev, aim):
+        """玉米炮开炮。`aim=(row, col)` 是**准星落点**（可以在任意行，可带小数）。
+
         [精 三] 释放到完成装填（CD）3475
         [精 八] 爆炸半径 R=115、伤害 1800；爆炸中心 x = 准星 x − 7、
-                y = 同行植物 y + 40（非天台）
+                y = 落点行的植物 y + 40（非天台）
+
+        ★ 2026-10-22 用户口径（P 操作）：
+          · **不指定具体哪一门炮** —— 自动挑「装填好了、剩余 CD 最短」的那门，
+            每门炮各自有 3475cs 的独立计时器
+          · **忽略「释放→爆炸」时延**：写下的那一刻就结算爆炸（`COB_IGNORE_FUSE`）
+          · 落点行列都允许一位小数；爆炸判定域是 R=115 的圆，
+            与僵尸**受击框**有重合就吃满 1800
         """
         spec = D.PLANTS['玉米炮']['cob']
         cobs = [c for c in self.cells.values()
@@ -1083,39 +1121,49 @@ class Sim:
         if not cobs:
             self.broken.append(dict(t=self.t, wave=ev['wave'], what='玉米炮',
                                     why='场上没有玉米炮'))
+            self.actions.append(dict(t=self.t, wave=ev.get('wave') or 1,
+                                     name='玉米炮', ok=False))
             return
         ready = [c for c in cobs if c.cob_cd <= self.t]
         if not ready:
             self.broken.append(dict(t=self.t, wave=ev['wave'], what='玉米炮',
                                     why='所有炮都在装填（最早 %d cs 后）'
                                         % (min(c.cob_cd for c in cobs) - self.t)))
+            self.actions.append(dict(t=self.t, wave=ev.get('wave') or 1,
+                                     name='玉米炮', ok=False))
             return
         if isinstance(aim, (tuple, list)) and len(aim) == 2:
-            row, col = int(aim[0]), int(aim[1])
+            row, col = float(aim[0]), float(aim[1])
         else:
-            row = self._pick_row()
-            zs = [z for z in self.by_row[row] if z.alive]
-            col = (max(1, min(9, int(round((min(z.x for z in zs) - 40) / 80.0)) + 1))
-                   if zs else 8)
+            row = float(self._pick_row())
+            zs = [z for z in self.by_row[int(row)] if z.alive]
+            col = (max(1.0, min(9.0, (min(z.x for z in zs) - 40) / 80.0 + 1))
+                   if zs else 8.0)
         if self.fld.family == 'roof':
             fuse = sum(spec['fuse_roof']) / 2.0
-        elif row in self.fld.water:
+        elif int(round(row)) in self.fld.water:
             fuse = spec['fuse']
         else:
             fuse = sum(spec['fuse_land']) / 2.0
+        if D.COB_IGNORE_FUSE:
+            fuse = 0
         # 占一个装填位（按剩余 CD 最短的那门炮）
         gun = min(ready, key=lambda c: c.cob_cd)
         gun.cob_cd = self.t + spec['cd']
         self.cob_shot.append(dict(t=self.t, row=row, col=col,
                                   gun=(gun.row, gun.col)))
-        # 爆炸中心：准星 x − 7；这里直接按"落点列的中心 − 7"折算成半径判定
         cx = D.cell_x(col) - spec['head_dx']
-        cy = self.py(row, col) + spec['dy']
+        cy = self._aim_py(row, col) + spec['dy']
         self.boom_q.append((self.t + fuse, row, col, spec['radius'], spec['dmg'],
-                            spec['dy']))
-        self._log('ASH', '玉米炮开炮 → %d-%d（%.0f cs 后爆）' % (row, col, fuse),
-                  row=row, col=col, detail='R=%d · 1800 · 爆炸中心 x=%d y=%d'
-                                          % (spec['radius'], cx, cy))
+                            spec['dy'], (cx, cy)))
+        self.actions.append(dict(t=self.t, wave=ev.get('wave') or 1,
+                                 name='玉米炮', ok=True))
+        self._log('ASH', '玉米炮开炮 → %s-%s（%s）'
+                  % (_num(row), _num(col),
+                     '即刻爆' if fuse == 0 else '%.0f cs 后爆' % fuse),
+                  row=int(round(row)), col=int(round(col)),
+                  detail='R=%d · 1800 · 爆心 x=%.1f y=%.1f · 第 %d-%d 门炮'
+                         % (spec['radius'], cx, cy, gun.row, gun.col))
 
     def _blover(self, ev):
         """三叶草：秒杀全场气球（气球在本模型里是 SKIP 类的"进场即被清"，所以
@@ -1188,10 +1236,11 @@ class Sim:
                 for b in due:
                     row, col, radius, dmg = b[1], b[2], b[3], b[4]
                     dy = b[5] if len(b) > 5 else 0
-                    c = self.cells.get((row, col))
+                    center = b[6] if len(b) > 6 else None
+                    c = self.cells.get((int(round(row)), int(round(col))))
                     if c is not None:
                         c.ash_pending = False
-                    self._apply_boom(row, col, radius, dmg, dy)
+                    self._apply_boom(row, col, radius, dmg, dy, center)
         if self.chili_q:
             due = [c for c in self.chili_q if c[0] <= self.t]
             if due:
@@ -1257,7 +1306,7 @@ class Sim:
                   % (p['row'], p['col'], n), row=p['row'], col=p['col'],
                   detail='1 格宽判定域 · 即刻生效')
 
-    def _apply_boom(self, row, col, radius, dmg, dy_off=0):
+    def _apply_boom(self, row, col, radius, dmg, dy_off=0, center=None):
         """
         灰烬爆炸 = **圆形判定**，且用「圆心到僵尸受击框最近点」的距离。
 
@@ -1267,12 +1316,17 @@ class Sim:
             核在 2-7：圆心 y = plant_y(2) = 165
             5 路巨人受击框 y ∈ [390, 505] → 最近点 390 → dy = 225 < 250 ✔
             6 路巨人 y ∈ [475, 590] → dy = 310 > 250 ✘（实测也说炸不到）
+
+        `center=(cx, cy)` 给了就**直接用**（P 的落点可以带小数，圆心不能再按整格还原）。
         """
-        hint = getattr(self, '_car_hint', None)
-        if hint is not None and hint.row == row:
-            col = max(1, min(9, int(round((hint.x - 40) / 80.0)) + 1))
-        cx = D.cell_x(col)
-        cy = self.py(row, col) + dy_off
+        if center is not None:
+            cx, cy = float(center[0]), float(center[1])
+        else:
+            hint = getattr(self, '_car_hint', None)
+            if hint is not None and hint.row == row:
+                col = max(1, min(9, int(round((hint.x - 40) / 80.0)) + 1))
+            cx = D.cell_x(col)
+            cy = self._aim_py(row, col) + dy_off
         r2 = radius * radius
         for z in self.zombies:
             if not z.alive:
@@ -2964,6 +3018,8 @@ class Sim:
             actions=self.actions,
             broken=self.broken,
             log=self.log,
+            # ★ 2026-10-22：P（玉米炮）开炮记录 —— 时间 / 落点（可带小数）/ 用的哪门炮
+            cob_shot=self.cob_shot,
             sun_end=round(self.sun),
             sun_peak=round(self.sun_peak),
             sun_capped=self.sun_capped,

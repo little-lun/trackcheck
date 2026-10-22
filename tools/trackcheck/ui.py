@@ -389,6 +389,12 @@ table.lygrid td{padding:0}
     <div class="hint" id="set-arrayfmt-note" style="margin-top:6px"></div>
   </div>
   <div class="panel">
+    <div class="ptitle">设置 · 轨道简写 / 复写
+      <span class="hint" style="font-weight:400">（对称操作写一个还是一对）</span></div>
+    <div id="set-pair" class="row" style="gap:14px;flex-wrap:wrap"></div>
+    <div class="hint" id="set-pair-note" style="margin-top:6px"></div>
+  </div>
+  <div class="panel">
     <div class="ptitle">模型清单 · 植物
       <span class="hint" style="font-weight:400">（哪些植物参与模拟、哪些只是占格、哪些还没建模）</span></div>
     <div id="set-plants"></div>
@@ -437,6 +443,11 @@ __PLANPAGE__
       <p>阵解 = 「节奏 + 每波做什么 + 全场判定 + 救场」。如果只想看自然输出能撑多久，
       这一步可以跳过（不选阵解就是"什么都不做"的空轨道）。
       所有出现 JSON 的地方都有一个小 <b>i</b>，点开能复制/下载格式说明 —— 直接交给 AI 生成阵解。</p>
+      <p><b>轨道里只有两种操作</b>：<b>P</b>（玉米炮，不指定哪一门）和
+      <b>种植物</b>（卡片）。轨道串认得
+      <code>|</code>（换波）、<code>-</code>（同一波的第二个时机）、
+      <code>/</code>（上下半场）、<code>~</code>（两套节奏摆动）；
+      右边的「波长串」写 <code>(9,9,9,9)</code>，会自动校验波长和够不够炮 / 卡的 CD 转完。</p>
       <h3>④ 运行与报告</h3>
       <p>点「开始模拟」。报告里有：波长、偏差、减速覆盖、存冰/阳光/补南瓜台账、
       逐波时间轴、轨道执行表；右上角可以下载 PDF。</p>
@@ -524,6 +535,18 @@ function lyCobHeadCol(r, c){
 }
 function lyCobCore(name){ return String(name || '').replace(/^模仿者:/, '') === (LYC.cob || '玉米炮'); }
 function lyHasCob(r, c){ const cell = lyCell(r, c); return !!(cell && lyCobCore(cell.plant)); }
+/* 阵型里有多少门玉米炮（尾格不算）—— 波长校验要它 */
+function plCobCount(){
+  const f = lyFieldInfo(LY.field);
+  const rows = f.rows || 6;
+  let n = 0;
+  Object.keys(LY.array).forEach(k => {
+    const r = +k.split('-')[0];
+    if (r > rows) return;
+    if (lyCobCore((LY.array[k] || {}).plant)) n++;
+  });
+  return n;
+}
 
 /* ★ 2026-10-22 命名规则（用户口径）：**阵型**命名 `[场地].名字`，
    `[场地].` 这一截由 app 自动生成 —— 输入框里只填裸名字。 */
@@ -1390,6 +1413,28 @@ function renderSettings() {
     ? ('当前：' + afo.label + '　·　' + afo.note) : '';
   for (const el of document.querySelectorAll('input[name="tc-arrayfmt"]')) {
     el.onchange = function () { tcSetArrayFmt(el.value); };
+  }
+
+  // ★ 2026-10-22：轨道简写 / 复写（对称操作写一个还是一对）
+  const pmBox = document.getElementById('set-pair');
+  if (pmBox) {
+    const modes = (typeof PLAN !== 'undefined' && PLAN.cat && PLAN.cat.pair_modes) || [];
+    const curPm = (typeof plPairMode === 'function') ? plPairMode() : 'auto';
+    pmBox.innerHTML = modes.map(function (o) {
+      return '<label class="hint" style="cursor:pointer">'
+        + '<input type="radio" name="tc-pair" value="' + o.id + '"'
+        + (o.id === curPm ? ' checked' : '') + '> <b>' + o.label + '</b></label>';
+    }).join('') || '<span class="hint">（阵解页还没加载）</span>';
+    for (const el of document.querySelectorAll('input[name="tc-pair"]')) {
+      el.onchange = function () { plSetPairMode(el.value); };
+    }
+    const noteEl = document.getElementById('set-pair-note');
+    if (noteEl) {
+      noteEl.innerHTML = '简写：<code>P|P|P|P</code> = 一对炮 × 4（8 门）；'
+        + '复写：<code>PP|PP|PP|PP</code> 才是一对。'
+        + '分场写法 <code>P/P</code> 本身就表示一对，不会再翻倍。'
+        + '核 / 冰 / 灰烬只有一张卡，不参与翻倍。';
+    }
   }
 
   const pl = MODELS.plants || {};
