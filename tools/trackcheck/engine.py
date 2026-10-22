@@ -1070,16 +1070,29 @@ class Sim:
             self._doom(aim)
             return
         if name == '樱桃':
-            r = self.slots.get('cherry_row') or self._pick_row()
-            cols = getattr(self, 'cherry_cols', None) or [8, 9, 7, 6]
-            c = None
-            for cand in cols:
-                cell_c = self.cells.get((r, cand))
-                if cell_c is None or not cell_c.iced:
-                    c = cand
-                    break
-            if c is None:
-                c = cols[0]
+            # ★ 2026-10-22：`[行, "front"]` = 滑列落点（**连同相邻行一起判**，
+            #   因为樱桃 R=115 纵向也盖 3 行）；圆心口径 [精 六] = (x+40, y+40)
+            slide = (isinstance(aim, (list, tuple)) and len(aim) == 2
+                     and isinstance(aim[1], str))
+            if isinstance(aim, (list, tuple)) and len(aim) == 2:
+                r = int(round(float(aim[0])))
+                c = (self._slide_col(r, D.CHERRY_R, 40, -40, integer=True)
+                     if slide else int(round(float(aim[1]))))
+            else:
+                r = self.slots.get('cherry_row') or self._pick_row()
+                cols = list(getattr(self, 'cherry_cols', None) or [8, 9, 7, 6])
+                c = None
+                # ★ 先看"滑到哪一列才真的盖得住最靠前那只"（多行口径），
+                #   那一列能下就优先用它；不行再退回固定的 8/9/7/6 偏好。
+                want = self._slide_col(r, D.CHERRY_R, 40, -40, integer=True)
+                cand_list = [int(want)] + [x for x in cols if x != int(want)]
+                for cand in cand_list:
+                    cell_c = self.cells.get((r, cand))
+                    if cell_c is None or not cell_c.iced:
+                        c = cand
+                        break
+                if c is None:
+                    c = cols[0]
             cell = self.cells.get((r, c))
             if cell is not None and cell.iced:
                 self.broken.append(dict(t=self.t, wave=ev['wave'], what=name,
@@ -1149,31 +1162,47 @@ class Sim:
         y1 = self.py(nxt, c)
         return y0 + (y1 - y0) * frac
 
-    def _slide_col(self, row, radius=None, head_dx=None):
-        """**滑列落点**（用户 2026-10-22）：不写死第几列，而是让这一路
-        "最靠前的那只僵尸"**恰好**落在爆炸判定域里，剩下的距离全留给后面的怪。
+    def _boom_rows(self, row, radius, dy):
+        """这个落点**纵向**能盖到哪几行（圆心 y = 该行植物 y + dy，与受击框最近点距 ≤ R）"""
+        cy = self._aim_py(row, 1) + dy
+        out = []
+        for r in self._rows():
+            zy = self.zy(r)
+            ny = zy if cy < zy else (zy + D.DEF_HEIGHT if cy > zy + D.DEF_HEIGHT else cy)
+            if abs(ny - cy) <= radius:
+                out.append(r)
+        return out
 
-        ★ 用户原话：「巨人、冰车受击判定域都比较大，至少有 1 格宽，
-          第 8 列落点无论如何都应该炸得到」，所以滑列只用来**补**这种情况：
-          最靠前那只已经走过 8 列的判定域了（红眼/橄榄漏网），就往左挪。
+    def _slide_col(self, row, radius=None, dy=None, head_dx=None, integer=False):
+        """**滑列落点**（用户 2026-10-22）：不写死第几列，而是让判定域
+        "最靠前的那只僵尸"**恰好**被切到，剩下的距离全留给后面的怪。
 
-        反解 `爆心 x = cell_x(col) + 7`（`head_dx = −7`）：
-            cx = 最靠前那只受击框的**右缘** + R   ← 刚好切到（圆的最右位置）
+        ★★ 用户 2026-10-22 修正：**要连同相邻行一起判**。
+          炮的圆 R=115 纵向能盖 3~4 行、樱桃 R=115 也能盖 3 行，
+          所以"最靠前"必须取**被这一炮盖到的所有行**里最靠前的那只，
+          不是只看准星那一行。
+
+        反解 `爆心 x = cell_x(col) − head_dx`：
+            cx = 最靠前那只受击框的**右缘** + R − 1   ← 圆的最右位置，刚好切到它
             col = (cx − base) / 80 + 1
+        `integer=True` 时取整列（樱桃/辣椒这类要种在格子里的）。
         """
         spec = D.PLANTS['玉米炮']['cob']
-        r = spec['radius'] if radius is None else radius
+        r_ = spec['radius'] if radius is None else radius
+        dy_ = spec['dy'] if dy is None else dy
         hx = spec['head_dx'] if head_dx is None else head_dx
         base = D.cell_x(1) - hx                     # col=1 时的爆心 x
-        zs = [z for z in self.by_row.get(row, ())
+        rows = self._boom_rows(row, r_, dy_)
+        zs = [z for r in rows for z in self.by_row.get(r, ())
               if z.alive and z.hp > 0 and self._dbox(z)[0] <= D.DMG_LINE]
         if not zs:
             return 8.0
         front = min(zs, key=lambda z: z.x)
         _zl, zr = self._dbox(front)
-        cx = zr + r - 1.0                           # −1：别卡在浮点边界上
+        cx = zr + r_ - 1.0                          # −1：别卡在浮点边界上
         col = (cx - base) / float(D.CELL_W) + 1.0
-        return max(1.0, min(9.0, round(col * 10) / 10.0))
+        col = max(1.0, min(9.0, col))
+        return float(round(col)) if integer else round(col * 10) / 10.0
 
     def _fire_cob(self, ev, aim):
         """玉米炮开炮。`aim=(row, col)` 是**准星落点**（可以在任意行，可带小数）。
@@ -1294,14 +1323,20 @@ class Sim:
                 pool[z.row] = pool.get(z.row, 0) + z.hp
         return max(pool, key=pool.get) if pool else self.rng.choice(list(self._rows()))
 
-    def _boom(self, row, col, radius, dmg, delay=None):
+    def _boom(self, row, col, radius, dmg, delay=None, center=None):
         """灰烬：排进队列，**延迟到点才结算**（PE 白天要咖啡豆，299cs）。
 
         ★ 种下即 `ash_pending = True` —— 用户："碾压不对已经触发的灰烬生效，
           而且可以把'种植即触发'的灰烬直接种在碾压判定区"。
+
+        ★ 2026-10-22：`center` 显式给爆心。`[精 六]` 明确：
+          樱桃 / 毁灭菇的圆心都是 **(x+40, y+40)**，不是格子中心 ——
+          以前按格子中心算，整体偏左偏上 40px。
         """
         d = D.ASH_DELAY if delay is None else delay
-        self.boom_q.append((self.t + d, row, col, radius, dmg, 0))
+        if center is None:
+            center = (D.cell_x(col) + 40, self.py(row, col) + 40)
+        self.boom_q.append((self.t + d, row, col, radius, dmg, 0, center))
         c = self.cells.get((row, col))
         if c is None:
             c = self.cells[(row, col)] = Cell(row, col)
