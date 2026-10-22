@@ -1028,26 +1028,18 @@ class Sim:
                 return
             return
 
-        # ★ 阵解栏：轨道里也能排「小喷菇 / 花盆 / 阳光菇 / 胆小菇」——
-        #   指定了落点格子就只在那格下。
-        #   ★ 2026-10-22：阵解里的垫材是**机会性**的（窗口没开就跳过），
-        #     不算"断裂"，否则每波都会刷一堆无意义的报错。
+        # ★ 2026-10-22：阵解里的垫材是**机会性**的 —— 窗口没开 / 卡没好 / 格子被占
+        #   都只是"这次没垫上"，**不算断轨**（用户：垫材的死亡不该反复报 L2，
+        #   同理它的失败也不该刷断裂）。永远静默跳过。
         if name in D.PAD_OF_PLANT:
             card = D.PAD_OF_PLANT[name]
             if isinstance(aim, (tuple, list)) and len(aim) == 2:
                 if self.stall_at(aim, cards=(card,)):
                     self.actions.append(dict(t=self.t, wave=ev['wave'], name=name, ok=True))
-                elif getattr(self, 'pad_fail', None) not in (None, 'no_target'):
-                    self.broken.append(dict(t=self.t, wave=ev['wave'], what=name,
-                                            why='%d-%d 现在下不了垫材（%s）'
-                                               % (aim[0], aim[1], self.pad_fail)))
                 return
             rows = [aim[0]] if isinstance(aim, (tuple, list)) and aim else None
             if self.try_stall(rows, cards=(card,)):
                 self.actions.append(dict(t=self.t, wave=ev['wave'], name=name, ok=True))
-            elif getattr(self, 'pad_fail', None) != 'no_card':
-                self.broken.append(dict(t=self.t, wave=ev['wave'], what=name,
-                                        why='这一路没有可下垫材的时机'))
             return
 
         card = _CARD_OF.get(name, name)
@@ -3400,6 +3392,9 @@ class Sim:
             end_state=dict(
                 ice_stock=self.ice_stock,
                 ice_stock_perm=sum(1 for v in self.ice_slots.values() if v),
+                # ★ 2026-10-22：阵上到底有几个存冰位（0 = 这个阵根本不带冰）
+                #   —— 报告里的"存冰 0"警告只在 >0 时才发。
+                ice_cap=len(self.ice_slots),
                 ice_stock_temp=sum(1 for v in self.temp_ice.values() if v),
                 ice_slots={'%d-%d' % rc: ('满' if v else '空')
                            for rc, v in self.ice_slots.items()},

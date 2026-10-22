@@ -503,6 +503,13 @@ def urgency_px(target):
 def run_rescue_resource(sim, res, row=None, target_rc=None):
     """用一份救场资源；返回 True = 用掉了"""
     op = LEGACY_OP.get(res.get('op'), res.get('op'))
+    # ★ 2026-10-22：卡还在 CD 就直接返回 False（去试下一份资源），
+    #   不要走 do_action —— 那会往 broken 里塞一条"断轨：樱桃 CD 没好"，
+    #   而救场资源的 CD 轮转是**正常现象**，不是断轨。
+    card = _card_key(op)
+    if op not in ('小喷菇', '花盆', '阳光菇', '胆小菇'):
+        if sim.card_ready.get(card, 0) > sim.t:
+            return False
     if op in ('小喷菇', '花盆', '阳光菇', '胆小菇'):
         card = _card_key(op)
         if res.get('aim'):

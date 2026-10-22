@@ -15,6 +15,10 @@ sys.path.insert(0, '.')
 
 from tools.trackcheck import config_dianbozhong as C
 from tools.trackcheck import run as R
+from tools.trackcheck import data as D
+
+# 垫材 = 消耗品（小喷菇 / 花盆 / 阳光菇 / 胆小菇）—— 不进损失清单、不计磨损
+PAD_PLANTS = tuple(D.PAD_PLANT.values())
 
 # ★ v0.2.2：这里原来是 PE.电波钟无炮 四档的**实机录像波长**（15.84/12.30/10.24/8.56）。
 #   阵型改成用户自己配之后，没有可比的录像了 → 清空，报告里偏差显示「自定义（无参照）」。
@@ -590,14 +594,19 @@ def classify(r, dev=None):
             '看到蹦极先点冰 / 留一对炮' if lv == 'L1' else '这一波必须腾出冰或炮',
             ws=[b['wave']])
 
+    # ★ 2026-10-22 用户：「垫材还是出现了，不要将其死亡视作 L2 磨损」
+    #   → 垫材（小喷菇 / 花盆 / 阳光菇 / 胆小菇）是消耗品：
+    #     它的"下不了 / 被啃 / 被碾"一律不算磨损，不进这份清单。
     for b in r.get('broken', []):
-        if b['what'] in ('种冰', '种冰2', '种临时冰'):
+        if b['what'] in ('种冰', '种冰2', '种临时冰') or b['what'] in PAD_PLANTS:
             continue
         add('L2', '断轨：%s' % b['what'], 'w%d · %s' % (b['wave'], b['why']),
             '卡 CD 撞车；下一波补，不致命', ws=[b['wave']])
 
     for c in r.get('crush', []):
         pl = c['plant'] or '南瓜'
+        if pl in PAD_PLANTS:
+            continue                       # 垫材被碾 = 用完一张，不算损失
         if any(k in pl for k in core):
             add('L0', '冰车碾掉 %d-%d %s' % (c['row'], c['col'], pl),
                 'CORE 被碾 —— 不可逆', '必须改轨道', ws=[c.get('wave')])
@@ -615,9 +624,15 @@ def classify(r, dev=None):
             '设计者就是靠选卡带南瓜（极速关甚至南瓜＋复制南瓜）来吸收这份损耗',
             '不用管，算进日常开销')
 
-    if es.get('ice_stock_perm', 0) == 0 and tier != '极速':
-        add('L2', '2F 结束存冰 0', '下一个 2F 开局要先现补冰',
-            '选卡带满 4 存冰 / 收尾少点一次')
+    # ★ 2026-10-22 用户：「对于没有存冰的阵不要进行存冰量警告，不过有存冰的阵也一定要警告」
+    #   → 判据是**阵型里到底有没有寒冰菇**，不是"引擎默认的存冰位有没有填满"。
+    ice_cap = es.get('ice_cap')
+    if ice_cap is None:                      # 老报告没这个字段 → 退回旧行为
+        ice_cap = es.get('ice_stock_perm', 0)
+    if ice_cap and es.get('ice_stock_perm', 0) == 0 and tier != '极速':
+        add('L2', '结束存冰 0（阵上共 %d 个存冰位）' % ice_cap,
+            '下一个循环开局要先现补冰',
+            '选卡带满存冰 / 收尾少点一次')
 
     if dev is not None and abs(dev) >= 10:
         add('L4', '波长偏差 %+.0f%%' % dev,

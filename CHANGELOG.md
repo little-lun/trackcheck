@@ -3,6 +3,23 @@
 本文件记录 **trackcheck** 的对外版本变化。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循「`0.x` 为测试版；同一发布内每处改动记 `0.x.n`」的约定（见文末）。
 
+## [0.2.18] - 2026-10-22
+
+### Fixed
+- **垫材彻底移出损失清单**
+  - `do_action` 的垫材分支不再往 `broken` 里塞任何东西（`occupied` / `no_card` / 没窗口
+    都只是"这次没垫上"）→ 20 种子实测垫材断轨 **0 条**
+  - `html_report.classify` 对「断轨」与「冰车碾掉」两条来源都跳过垫材 ——
+    之前那条「冰车碾掉 6-8 花盆」是从 `crush` 清单来的，一并排掉
+  - `run_rescue_resource` 先查 `card_ready`，卡没好就直接试下一份资源，
+    不再走 `do_action` 刷「断轨：樱桃 CD 没好」（资源轮转是正常现象）
+- **存冰量警告收紧**：`end_state` 新增 `ice_cap`（阵上真实存冰位数），
+  只有 `ice_cap > 0 且 ice_stock_perm == 0` 才报，文案写明「（阵上共 N 个存冰位）」
+  - 电波钟（cap=4）stock=4 → 不报；人为置 stock=0 → 报；不带冰的阵（cap=0）→ 永不报
+
+### Notes
+- 自检：编译 0 错、`validate()` 0 条、PE.经典八炮 19/20、四档基线未变
+
 ## [0.2.17] - 2026-10-22
 
 ### Fixed
