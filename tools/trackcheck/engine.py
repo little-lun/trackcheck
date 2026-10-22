@@ -1,0 +1,3070 @@
+# -*- coding: utf-8 -*-
+"""
+engine.py —— 轨道验证器的模拟内核  v0.7
+
+v0.7 修的五处「模型错误」（不是简化，是错）：
+  ① **冰瓜没有减速**          → 整个游戏里唯一的常驻减速来源没了，僵尸全速推进
+  ② **冰瓜只打单体、无溅射**   → 单发 80 被当成全部输出，实际 80 + 3×3 溅射 40
+  ③ **一波 50 只同一帧全出**   → 真实是"按出怪列表顺序依次生成"，聚散程度差一个数量级
+  ④ **阵外格子是 None**       → 核坑/灰烬位（5-8、2-7…）根本不存在，核永远"无处可点"
+  ⑤ **非步行僵尸当步行者跑**   → 蹦极/气球/投篮/矿工/海豚被当成沿地面走的肉，直接"进家"
+
+v0.7 新增的两层结构：
+  · **救场层**：僵尸推进到 4.5 列内 → 用垫材/窝瓜救。这是无炮阵真正活着的原因，
+               也是"边路大喷被啃 ≠ 破阵"的机制依据。
+  · **分级报错**：CORE（曾/冰瓜/炮/香蒲）被毁 = 崩阵；
+               大喷/南瓜/伞/存冰/花被毁 = 磨损，只记 WARN，不终止。
+
+结论可信度：
+  L1 静态层（卡 CD / 运算量 / 阳光）= 零假设、零误差。
+  L2 动态层 = 看趋势与裕度，绝对值受 SPAWN_GAP / PUMPKIN_HP / EAT_DPS / SKIP_LIFE 影响。
+"""
+
+import random
+import operator
+from . import data as D
+from . import fields as F
+
+# ══════════════════════════════════════════════════════════════════
+# 阵解积木（v0.2 阵解栏）—— 触发器与比较运算
+#
+# 轨道函数可以返回老格式 (name, off, aim)，也可以返回 dict：
+#     {'op': '核', 'at': 0, 'aim': [2, 9], 'trig': {'kind': 'card', ...}}
+# 引擎统一折成 4 元组，`trig` 为空时行为与老版完全一致。
+# ══════════════════════════════════════════════════════════════════
+_CMP = {
+    '<': operator.lt, '<=': operator.le,
+    '>': operator.gt, '>=': operator.ge,
+    '==': operator.eq, '!=': operator.ne,
+}
+_TRIG_TTL = 2400          # 触发器最多等这么久（cs），超时记"断裂"
+
+# ══ v0.3：统一说法 —— 阵解栏里只写植物名（寒冰菇 / 咖啡豆 / 毁灭菇 …），
+#   引擎内部沿用旧的动作名。这两张表就是"旧名 ↔ 植物名"的唯一映射点。
+_OP_ALIAS = {
+    '核': '毁灭菇', '模仿核': '模仿毁灭菇',
+    '冰': '寒冰菇', '模仿冰': '模仿寒冰菇',
+    '存冰': '咖啡豆',
+    '垫材': '小喷菇', '垫材2': '花盆',
+    '种大喷': '大喷菇',
+}
+_CARD_OF = {
+    '毁灭菇': '核', '模仿毁灭菇': '模仿核',
+    '寒冰菇': '冰', '模仿寒冰菇': '模仿冰',
+    '樱桃': '樱桃', '辣椒': '辣椒', '窝瓜': '窝瓜',
+    '小喷菇': '垫材', '花盆': '垫材2', '南瓜': '南瓜',
+    '大蒜': '大蒜', '咖啡豆': '咖啡豆', '大喷菇': '大喷菇',
+    '玉米炮': '玉米炮', '荷叶': '荷叶', '保护伞': '保护伞',
+    '双子花': '双子花',
+    # v0.2.1：新增植物的卡片（名字与卡片同名，显式列出便于扩展）
+    '三叶草': '三叶草', '墓碑吞噬者': '墓碑吞噬者',
+    '火炬树桩': '火炬树桩', '地刺': '地刺', '钢地刺': '钢地刺',
+    '高坚果': '高坚果', '双向射手': '双向射手',
+    '机枪射手': '机枪射手', '磁力菇': '磁力菇',
+}
+
+
+def _norm_act(a):
+    """积木 → (name, off, aim, trig)。顺手把旧动作名换成植物名（v0.3 统一说法）"""
+    if isinstance(a, dict):
+        return (_OP_ALIAS.get(a.get('op'), a.get('op')),
+                int(a.get('at') or 0), a.get('aim'), a.get('trig'))
+    if len(a) >= 4:
+        return (_OP_ALIAS.get(a[0], a[0]), a[1], a[2], a[3])
+    return (_OP_ALIAS.get(a[0], a[0]), a[1], a[2], None)
+
+
+# ------------------------------------------------------------------ 实体
+class _Rows(dict):
+    """按行存的僵尸列表。★ 5 行场地没有第 6 路，查不到就返回空列表，
+    免得所有"遍历某一路"的代码都要先判 row 存在（原来一查 6 就 KeyError）。"""
+
+    def __init__(self, rows):
+        super().__init__((r, []) for r in rows)
+
+    def __missing__(self, key):
+        return []
+
+
+class Cell:
+    """一个格子。南瓜是独立的一层血，先扣南瓜再扣植物。"""
+    __slots__ = ('row', 'col', 'plant', 'plant_hp', 'pumpkin', 'pumpkin_hp',
+                 'ladder', 'crater_until', 'atk_t', 'sun_t', 'x',
+                 'iced', 'ice_until', 'ash_pending', 'tail', 'grave',
+                 'cob_cd', 'awake', 'magnet_t', 'base', 'pops', 'grown',
+                 'sun_born')
+
+    def __init__(self, row, col, plant=None, pumpkin=False, ladder=False):
+        self.row = row
+        self.col = col
+        self.x = D.cell_x(col)
+        self.plant = plant
+        self.plant_hp = D.PLANTS.get(plant, {}).get('hp', D.PLANT_HP_DEFAULT) if plant else 0
+        self.pumpkin = pumpkin
+        self.pumpkin_hp = D.PUMPKIN_HP if pumpkin else 0
+        self.ladder = ladder
+        self.crater_until = -1
+        self.iced = False
+        self.ice_until = -1
+        # 灰烬已种下、还没爆（樱桃/辣椒/核）→ 冰车碾不掉它
+        self.ash_pending = False
+        # ★ 2026-10-22：玉米炮占 **1×2** —— 头格是本体，尾格只是"占位、不能种"
+        self.tail = False
+        # ★ NE 的墓碑：占格、要先被墓碑吞噬者清掉才能种
+        self.grave = False
+        # ★ 玉米炮的装填计时（下一个可开炮的时刻）
+        self.cob_cd = 0
+        # ★ 蘑菇的"睡着"状态（用户 2026-10-22）：
+        #   阵图预置的格子里，只有寒冰菇/存冰 是睡的；其余（曾哥/大喷…）本来就是醒的。
+        #   静夜里的"新种下的蘑菇一律睡"由 engine._plant_into 负责。
+        self.awake = plant not in D.SLEEPING_AT_START
+        self.magnet_t = 0
+        # ★ 基座（水上=荷叶 / 屋顶=花盆）：阵型里预置的水上格子视为已有基座
+        self.base = False
+        # ★ 2026-10-22 地刺/地刺王：被"砸/碾"的次数（攒够 crush_hits 才消失）
+        self.pops = 0
+        # ★ 2026-10-22 阳光菇：是否已长大
+        self.grown = False
+        self.sun_born = 0
+        self.atk_t = 0
+        self.sun_t = 0
+
+    def has_content(self):
+        return self.plant is not None or self.pumpkin
+
+    def occupied(self):
+        """种不下（含玉米炮的尾格、墓碑）"""
+        return self.has_content() or self.tail or self.grave
+
+    def take_damage(self, dmg):
+        """返回 'pumpkin' / 'plant' / None —— 这一下打穿了哪一层"""
+        if self.pumpkin:
+            self.pumpkin_hp -= dmg
+            if self.pumpkin_hp <= 0:
+                self.pumpkin = False
+                self.pumpkin_hp = 0
+                self.ladder = False      # 南瓜没了，梯子一起没
+                return 'pumpkin'
+            return None
+        if self.plant:
+            self.plant_hp -= dmg
+            if self.plant_hp <= 0:
+                self.plant = None
+                return 'plant'
+        return None
+
+    def wreck(self):
+        """一次性摧毁（冰车碾压 / 灰烬）"""
+        plant, self.plant, self.plant_hp = self.plant, None, 0
+        pump, self.pumpkin, self.pumpkin_hp = self.pumpkin, False, 0
+        self.ladder = False
+        return plant, pump
+
+    @property
+    def hp_now(self):
+        return (self.pumpkin_hp if self.pumpkin else 0) + (self.plant_hp if self.plant else 0)
+
+
+class Zombie:
+    __slots__ = ('kind', 'row', 'x', 'hp', 'hp0', 'spd', 'dmg', 'uniform', 'giant',
+                 'frozen_until', 'slowed_until', 'wave', 'alive', 'eating',
+                 'stall_until', 'rescued', 'summoned', 'no_eat_x', 'smash_at', 'stall_n',
+                 'min_x', 'box_in', 'fuse_in', 'joker_early',
+                 'phase', 'vaulted', 'slid', 'armor', 'spd_alt', 'never_eat')
+
+    def __init__(self, kind, row, x, wave, rng):
+        self.kind = kind
+        self.row = row
+        self.x = x
+        self.hp = self.hp0 = D.ZOMB[kind][0]
+        self.uniform = D.ZOMB[kind][3]
+        self.giant = D.ZOMB[kind][5]
+        v = rng.uniform(D.ZOMB[kind][1], D.ZOMB[kind][2])
+        self.spd = D.avg_speed(kind, v)
+        if kind == '冰车':
+            self.spd = D.ice_car_speed(x)
+        self.dmg = D.EAT_DPS
+        self.frozen_until = -1
+        self.slowed_until = -1
+        self.wave = wave
+        self.alive = True
+        self.eating = None
+        self.stall_until = -1
+        self.stall_n = 0
+        self.rescued = False
+        self.summoned = False
+        # ★ 2026-10-22：跳跳**不啃植物**（用户口径）→ 全程不进食，只往前走
+        self.no_eat_x = None
+        self.never_eat = (kind == '跳跳')
+        self.smash_at = -1
+        self.min_x = x
+        # 小丑：box_in = 还有多少 cs 开盒；fuse_in < 0 表示还没开盒
+        self.box_in = -1
+        self.fuse_in = -1
+        self.joker_early = False
+        # ★ 2026-10-22：分阶段速度 / 撑杆跳 / 舞王滑步 / 金属护具
+        self.phase = 'run' if kind == '撑杆' else 'walk'
+        self.vaulted = False
+        self.slid = False
+        self.armor = D.ARMOR.get(kind, 0)
+        # 撑杆跳完改成"慢速"档（只有这一只有第二速度）
+        if kind == '撑杆':
+            n = D.ZOMB[kind][4]
+            v2 = rng.uniform(*D.SPEED_TIER['慢速'])
+            self.spd_alt = v2 * D.SPEED_K * (n + 1) / n
+        else:
+            self.spd_alt = 0.0
+
+
+# ------------------------------------------------------------------ 模拟器
+class Sim:
+    def __init__(self, array, track, wave_script, seed=0,
+                 total_waves=20, sun0=None, max_t=400000, skip_hp=0, slots=None,
+                 rescue=True, repair=True, allow_ash=True, stall_waves=True,
+                 cherry_cols=None, rebuild=False, wogua_flag=True,
+                 rescue_tick=None, globals_tick=None, field='PE'):
+        self.slots = slots or {}
+        self.rng = random.Random(seed)
+        self.skip_hp = skip_hp
+        self.array = array
+        # ★ v0.2.1：场地 —— 行数 / 格高 / y 坐标 / 水路 / 昼夜 / 基座 / 禁出
+        self.fld = F.get(field)
+        self.field_code = self.fld.code
+        self.rows = self.fld.rows
+        self.cells = {}
+        # ★ 5 行场地跑 6 行阵型：第 6 行的植物在这个场地上不存在，直接丢掉
+        #   （阵型是按场地摆的，跨场地复用时要显式说明，不能静默当"还在"）
+        self.rows_dropped = sorted({r for (r, _c) in array if r > self.rows})
+        for (r, c), spec in array.items():
+            if r > self.rows:
+                continue
+            self.cells[(r, c)] = Cell(r, c, spec.get('plant'),
+                                      spec.get('pumpkin', False),
+                                      spec.get('ladder', False))
+        # ★ v0.2.1：阵型里预置的格子视为**已有基座**（水上已种荷叶 / 屋顶已放花盆）；
+        #   玉米炮占 1×2 → 尾格标 tail（占位、不能种）
+        for (r, c), cell in list(self.cells.items()):
+            if r in self.fld.water or self.fld.base_plant:
+                cell.base = True
+            # ★ 阵图预置的阳光菇视为已经长大（它是成熟阵型的一部分）
+            if cell.plant == '阳光菇':
+                cell.grown = True
+            p = cell.plant
+            if p and D.PLANTS.get(p, {}).get('span') == 2 and c + 1 <= 9:
+                tcell = self.cells.get((r, c + 1))
+                if tcell is None:
+                    tcell = self.cells[(r, c + 1)] = Cell(r, c + 1)
+                tcell.tail = True
+                tcell.base = cell.base
+        # ★ NE：墓碑。开局在 5~9 列随机放几格（[01 §四.3]：场上墓碑 < 12 就补一个）
+        if self.fld.graves:
+            free = [(r, c) for r in self.fld.all_rows() for c in range(5, 10)
+                    if (r, c) not in self.cells or not self.cells[(r, c)].occupied()]
+            self.rng.shuffle(free)
+            for rc in free[:4]:
+                cell = self.cells.get(rc)
+                if cell is None:
+                    cell = self.cells[rc] = Cell(rc[0], rc[1])
+                cell.grave = True
+        self.track = track
+        # ★ v0.3：阵解栏 —— 编辑出来的"全场判定层 / 救场层"由外部驱动（plan.py）
+        self.rescue_tick = rescue_tick
+        self.globals_tick = globals_tick
+        self.plan = None
+        self.wave_script = wave_script
+        self.total_waves = total_waves
+        # ★ 社区约定：表演视频每个 2F 开局 8000 阳光
+        self.sun = D.SUN0 if sun0 is None else sun0
+        self.sun_peak = self.sun
+        self.sun_capped = False
+        self.max_t = max_t
+        self.rescue = rescue
+        self.repair = repair
+        self.rebuild = rebuild          # 快速/极速："死了就补"，CORE 被毁不判崩
+        self.wogua_flag = wogua_flag    # w10 要不要窝瓜压冰车
+        self.tomato_busy_until = -1
+        self.tomato_used_at = -99999
+        self._prev_acts = []
+        self.stock_ice_cd = -1
+        self.last_rescue = {}        # 每路最后一次被救的时刻（喂给饥饿修正）
+        self.series = []              # 每秒采样：阳光/僵尸数/减速数/本波剩余
+        # ★ 2026-10-20：逐波快照 —— 供 HTML 报告做 hover 明细
+        #   （阳光 / 存冰 / 各卡 CD / 计划操作 / 僵尸阵线 / 场上植物）
+        self.wave_snap = {}
+        self.allow_ash = allow_ash
+        self.stall_waves = stall_waves
+        self.cherry_cols = cherry_cols or [8, 9, 7, 6]
+
+        self.t = 0
+        self.zombies = []
+        self.by_row = _Rows(self._rows())
+        self.queue = []                  # [(due_t, kind, row, x, wave)]
+        self.waves = []
+        self.actions = []
+        self.card_ready = {k: 0 for k in D.CARDS}
+        self.broken = []                 # 轨道断裂（卡 CD / 阳光）
+        self.crush = []                  # 冰车碾压
+        self.log = []                    # 分级事件
+        self.lost = {}                   # {(row,col): plant} 已丧失的植物
+        self.ice_touched = set()
+        self.pending = []            # 待结算的 AoE 命中（忧郁菇一轮 4 次）
+        self.boom_q = []             # 待生效的灰烬（种植→生效有延迟）
+        self.chili_q = []            # 待生效的辣椒
+        self.fail = None
+        self.events = []
+        self.cur_wave = 0
+        self.wave_meta = None
+        self.done = False
+        self.n_kill = 0
+        # ★ 2026-10-19：存冰从"计数器"改成"逐格记账"。
+        #   原来一个整数 ice_stock 只能表达"还剩几个"，无法表达
+        #   「5-3 这一格要和辣椒共用」这条规则（用户点名要的）。
+        #   现在每个存冰位记 满/空，5-3 的复用、优先补哪一格都能落地。
+        self.ice_slots = {}
+        for (r, c), spec in array.items():
+            if r > self.rows:
+                continue
+            if spec.get('plant') == '存冰':
+                self.ice_slots[(r, c)] = True
+        # 前场临时存冰位（2-7 / 5-7）：开局空着，w1 用冰卡种上，不再补种
+        self.temp_ice = {}
+        for rc in (self.slots.get('temp_ice') or []):
+            self.temp_ice[tuple(rc)] = False
+        self.ice_refill_n = 0
+        self.ice_temp_n = 0
+        self.ice_refill_skip = 0
+        self.ice_emerg_n = 0
+        self.ice_emerg_cd = -1
+        self.last_freeze_t = -99999
+        self.ice_chili_reuse = 0
+        self.joker_boom = []          # 真正炸了的小丑（含炸掉了什么）
+        self.kernel_log = []          # 每次点核用的坑位（坑位记账）
+        self.car_trails = {}          # id(冰车) → 它铺过的格子（车死则冰道消失）
+        self.joker_row_n = {r: 0 for r in range(1, self.rows + 1)}
+        self.wave_ctrl = {}           # 每波的控制手段：冰 / 灰烬 / 无
+        self.bungee_risk = []         # 本波有蹦极却没点冰
+        self._chili_freed_at = -1
+        self.wogua_pending = None     # 窝瓜：种下待命 → 判定域命中即刻生效
+        self.garlic_slots = [tuple(rc) for rc in (self.slots.get('garlic') or [])]
+        self.garlic_swaps = []        # 大蒜换行记录（供报告）
+        # ★ 极速关**有冰车/投篮**时：不带大蒜（会被碾），改在 2-7 / 5-7 种大喷抬丑抗
+        self.struct_fog_slots = [tuple(rc) for rc in (self.slots.get('struct_fog') or [])]
+        self.fog_fix = []             # [(t, wave, row, col)] 结构位大喷的每次补种
+        self.rebuilds = []            # 快速/极速"死了就补"的重建记录
+        self.row_min = {r: 9999 for r in range(1, self.rows + 1)}
+        self.dmg_dealt = 0.0
+        self.slow_samples = 0
+        self.slow_hits = 0
+        self.relaxed = False
+        # 冰车审计：每辆冰车最靠左到过哪里、死因
+        self.car_audit = []
+        # v0.2.1：玉米炮开炮记录（t / 落点 / 用哪门炮）
+        self.cob_shot = []
+
+    # ------------------------------------------------ 场地坐标（v0.2.1）
+    def py(self, row, col=1):
+        """植物 y。★ 屋顶是**逐格**给的（前 5 列在斜坡上，每列 −20px）"""
+        return self.fld.plant_y(row, col)
+
+    def zy(self, row):
+        """僵尸 y（后院 50+85(r−1) / 前院 50+100(r−1) / 屋顶 40+85(r−1)）"""
+        return self.fld.zombie_y(row)
+
+    def _rows(self):
+        return self.fld.all_rows()
+
+    def _water(self):
+        return self.fld.water
+
+    def _land(self):
+        return self.fld.land
+
+    # ------------------------------------------------ 存冰记账
+    @property
+    def ice_stock(self):
+        """阵上还剩几个预置寒冰菇（含 2-7/5-7 两个前场临时位）"""
+        return (sum(1 for v in self.ice_slots.values() if v)
+                + sum(1 for v in self.temp_ice.values() if v))
+
+    def _chili_slot(self):
+        return self.slots.get('chili_slot')
+
+    def _refill_ice(self):
+        """
+        用**冰卡**补一格预置冰。
+        返回 ('ok', rc) / ('full', None) / ('reserve', rc)
+
+        ★ 用户 2026-10-19 原话：
+          「如果存冰位没有满，卡槽的冰一好就拿它补存冰
+            （5-3 存冰位如果在下一波要复用辣椒，辣椒用了再补存冰）」
+        → 所以 5-3 永远**最后**才补；如果只剩 5-3 空着、而辣椒又快好了，
+          就这一波先不补，等辣椒打出去再补。
+        """
+        empty = [rc for rc, full in self.ice_slots.items() if not full]
+        if not empty:
+            return ('full', None)
+        chili = self._chili_slot()
+        empty.sort(key=lambda rc: (rc == chili, rc[0], rc[1]))
+        rc = empty[0]
+        if rc == chili and len(empty) == 1:
+            cd = self.card_ready.get('辣椒', 0) - self.t
+            if cd <= D.CHILI_RESERVE_CS:
+                self.ice_refill_skip += 1
+                return ('reserve', rc)
+        self.ice_slots[rc] = True
+        self.ice_refill_n += 1
+        return ('ok', rc)
+
+    def _use_stock_ice(self, why=''):
+        """
+        点掉一个预置寒冰菇 → 立即冰冻。
+        优先点**不是 5-3** 的那几个，把 5-3 尽量留给辣椒。
+        """
+        # 先烧**前场临时位**（2-7/5-7）：它最容易被冰车压、被核坑占，
+        # 留着不用就是浪费；再烧永久位里不是 5-3 的那几个。
+        temp = [rc for rc, f in self.temp_ice.items() if f]
+        if temp:
+            rc = temp[0]
+            self.temp_ice[rc] = False
+            self._log('ICE', '点存冰 %d-%d（前场临时位 · 剩 %d 个）'
+                      % (rc[0], rc[1], self.ice_stock))
+            self._freeze()
+            return True
+        full = [rc for rc, f in self.ice_slots.items() if f]
+        if not full:
+            return False
+        chili = self._chili_slot()
+        full.sort(key=lambda rc: (rc == chili, rc[0], rc[1]))
+        rc = full[0]
+        self.ice_slots[rc] = False
+        self._log('ICE', '点存冰 %d-%d（剩 %d 个）%s'
+                  % (rc[0], rc[1], self.ice_stock, ('· ' + why) if why else ''))
+        self._freeze()
+        return True
+
+    # ------------------------------------------------ 事件记录
+    def _log(self, sev, what, row=None, detail='', col=None):
+        self.log.append(dict(t=self.t, wave=self.cur_wave, sev=sev, what=what,
+                             row=row, col=col, detail=detail))
+
+    def _fatal(self, why, detail='', row=None, col=None):
+        """
+        CORE 植物被毁 → 崩阵。
+        ★ 但快速/极速关按用户口径是"死了就补"：摘掉的曾/瓜可以重建，
+          所以这两档不判崩，改成进 rebuild 队列（报告里单列"重建 N 次"）。
+          这不是放水 —— 重建消耗 200~450 阳光 + 一张卡，账会自己显形。
+        """
+        if self.rebuild:
+            self.rebuilds.append(dict(t=self.t, wave=self.cur_wave,
+                                      why=why, row=row, col=col, done=False, plant=None))
+            self._log('REBUILD', '待重建：%s' % why, row=row, col=col,
+                      detail='快速/极速关口径：死了就补，不判崩')
+            return
+        self._log('FATAL', why, row=row, col=col, detail=detail)
+        if self.fail is None:
+            self.fail = dict(why=why, detail=detail, wave=self.cur_wave,
+                             t=self.t, row=row, col=col)
+        self.done = True
+
+    # ------------------------------------------------ 生成
+    def spawn_wave(self, w):
+        # [你] 每 5 波补一次临时存冰（w1 种 2-7/5-7 两个，w7 补一次）
+        # ★ 2026-10-19：删掉"每 5 波自动 +2"——
+        #   用户的口径是「存冰位没满、卡槽的冰一好就拿它补存冰」，
+        #   自动补会让这条永远不触发（存冰恒满，等于白送）。
+        # ★★ 2026-10-20：**w9 整波锁死窝瓜**。
+        #   实测（慢速 seed2）：w9 期间救场用窝瓜砸了 2 路红眼（159.3s），
+        #   于是 w10 开场窝瓜在 CD，压车推迟到 191.7s ——
+        #   而 5 路冰车 188.4s 就把 5-9 铺了（车头 638、车尾 718）。
+        #   w9 有 45s 拖时间 + 7.2s 红字，跨过去要 67s+，所以锁 90s。
+        #   w9 靠两张垫材扛，窝瓜必须留给 w10 的压车。
+        if w == 9 and self.wogua_flag:
+            self.tomato_busy_until = self.t + 9000
+            self._log('INFO', 'w9 锁定窝瓜：整波不动，留给 w10 压冰车（保 5-9 核坑）')
+        if w == 10 and self.wogua_flag:
+            # ★ 无条件把窝瓜锁给这一波（不管 5-9 当时有没有冰）
+            self.tomato_busy_until = self.t + D.TOMATO_RESERVE_CS
+            self._log('INFO', 'w10 锁定窝瓜：整波只为压 5 路冰车')
+            if (self.cells.get((5, 9)) or Cell(5, 9)).iced:
+                c = self.cells.setdefault((5, 9), Cell(5, 9))
+                c.iced = False
+                c.ice_until = -1
+                self._log('RESCUE', 'w10 刷新：清掉 5-9 残留冰道', row=5, col=9)
+        if w in D.ICE_FLAG_CLEAR:
+            self._clear_ice_trail()
+        script = self.wave_script(w)
+        is_flag = (w % 10 == 0)
+
+        kinds = []
+        for kind, n in script.items():
+            kinds.extend([kind] * n)
+        self.rng.shuffle(kinds)          # 出怪列表本身是加权随机的
+
+        total_hp = 0
+        skip_hp = 0
+        skips = []
+        idx = 0
+        for kind in kinds:
+            if kind not in D.ZOMB:
+                continue
+            total_hp += D.ZOMB[kind][0]
+            if kind in D.SKIP_KINDS:
+                hp0 = D.ZOMB[kind][0]
+                skip_hp += hp0
+                row = self.fld.spawn_rows(kind, self.rng,
+                                          D.WATER_ONLY, D.LAND_ONLY)
+                # ★ 不再用固定 15s 衰减：改成"按该路的实际 dps 被清掉"，
+                #   否则四档出怪的波长会被这个常数抹平成一样的值。
+                skips.append([float(hp0), D.SKIP_DPS.get(row, 150.0)])
+                idx += 1
+                continue
+            # ★★ 2026-10-20 用户纠正：
+            #   「pvz 每一波出怪，**所有的怪都是同一时刻内刷出来的**，
+            #     具体刷怪地点在第 10 列哪个点有微小差异。这个差异在简化模型中忽略。」
+            #   → 所有僵尸 due = self.t（同一时刻），x 取固定的第 10 列出生点。
+            #   这意味着 SPAWN_GAP（逐只错开 6~16cs）**不再使用** ——
+            #   它之前既让波长被人为拉长，又制造了"第二辆冰车晚出生"的假问题。
+            x = D.SPAWN_X[0]
+            # ★ 分路（v0.2.1 起由场地决定）：陆生僵尸不能进水路、潜水/海豚只能在水路、
+            #   场地禁出的僵尸直接跳过（NE 无冰车、RE 无舞王/矿工/潜水/海豚）、
+            #   五行前院的舞王只在中三路。
+            if not self.fld.allows(kind):
+                continue
+            row = self.fld.spawn_rows(kind, self.rng, D.WATER_ONLY, D.LAND_ONLY)
+            self.queue.append((self.t, kind, row, x, w))
+            idx += 1
+
+        thr = self.rng.uniform(*D.R2_THRESHOLD)
+        hard = self.rng.randint(*D.R3_HARD)
+        meta = dict(wave=w, t=self.t, total_hp=total_hp, thr=thr, hard=hard,
+                    zs=[], skip_hp=skip_hp, skips=skips,
+                    next_at=None, age=0, reason=None, stall=None, remain=total_hp)
+        self.waves.append(meta)
+        self.wave_meta = meta
+        self.cur_wave = w
+
+        self._nuke_retry = 0
+        self._wogua_retry = 0
+        self.relaxed = bool(self.skip_hp and total_hp < self.skip_hp)
+        # 把运行时状态喂给轨道函数，让它能按 CD 判定（而不是死按周期）
+        # ★ v0.3：ctx 里还带 plants / cells / ops_by_wave，供
+        #   「场上某植物数量」「某格是什么植物」「之前某波真的做了什么」这些条件用
+        ctx = self.plan_ctx()
+        ctx['wave'] = w
+        acts = [_norm_act(a) for a in self.track(w, ctx)]   # (name, off, aim, trig)
+        self._prev_acts = [a[0] for a in acts]     # 供下一波判定"上一波是不是核"
+        if self.relaxed:
+            for name, off, aim, _t in acts:
+                self.log.append(dict(t=self.t + off, wave=w, sev='INFO', what='松弛',
+                                     row=None, col=None,
+                                     detail='本波总血 %d < %d，不烧卡' % (total_hp, self.skip_hp)))
+            return meta
+        for name, off, aim, trig in acts:
+            self._schedule(self.t + off, name, aim, w, trig=trig)
+
+        # ---- 波角色 + 控制手段（控丑报告要用）
+        ice_names = ('寒冰菇', '模仿寒冰菇', '咖啡豆', '冰', '模仿冰', '存冰')
+        ash_names = ('毁灭菇', '模仿毁灭菇', '樱桃', '辣椒', '核', '模仿核')
+        role = ('起手' if w == 1 else
+                '旗波' if w in (10, 20) else
+                '收尾' if w in (9, 19) else '常规')
+        self.wave_ctrl[w] = dict(
+            role=role,
+            ice=min((off for nm, off, _a, _t in acts if nm in ice_names), default=None),
+            ash=min((off for nm, off, _a, _t in acts if nm in ash_names), default=None),
+            fog=('种大喷' in [nm for nm, _o, _a, _t in acts]),
+            acts=[nm for nm, _o, _a, _t in acts],
+            n_joker=script.get('小丑', 0),
+            n_bungee=script.get('蹦极', 0),
+            n=sum(script.values()),
+        )
+        if script.get('蹦极'):
+            has_ice = any(nm in ice_names for nm, _o, _a, _t in acts)
+            self.bungee_risk.append(dict(wave=w, n=script['蹦极'], ice=has_ice))
+
+        # ---- hover 快照：计划内 / 机会性 分开记
+        #   计划内 = N / A / A' / I / 窝瓜压车 / 种大喷（轨道明确排的动作）
+        #   机会性 = 补存冰（卡一好就补）、垫材、救急窝瓜（临场反应，不算轨迹）
+        opportunistic = {'寒冰菇', '模仿寒冰菇', '小喷菇', '花盆', '窝瓜'}
+        plan = [nm for nm, _o, _a, _t in acts if nm not in opportunistic]
+        extra = [nm for nm, _o, _a, _t in acts if nm in opportunistic]
+        self.wave_snap[w] = dict(
+            w=w, t0=self.t, sun=round(self.sun), ice=self.ice_stock,
+            cards={k: max(0, v - self.t) for k, v in self.card_ready.items()},
+            plan=plan, extra=extra,
+            n=sum(script.values()), n_joker=script.get('小丑', 0),
+            n_bungee=script.get('蹦极', 0), n_car=script.get('冰车', 0),
+            total_hp=total_hp, front={}, plants={}, pumpkin=0, alive=0, t_last=self.t,
+        )
+        return meta
+
+    def _schedule(self, t, name, aim, w, kind='act', trig=None):
+        """
+        ★ v0.2：`trig` 是"触发器"（阵解栏里的积木可以挂条件）。
+          None  → 老行为：到点就执行
+          其它  → 到点后每 tick 求值，`fire` 执行 / `wait` 继续等 / `expire` 丢弃
+        """
+        ev = dict(t=t, name=name, aim=aim, wave=w, kind=kind)
+        if trig:
+            ev['trig'] = trig
+            ev['ttl'] = trig.get('ttl') or _TRIG_TTL
+            if trig.get('repeat'):
+                ev['repeat'] = trig['repeat']
+        self.events.append(ev)
+
+    def _eval_trig(self, trig):
+        """
+        触发器求值 → 'fire' / 'wait' / 'expire'
+
+        支持的类型（和阵解栏 UI 一一对应）：
+          card   某张卡 CD 转好（+offset）          ← "卡片 cd"
+          dist   某类僵尸与某参照的距离              ← "距离"
+          state  场上状态（存冰数 / 本路僵尸数 / 本波剩余血量）
+          all / any / not   组合
+          after  依赖前一块（由编译期折成 time，不走这里）
+        """
+        k = (trig or {}).get('kind')
+        if k in (None, 'spawn', 'time', 'after'):
+            return 'fire'
+        if k == 'card':
+            name = trig.get('name')
+            if name not in self.card_ready:
+                return 'expire'
+            return ('fire' if self.card_ready[name] + trig.get('offset', 0) <= self.t
+                    else 'wait')
+        if k == 'dist':
+            d = self._trig_dist(trig)
+            if d is None:
+                return 'wait'
+            return 'fire' if _CMP[trig.get('cmp', '<=')](d, trig.get('value', 0)) else 'wait'
+        if k == 'state':
+            v = self._trig_state(trig)
+            if v is None:
+                return 'wait'
+            return 'fire' if _CMP[trig.get('cmp', '>=')](v, trig.get('value', 0)) else 'wait'
+        if k == 'not':
+            r = self._eval_trig(trig.get('of') or {})
+            return {'fire': 'wait', 'wait': 'fire', 'expire': 'expire'}[r]
+        if k in ('all', 'any'):
+            rs = [self._eval_trig(t) for t in (trig.get('of') or [])]
+            if k == 'all':
+                if any(r == 'expire' for r in rs):
+                    return 'expire'
+                return 'fire' if all(r == 'fire' for r in rs) else 'wait'
+            if any(r == 'fire' for r in rs):
+                return 'fire'
+            return 'expire' if all(r == 'expire' for r in rs) else 'wait'
+        return 'fire'
+
+    def _trig_dist(self, trig):
+        """某类僵尸到参照物的距离（px，沿 x 轴；axis=row 时按行差×80）"""
+        zs = [z for z in self.zombies if z.alive and z.hp > 0]
+        kind = trig.get('zombie') or '任意'
+        if kind == '巨人':
+            zs = [z for z in zs if z.giant]
+        elif kind != '任意':
+            zs = [z for z in zs if z.kind == kind]
+        if not zs:
+            return None
+        ref = trig.get('ref') or {}
+        if ref.get('kind') == 'front':
+            rows = ref.get('rows') or list(range(1, self.rows + 1))
+            zs = [z for z in zs if z.row in rows]
+            if not zs:
+                return None
+            z = min(zs, key=lambda x: x.x)
+            return z.x if trig.get('axis', 'x') == 'x' else z.row
+        r0 = ref.get('row', 1)
+        c0 = ref.get('col', 9)
+        if trig.get('axis', 'x') == 'x':
+            zs = [z for z in zs if z.row == r0] if ref.get('same_row', True) else zs
+            if not zs:
+                return None
+            z = min(zs, key=lambda x: x.x)
+            return z.x - D.cell_x(c0)          # 正数 = 僵尸还在右边（没到）
+        p = zs[0]
+        return abs(p.row - r0) * 80.0
+
+    def _trig_state(self, trig):
+        what = trig.get('what')
+        if what == 'ice_stock':
+            return self.ice_stock
+        if what == 'sun':
+            return self.sun
+        if what == 'zombies_in_row':
+            row = trig.get('row') or 1
+            return sum(1 for z in self.by_row.get(row, ()) if z.alive and z.hp > 0)
+        if what == 'zombies_total':
+            return sum(1 for z in self.zombies if z.alive and z.hp > 0)
+        if what == 'wave_hp':
+            return (self.wave_meta or {}).get('remain', 0)
+        return None
+
+    def _tick_spawn(self):
+        if not self.queue:
+            return
+        due = [q for q in self.queue if q[0] <= self.t]
+        if not due:
+            return
+        self.queue = [q for q in self.queue if q[0] > self.t]
+        for _, kind, row, x, w in due:
+            z = Zombie(kind, row, x, w, self.rng)
+            if kind == '小丑':
+                early = self.rng.random() < D.JOKER_EARLY_P
+                lo, hi = (D.JOKER_BOX_EARLY if early else D.JOKER_BOX_LATE)
+                z.box_in = self.rng.randint(lo, hi)
+                z.joker_early = early
+                self.joker_row_n[z.row] = self.joker_row_n.get(z.row, 0) + 1
+                setattr(self, '_joker_n', getattr(self, '_joker_n', 0) + 1)
+            self.zombies.append(z)
+            if w == self.cur_wave and self.wave_meta:
+                self.wave_meta['zs'].append(z)
+
+    # ------------------------------------------------ 行动
+    def _reserved(self, name, within=800):
+        """轨道在 within cs 内要用这张卡 → 救场不许抢（玩家会先看排程）"""
+        for e in self.events:
+            if e.get('name') == name and self.t <= e['t'] <= self.t + within:
+                return True
+        return False
+
+    def _try_card(self, name):
+        if self.card_ready.get(name, 0) > self.t:
+            return False
+        cost = D.CARDS[name]['cost']
+        if self.sun < cost:
+            return False
+        self.sun -= cost
+        self.card_ready[name] = self.t + D.CARDS[name]['cd']
+        # wave 用 max(1, ...)：开局 t<1s 时 cur_wave 还是 0，会让按波统计漏掉
+        self.actions.append(dict(t=self.t, wave=max(1, self.cur_wave),
+                                 name=name, ok=True))
+        return True
+
+    def _plant_ice(self, ev, aim, name, stock_only=False, temp_only=False):
+        """
+        种寒冰菇（I / I′）—— v0.3 的统一写法。
+
+        · 落点是**存冰位**（睡眠位）→ 就是"补存冰"：种下去不冻，留着以后用咖啡豆唤醒
+        · 落点是普通格子 / 没给落点 → 当场种下即冻（冰卡本来的用法）
+        · `stock_only` / `temp_only`：老动作名（种冰 / 种临时冰）走自动挑位，
+          只为兼容 v0.2 及更早的阵解，新阵解请直接写落点。
+        """
+        card = '冰' if name == '寒冰菇' else '模仿冰'
+        if self.card_ready.get(card, 0) > self.t:
+            self.broken.append(dict(t=self.t, wave=ev['wave'], what=name,
+                                    why='%s CD 没好' % card))
+            return
+        pos = None
+        if aim in ('stock', 'temp'):
+            stock_only = (aim == 'stock')
+            temp_only = (aim == 'temp')
+        elif isinstance(aim, (tuple, list)) and len(aim) == 2:
+            pos = (int(aim[0]), int(aim[1]))
+        if pos is None and (stock_only or temp_only):
+            stock_rcs = [rc for rc, f in self.ice_slots.items() if not f]
+            temp_rcs = [rc for rc, f in self.temp_ice.items() if not f]
+            if stock_only and stock_rcs:
+                chili = self._chili_slot()
+                stock_rcs.sort(key=lambda rc: (rc == chili, rc[0], rc[1]))
+                pos = stock_rcs[0]
+                if pos == chili and len(stock_rcs) == 1:
+                    cd = self.card_ready.get('辣椒', 0) - self.t
+                    if cd <= D.CHILI_RESERVE_CS:
+                        self.ice_refill_skip += 1
+                        self._log('INFO', '5-3 暂不补存冰（留给辣椒）',
+                                  row=pos[0], col=pos[1],
+                                  detail='辣椒 CD 剩 %.1fs，等它打出去再补' % (cd / 100.0))
+                        return
+            elif temp_rcs:
+                pos = temp_rcs[0]
+            elif stock_rcs:
+                pos = stock_rcs[0]
+            if pos is None:
+                self.broken.append(dict(t=self.t, wave=ev['wave'], what=name,
+                                        why='没有空着的存冰位'))
+                return
+
+        is_stock = pos is not None and pos in self.ice_slots
+        is_temp = pos is not None and pos in self.temp_ice
+        if is_stock and self.ice_slots[pos]:
+            self.broken.append(dict(t=self.t, wave=ev['wave'], what=name,
+                                    why='%d-%d 已经有寒冰菇了' % pos))
+            return
+        if is_temp and self.temp_ice[pos]:
+            self.broken.append(dict(t=self.t, wave=ev['wave'], what=name,
+                                    why='%d-%d 已经有寒冰菇了' % pos))
+            return
+        if pos is not None and not (is_stock or is_temp):
+            cell = self.cells.get(pos)
+            if cell is not None and (cell.iced or cell.crater_until > self.t):
+                self.broken.append(dict(t=self.t, wave=ev['wave'], what=name,
+                                        why='落点 %d-%d 种不下（冰道/弹坑）' % pos))
+                return
+
+        self.sun -= D.CARDS[card]['cost']
+        self.card_ready[card] = self.t + D.CARDS[card]['cd']
+        self.actions.append(dict(t=self.t, wave=ev['wave'], name=name, ok=True))
+        if is_stock:
+            self.ice_slots[pos] = True
+            self.ice_refill_n += 1
+            self._log('REPAIR', '补存冰 %d-%d（%s · 现有 %d 个）'
+                      % (pos[0], pos[1], card, self.ice_stock), row=pos[0], col=pos[1],
+                      detail='种一格寒冰菇留着以后唤醒')
+            return
+        if is_temp:
+            self.temp_ice[pos] = True
+            self.ice_temp_n += 1
+            self._log('REPAIR', '前场临时存冰 %d-%d（%s）' % (pos[0], pos[1], card),
+                      row=pos[0], col=pos[1], detail='现有 %d 个' % self.ice_stock)
+            return
+        if pos is not None:
+            cell = self.cells.get(pos)
+            if cell is None:
+                cell = self.cells[pos] = Cell(pos[0], pos[1])
+            if not self._base_ok(pos):
+                if not self._seed_base(pos):
+                    self.broken.append(dict(t=self.t, wave=ev['wave'], what=name,
+                                            why='%d-%d 缺基座（荷叶/花盆）' % pos))
+                    return
+            self._plant_into(cell, '寒冰菇')
+            # ★ 2026-10-22（用户第二轮澄清）：**新种下的蘑菇一定是睡着的** ——
+            #   所以"种下即冻"这件事在模型里是做不到的：先睡下，再用咖啡豆唤醒。
+            self._log('ICE', '种寒冰菇（%s）→ 睡下了，要咖啡豆唤醒才冻'
+                      % card, row=pos[0], col=pos[1],
+                      detail='新种的蘑菇一律先睡；唤醒后永久清醒')
+            return
+        self._log('ICE', '种寒冰菇（%s）→ 全场冰冻' % card,
+                  row=pos[0] if pos else None, col=pos[1] if pos else None)
+        self._freeze()
+
+    def _use_coffee(self, ev, aim):
+        """
+        种咖啡豆 → 唤醒那一格**睡着的蘑菇** → 若是寒冰菇则立刻全场冰冻。
+
+        ★ v0.3 统一说法：以前这一步叫"点存冰"。
+        ★ 2026-10-22：咖啡豆唤醒的是"所在格的蘑菇"，不止存冰位；
+          用户口径是「已经唤醒的蘑菇永远醒着」→ 唤醒后 cell.awake 永久为 True。
+          没给落点就自动挑：先前场临时位，再永久存冰位，最后任意睡着的蘑菇。
+        """
+        pos = None
+        if isinstance(aim, (tuple, list)) and len(aim) == 2:
+            pos = (int(aim[0]), int(aim[1]))
+        if pos is None:
+            cand = ([rc for rc, f in self.temp_ice.items() if f]
+                    + sorted([rc for rc, f in self.ice_slots.items() if f],
+                             key=lambda rc: (rc == self._chili_slot(), rc[0], rc[1])))
+            if not cand:
+                # 退一步：场上任意一格睡着的蘑菇
+                cand = [rc for rc, c in self.cells.items()
+                        if c.plant and not c.awake and c.plant in D.MUSHROOMS]
+            if not cand:
+                self.broken.append(dict(t=self.t, wave=ev['wave'], what='咖啡豆',
+                                        why='场上没有睡着的蘑菇可唤醒'))
+                self.actions.append(dict(t=self.t, wave=ev['wave'],
+                                         name='咖啡豆', ok=False))
+                return
+            pos = cand[0]
+        cell = self.cells.get(pos)
+        sleep_cell = (cell is not None and cell.plant in D.MUSHROOMS
+                      and not cell.awake)
+        if not (self.ice_slots.get(pos) or self.temp_ice.get(pos) or sleep_cell):
+            self.broken.append(dict(t=self.t, wave=ev['wave'], what='咖啡豆',
+                                    why='%d-%d 上没有睡着的蘑菇' % pos))
+            return
+        if not self._try_card('咖啡豆'):
+            self.broken.append(dict(t=self.t, wave=ev['wave'], what='咖啡豆',
+                                    why='咖啡豆 CD 没好'))
+            self.actions.append(dict(t=self.t, wave=ev['wave'],
+                                     name='咖啡豆', ok=False))
+            return
+        self.activate_ice(pos)
+        self.actions.append(dict(t=self.t, wave=ev['wave'], name='咖啡豆', ok=True))
+
+    def do_action(self, ev):
+        name, aim = ev['name'], ev['aim']
+        name = _OP_ALIAS.get(name, name)      # 旧动作名 → 植物名（v0.3 之前存下的阵解也能跑）
+        # ══ 冰系：统一成「种寒冰菇」（落点是存冰位 = 补存冰）／「种咖啡豆」（唤醒存冰）
+        if name in ('种冰', '种冰2', '种临时冰'):
+            # 老动作名（内置判定轨道还在用）：自动挑位，只为兼容
+            return self._plant_ice(ev, None,
+                                   '模仿寒冰菇' if name == '种冰2' else '寒冰菇',
+                                   stock_only=(name != '种临时冰'),
+                                   temp_only=(name == '种临时冰'))
+        if name in ('寒冰菇', '模仿寒冰菇'):
+            return self._plant_ice(ev, aim, name)
+        if name == '咖啡豆':
+            return self._use_coffee(ev, aim)
+        # ★ 用户："w10 窝瓜压冰车" —— 这是**固定起手动作**，不是救场。
+        #   压哪一行由"最靠前的冰车"决定（`_pick_row` 已经优先挑冰车所在行）。
+        if name == '窝瓜压车':
+            # ★ 用户 2026-10-20：一波内所有僵尸**同一时刻**刷出，没有"晚出生"这回事。
+            #   所以这里只需要等"本波第一帧把僵尸真正放进场"（spawn 与 schedule
+            #   在同一 tick 的先后顺序），1~2 次重排就够，不是 6s 等待。
+            if self.card_ready.get('窝瓜', 0) > self.t:
+                if getattr(self, '_wogua_retry', 0) < 12:
+                    self._wogua_retry = getattr(self, '_wogua_retry', 0) + 1
+                    self._schedule(self.t + 300, name, aim, ev['wave'])
+                return
+            cars5 = [z for z in self.zombies
+                     if z.alive and z.kind == '冰车' and z.row == 5]
+            if not cars5:
+                if getattr(self, '_wogua_retry', 0) < 12:
+                    self._wogua_retry = getattr(self, '_wogua_retry', 0) + 1
+                    self._schedule(self.t + 150, name, aim, ev['wave'])
+                else:
+                    self._wogua_retry = 0
+                    self._log('INFO', 'w10 没有 5 路冰车（窝瓜省下）')
+                return
+            self._wogua_retry = 0
+            if not self._try_card('窝瓜'):
+                return
+            # 种在 5-9。判定域 = [640, 720]：
+            #   车头（碾压判定）一进这个区间，车尾（冰道前沿，+80）还在 720~800，
+            #   **9 列还没被铺** → 5-9 干净，w11 的核一定落得下去。
+            self.wogua_pending = dict(row=5, col=9, until=self.t + D.WOGUA_HOLD)
+            self._log('RESCUE', 'w10 窝瓜种在 5-9，等车头进格',
+                      row=5, col=9,
+                      detail='判定域 [640,720] · 车尾还差一格没铺 9 列')
+            return
+
+        # ★ 指定坑被冰道盖住 → **等一下**，别急着退坑。
+        #   实测：w11 开场那一刻（199.7s）正好有辆 5 路冰车死掉，它的冰道
+        #   会在同一帧清掉；核如果死板按"此刻有冰道就退"就白退了。
+        #   玩家动作是"等冰化/等车死"，最多等一两秒。所以这里最多重排 8 次（1.2s）。
+        if name in ('毁灭菇', '模仿毁灭菇') and isinstance(aim, (tuple, list)):
+            rc = tuple(aim)
+            cell = self.cells.get(rc)
+            blocked = (cell is not None and cell.iced
+                       and cell.crater_until <= self.t
+                       and not self.temp_ice.get(rc))
+            if blocked and getattr(self, '_nuke_retry', 0) < 8:
+                self._nuke_retry = getattr(self, '_nuke_retry', 0) + 1
+                self._schedule(self.t + 150, name, aim, ev['wave'])
+                return
+            self._nuke_retry = 0
+
+        # ★ 快速关 w9 长间隔施工："种大喷，优先 5-7 其次 2-7"
+        #   作用是用**结构**替代操作：下半场放羊时，这两株大喷替 2/5 路补 IO。
+        if name == '大喷菇':
+            pos = None
+            if isinstance(aim, (tuple, list)) and len(aim) == 2:
+                pos = (int(aim[0]), int(aim[1]))
+            spots = [pos] if pos else (self.slots.get('fast_fog') or [(5, 7), (2, 7)])
+            for rc in spots:
+                cell = self.cells.get(rc)
+                if cell is None:
+                    cell = self.cells[rc] = Cell(rc[0], rc[1])
+                if cell.plant is not None or cell.iced or cell.crater_until > self.t:
+                    continue
+                if not self._try_card('大喷菇'):
+                    return
+                self._plant_into(cell, '大喷菇')
+                self.actions.append(dict(t=self.t, wave=ev['wave'], name=name, ok=True))
+                self._log('REPAIR', '长间隔补种大喷 %d-%d' % rc, row=rc[0], col=rc[1],
+                          detail='下半场靠结构替代操作')
+                return
+            return
+
+        # ★ 阵解栏：轨道里也能排「小喷菇 / 花盆」—— 指定了落点行就只救那一路。
+        #   （原版只在救场层用这两张卡，所以老代码里 do_action 根本没处理它们）
+        if name in ('小喷菇', '花盆'):
+            card = _CARD_OF[name]
+            if isinstance(aim, (tuple, list)) and len(aim) == 2:
+                if self.stall_at(aim, cards=(card,)):
+                    self.actions.append(dict(t=self.t, wave=ev['wave'], name=name, ok=True))
+                else:
+                    self.broken.append(dict(t=self.t, wave=ev['wave'], what=name,
+                                            why='%d-%d 现在下不了垫材' % (aim[0], aim[1])))
+                return
+            rows = [aim[0]] if isinstance(aim, (tuple, list)) and aim else None
+            if self.try_stall(rows, cards=(card,)):
+                self.actions.append(dict(t=self.t, wave=ev['wave'], name=name, ok=True))
+            else:
+                self.broken.append(dict(t=self.t, wave=ev['wave'], what=name,
+                                        why='这一路没有可下垫材的时机'))
+            return
+
+        card = _CARD_OF.get(name, name)
+        if card not in D.CARDS:
+            self.broken.append(dict(t=self.t, wave=ev['wave'], what=name, why='未知卡片'))
+            return
+        if self.card_ready.get(card, 0) > self.t:
+            self.broken.append(dict(t=self.t, wave=ev['wave'], what=name,
+                                    why='CD 没好（剩 %d cs）' % (self.card_ready[card] - self.t)))
+            self.actions.append(dict(t=self.t, wave=ev['wave'], name=name, ok=False))
+            return
+        cost = D.CARDS[card]['cost']
+        if self.sun < cost:
+            self.broken.append(dict(t=self.t, wave=ev['wave'], what=name,
+                                    why='阳光不够（差 %d）' % (cost - self.sun)))
+            self.actions.append(dict(t=self.t, wave=ev['wave'], name=name, ok=False))
+            return
+        self.sun -= cost
+        self.card_ready[card] = self.t + D.CARDS[card]['cd']
+        self.actions.append(dict(t=self.t, wave=ev['wave'], name=name, ok=True))
+
+        if name in ('毁灭菇', '模仿毁灭菇'):
+            self._doom(aim)
+            return
+        if name == '樱桃':
+            r = self.slots.get('cherry_row') or self._pick_row()
+            cols = getattr(self, 'cherry_cols', None) or [8, 9, 7, 6]
+            c = None
+            for cand in cols:
+                cell_c = self.cells.get((r, cand))
+                if cell_c is None or not cell_c.iced:
+                    c = cand
+                    break
+            if c is None:
+                c = cols[0]
+            cell = self.cells.get((r, c))
+            if cell is not None and cell.iced:
+                self.broken.append(dict(t=self.t, wave=ev['wave'], what=name,
+                                        why='落点 %d-%d 有冰道，种不下' % (r, c)))
+                return
+            self._boom(r, c, D.CHERRY_R, D.ASH_DMG)
+            return
+        if name == '辣椒':
+            r = (self.slots.get('chili_slot') or (self._pick_row(), 0))[0]
+            # ★ 用户：5-3 存冰位如果这一波要复用辣椒，辣椒用了再补存冰。
+            #   执行顺序就是：先把这个位置上的存冰点掉（顺带冻一次），
+            #   腾出格子种辣椒；下一波再补存冰。
+            chili = self._chili_slot()
+            if chili and self.ice_slots.get(chili):
+                self.ice_slots[chili] = False
+                self._freeze()
+                self.ice_chili_reuse += 1
+                self._log('ICE', '5-3 存冰复用为辣椒位：先点冰，再种辣椒',
+                          row=chili[0], col=chili[1],
+                          detail='下一波（冰卡转好后）再补回存冰')
+            self.chili_q.append((self.t + D.ASH_DELAY, r))
+            for col in range(1, 10):
+                cc = self.cells.get((r, col))
+                if cc is not None:
+                    cc.ash_pending = True
+            return
+        if name == '窝瓜':
+            # ★ v0.3：给了落点就种在那格（"窝瓜压车"就退化成"在 5-9 种窝瓜"）
+            if isinstance(aim, (tuple, list)) and len(aim) == 2:
+                self._ash_cell(int(aim[0]), int(aim[1]), D.ASH_DMG)
+                return
+            r = self._pick_row()
+            cand = [z for z in self.zombies if z.alive and z.row == r]
+            if cand:
+                # 种在"最靠前那只"所在的格 → 1 格宽判定域即刻生效，
+                # 同格里的其他僵尸（同路重合的车/叠在一起的怪）一起吃 1800。
+                t = min(cand, key=lambda z: z.x)
+                col = max(1, min(9, int(round((t.x - 40) / 80.0)) + 1))
+                self._ash_cell(r, col, D.ASH_DMG)
+            return
+
+        # ══════════════════════════════════════════════════════════════
+        # v0.2.1 新增的植物动作
+        # ══════════════════════════════════════════════════════════════
+        if name == '玉米炮':
+            return self._fire_cob(ev, aim)
+        if name == '三叶草':
+            return self._blover(ev)
+        if name == '墓碑吞噬者':
+            return self._grave_eat(ev, aim)
+
+    def _fire_cob(self, ev, aim):
+        """玉米炮开炮。`aim=(row, col)` 是**准星落点**（可以在任意行）。
+
+        [精 三] 释放到爆炸：非屋顶水路 378 / 非屋顶陆路 373~376 / 屋顶 359~392
+        [精 三] 释放到完成装填（CD）3475
+        [精 八] 爆炸半径 R=115、伤害 1800；爆炸中心 x = 准星 x − 7、
+                y = 同行植物 y + 40（非天台）
+        """
+        spec = D.PLANTS['玉米炮']['cob']
+        cobs = [c for c in self.cells.values()
+                if c.plant == '玉米炮' and c.plant_hp > 0]
+        if not cobs:
+            self.broken.append(dict(t=self.t, wave=ev['wave'], what='玉米炮',
+                                    why='场上没有玉米炮'))
+            return
+        ready = [c for c in cobs if c.cob_cd <= self.t]
+        if not ready:
+            self.broken.append(dict(t=self.t, wave=ev['wave'], what='玉米炮',
+                                    why='所有炮都在装填（最早 %d cs 后）'
+                                        % (min(c.cob_cd for c in cobs) - self.t)))
+            return
+        if isinstance(aim, (tuple, list)) and len(aim) == 2:
+            row, col = int(aim[0]), int(aim[1])
+        else:
+            row = self._pick_row()
+            zs = [z for z in self.by_row[row] if z.alive]
+            col = (max(1, min(9, int(round((min(z.x for z in zs) - 40) / 80.0)) + 1))
+                   if zs else 8)
+        if self.fld.family == 'roof':
+            fuse = sum(spec['fuse_roof']) / 2.0
+        elif row in self.fld.water:
+            fuse = spec['fuse']
+        else:
+            fuse = sum(spec['fuse_land']) / 2.0
+        # 占一个装填位（按剩余 CD 最短的那门炮）
+        gun = min(ready, key=lambda c: c.cob_cd)
+        gun.cob_cd = self.t + spec['cd']
+        self.cob_shot.append(dict(t=self.t, row=row, col=col,
+                                  gun=(gun.row, gun.col)))
+        # 爆炸中心：准星 x − 7；这里直接按"落点列的中心 − 7"折算成半径判定
+        cx = D.cell_x(col) - spec['head_dx']
+        cy = self.py(row, col) + spec['dy']
+        self.boom_q.append((self.t + fuse, row, col, spec['radius'], spec['dmg'],
+                            spec['dy']))
+        self._log('ASH', '玉米炮开炮 → %d-%d（%.0f cs 后爆）' % (row, col, fuse),
+                  row=row, col=col, detail='R=%d · 1800 · 爆炸中心 x=%d y=%d'
+                                          % (spec['radius'], cx, cy))
+
+    def _blover(self, ev):
+        """三叶草：秒杀全场气球（气球在本模型里是 SKIP 类的"进场即被清"，所以
+        这里做的是**把本波气球那部分血量直接抹掉**，并记一条日志）。"""
+        meta = self.wave_meta
+        n = (self.wave_script(self.cur_wave) or {}).get('气球', 0) if meta else 0
+        if not n:
+            self._log('INFO', '三叶草：本波没有气球', detail='白放一张')
+            return
+        hp = D.ZOMB['气球'][0] * n
+        if meta:
+            meta['skip_hp'] = max(0, meta.get('skip_hp', 0) - hp)
+            meta['total_hp'] = max(0, meta.get('total_hp', 0) - hp)
+            meta['remain'] = max(0, meta.get('remain', 0) - hp)
+        self._log('RESCUE', '三叶草吹走 %d 只气球（−%d 血）' % (n, hp),
+                  detail='简化：气球一出现就被清掉，本波血量相应下调')
+
+    def _grave_eat(self, ev, aim):
+        """墓碑吞噬者：直接清除目标格的墓碑（[精 三] 吞碑 448~471cs）。"""
+        pos = None
+        if isinstance(aim, (tuple, list)) and len(aim) == 2:
+            pos = (int(aim[0]), int(aim[1]))
+        if pos is None:
+            graves = [rc for rc, c in self.cells.items() if c.grave]
+            if not graves:
+                self._log('INFO', '墓碑吞噬者：场上没有墓碑')
+                return
+            pos = graves[0]
+        cell = self.cells.get(pos)
+        if cell is None or not cell.grave:
+            self.broken.append(dict(t=self.t, wave=ev['wave'], what='墓碑吞噬者',
+                                    why='%d-%d 没有墓碑' % pos))
+            return
+        cell.grave = False
+        self._log('REPAIR', '墓碑吞噬者清掉 %d-%d 的墓碑' % pos,
+                  row=pos[0], col=pos[1], detail='吞碑 ≈471cs · 该格现在可以种了')
+
+    def _pick_row(self):
+        cars = [z for z in self.zombies if z.alive and z.kind == '冰车']
+        if cars:
+            self._car_hint = max(cars, key=lambda z: z.x)
+            return self._car_hint.row
+        self._car_hint = None
+        pool = {}
+        for z in self.zombies:
+            if z.alive:
+                pool[z.row] = pool.get(z.row, 0) + z.hp
+        return max(pool, key=pool.get) if pool else self.rng.choice(list(self._rows()))
+
+    def _boom(self, row, col, radius, dmg, delay=None):
+        """灰烬：排进队列，**延迟到点才结算**（PE 白天要咖啡豆，299cs）。
+
+        ★ 种下即 `ash_pending = True` —— 用户："碾压不对已经触发的灰烬生效，
+          而且可以把'种植即触发'的灰烬直接种在碾压判定区"。
+        """
+        d = D.ASH_DELAY if delay is None else delay
+        self.boom_q.append((self.t + d, row, col, radius, dmg, 0))
+        c = self.cells.get((row, col))
+        if c is None:
+            c = self.cells[(row, col)] = Cell(row, col)
+        c.ash_pending = True
+
+    def _tick_boom(self):
+        if not self.boom_q and not self.chili_q:
+            return
+        if self.boom_q:
+            due = [b for b in self.boom_q if b[0] <= self.t]
+            if due:
+                self.boom_q = [b for b in self.boom_q if b[0] > self.t]
+                for b in due:
+                    row, col, radius, dmg = b[1], b[2], b[3], b[4]
+                    dy = b[5] if len(b) > 5 else 0
+                    c = self.cells.get((row, col))
+                    if c is not None:
+                        c.ash_pending = False
+                    self._apply_boom(row, col, radius, dmg, dy)
+        if self.chili_q:
+            due = [c for c in self.chili_q if c[0] <= self.t]
+            if due:
+                self.chili_q = [c for c in self.chili_q if c[0] > self.t]
+                for _, r, *rest in due:
+                    for col in range(1, 10):
+                        cc = self.cells.get((r, col))
+                        if cc is not None and cc.ash_pending:
+                            cc.ash_pending = False
+                    for z in self.zombies:
+                        if z.alive and z.row == r:
+                            z.hp -= D.ASH_DMG
+                            self.dmg_dealt += D.ASH_DMG
+                    self._clear_ice_trail(row=r)
+                    # ★ 用户："如果因 5-3 辣椒复用导致当时没能正常补存冰，
+                    #   辣椒生效后立即补" —— 不再等下一波。
+                    self._chili_freed_at = self.t
+
+    def _ash_cell(self, row, col, dmg, half=40):
+        """
+        **窝瓜的一格宽判定域**（用户 2026-10-20 定的简化口径）：
+
+          「窝瓜的"种植-索敌-攻击生效"时延忽略，直接视作一个 **1 格宽**的、
+            1.8k 伤害**即刻生效**的攻击判定域（伤害判定一样，
+            攻击判定域与受击判定域**有重合**就伤害生效）」
+
+        所以这里不做"选最前一只"这种事 —— 判定域是 [cx−half, cx+half]，
+        该行里**任何**受击框与之相交的僵尸都吃满 1800。
+
+        这条正好解释了"一个窝瓜压死整条路的冰车"：
+        同路冰车视觉重合 → 受击框完全重叠 → 全在判定域内 → 全部 1800。
+        """
+        cx = D.cell_x(col)
+        lo, hi = cx - half, cx + half
+        n = 0
+        hit_giant = []
+        for z in self.zombies:
+            if not z.alive or z.row != row:
+                continue
+            zl, zr = self._dbox(z)
+            if zr < lo or zl > hi:
+                continue
+            z.hp -= dmg
+            self.dmg_dealt += dmg
+            n += 1
+            if z.giant:
+                hit_giant.append(z.kind)
+        return n, hit_giant
+
+    def _tick_wogua(self):
+        """窝瓜待命 → 有僵尸踏进判定域就即刻生效"""
+        p = self.wogua_pending
+        if not p:
+            return
+        if self.t > p['until']:
+            self.wogua_pending = None
+            return
+        n, _ = self._ash_cell(p['row'], p['col'], D.ASH_DMG)
+        if not n:
+            return
+        self.wogua_pending = None
+        self._log('RESCUE', '窝瓜生效 %d-%d：本格 %d 只各吃 1800'
+                  % (p['row'], p['col'], n), row=p['row'], col=p['col'],
+                  detail='1 格宽判定域 · 即刻生效')
+
+    def _apply_boom(self, row, col, radius, dmg, dy_off=0):
+        """
+        灰烬爆炸 = **圆形判定**，且用「圆心到僵尸受击框最近点」的距离。
+
+        ★ 用户 2026-10-19 指出：巨人受击框大，所以一颗核能炸到相邻好几路的巨人 ——
+          2 路核可炸 1/2/5 路，5 路核可炸 2/5/6 路。
+          这只有在「纵向用两套 y 坐标 + 框最近点」时才会自然成立：
+            核在 2-7：圆心 y = plant_y(2) = 165
+            5 路巨人受击框 y ∈ [390, 505] → 最近点 390 → dy = 225 < 250 ✔
+            6 路巨人 y ∈ [475, 590] → dy = 310 > 250 ✘（实测也说炸不到）
+        """
+        hint = getattr(self, '_car_hint', None)
+        if hint is not None and hint.row == row:
+            col = max(1, min(9, int(round((hint.x - 40) / 80.0)) + 1))
+        cx = D.cell_x(col)
+        cy = self.py(row, col) + dy_off
+        r2 = radius * radius
+        for z in self.zombies:
+            if not z.alive:
+                continue
+            zl, zr = self._dbox(z)
+            if zl > D.DMG_LINE:          # 防御域左端在 800 之外 → 还不可伤
+                continue
+            zy = self.zy(z.row)
+            # 受击框上离圆心最近的点
+            nx = zl if cx < zl else (zr if cx > zr else cx)
+            ny = zy if cy < zy else (zy + D.DEF_HEIGHT if cy > zy + D.DEF_HEIGHT else cy)
+            dx, dy = nx - cx, ny - cy
+            if dx * dx + dy * dy <= r2:
+                z.hp -= dmg
+                self.dmg_dealt += dmg
+
+    def _doom(self, aim):
+        """
+        点核。**坑位记账**（用户 2026-10-19 点名："你并没有算坑位哦"）。
+
+        ★ 关键：坑位是硬资源。一个坑炸完要 18000cs（180s）才能再用。
+          w1 与 w11 相隔约 190s —— 刚好够复用同一个坑。
+          如果在中间多插一次核，就要多占一个坑；插两次以上，
+          180s 内同时在坑期的格子数会超过可用格数 → **核点不出去**。
+          所以用户要求 w1 固定 2-9、w11 固定 5-9，其余波按判定插。
+
+        aim 可以是 (row, col) 指定坑，也可以是 None（按优先级挑）。
+        """
+        slot = None
+        if isinstance(aim, (tuple, list)) and len(aim) == 2:
+            # ★ 指定坑：w1 → 2-9、w11 → 5-9
+            r0, c0 = aim
+            order = [(r0, c0)] + [rc for rc in self.slots.get('kernel', [])
+                                  if rc != (r0, c0)]
+            # 指定坑被冰道/核坑占了 → 按"同路往左退一格、再退到另一路"兜底
+            for (r, c) in order:
+                cell = self.cells.get((r, c))
+                if cell is None:
+                    cell = self.cells[(r, c)] = Cell(r, c)
+                if cell.crater_until > self.t:
+                    continue
+                if self.temp_ice.get((r, c)):
+                    continue
+                if cell.iced:
+                    continue
+                slot = (r, c)
+                break
+            if slot is None:
+                # 全部不行：就近硬点（清掉冰道），玩家不会让核烂手上
+                for (r, c) in order:
+                    cell = self.cells.get((r, c))
+                    if cell is not None and cell.crater_until <= self.t:
+                        slot = (r, c)
+                        cell.iced = False
+                        cell.ice_until = -1
+                        self._log('INFO', '核坑兜底 %d-%d（清掉冰道）' % (r, c), row=r, col=c)
+                        break
+            designated = (slot == (r0, c0))
+            if not designated:
+                cell0 = self.cells.get((r0, c0))
+                why = ('核坑期' if (cell0 and cell0.crater_until > self.t)
+                       else '冰道' if (cell0 and cell0.iced)
+                       else '临时存冰占位' if self.temp_ice.get((r0, c0))
+                       else '不可用')
+                self._log('INFO', '指定核坑 %d-%d 不可用（%s）→ 退到 %d-%d'
+                          % (r0, c0, why, slot[0], slot[1]),
+                          row=slot[0], col=slot[1],
+                          detail='用户口径：w11 要先判 5-9 有没有冰道')
+        else:
+            designated = False
+            for (r, c) in self.slots.get('kernel', [(5, 8)]):
+                cell = self.cells.get((r, c))
+                if cell is None:
+                    cell = self.cells[(r, c)] = Cell(r, c)
+                if cell.iced:
+                    continue
+                if cell.crater_until > self.t:
+                    continue
+                if self.temp_ice.get((r, c)):
+                    continue
+                slot = (r, c)
+                break
+            if slot is None:
+                for (r, c) in self.slots.get('kernel', [(5, 8)]):
+                    cell = self.cells.get((r, c))
+                    if cell is not None and cell.crater_until <= self.t:
+                        slot = (r, c)
+                        cell.iced = False
+                        cell.ice_until = -1
+                        self._log('INFO', '核坑兜底 %d-%d（清掉冰道）' % (r, c), row=r, col=c)
+                        break
+
+        if slot is None:
+            self.broken.append(dict(t=self.t, wave=self.cur_wave, what='核',
+                                    why='所有核坑位都被冰道/核坑占住'))
+            self.kernel_log.append(dict(t=self.t, wave=self.cur_wave, rc=None,
+                                        ok=False, designated=False))
+            return
+        row, col = slot
+        self._boom(row, col, D.DOOM_R, D.ASH_DMG, D.DOOM_DELAY)
+        c = self.cells[(row, col)]
+        c.crater_until = self.t + D.CRATER_CS
+        self.kernel_log.append(dict(t=self.t, wave=self.cur_wave, rc=(row, col),
+                                    ok=True, designated=designated))
+
+    def _freeze(self):
+        self.last_freeze_t = self.t
+        dur = self.rng.randint(*D.FREEZE_CS)
+        for z in self.zombies:
+            if not z.alive or z.kind == '冰车':
+                continue
+            d2 = self.rng.randint(300, 400) if z.slowed_until > self.t else dur
+            z.frozen_until = max(z.frozen_until, self.t + d2)
+            z.slowed_until = max(z.slowed_until, self.t + D.ICE_TOTAL_CS)
+
+    # ------------------------------------------------ 主循环
+    def run(self):
+        while not self.done and self.t < self.max_t:
+            self.t += D.TICK
+            self._index()
+            self._tick_spawn()
+            self._tick_move()
+            self._tick_icecar()
+            self._tick_spike_crush()
+            self._tick_joker()
+            self._tick_wogua()
+            self._tick_garlic()
+            self._tick_struct_fog()
+            self._tick_chili_refill()
+            self._tick_ice_refill()
+            self._tick_ice_trail()
+            self._tick_dying()
+            self._check_fail()
+            if self.done:
+                break
+            self._tick_rescue()
+            self._tick_globals()
+            self._tick_repair()
+            self._tick_plants()
+            self._tick_pending()
+            self._tick_boom()
+            self._tick_events()
+            self._tick_skip()
+            self._tick_slow_stat()
+            self._tick_refresh()
+            self._cleanup()
+            if self.t % 100 == 0:
+                alive = [z for z in self.zombies if z.alive]
+                self.series.append(dict(
+                    t=self.t, sun=round(self.sun),
+                    alive=len(alive),
+                    frozen=sum(1 for z in alive if z.frozen_until > self.t),
+                    slowed=sum(1 for z in alive if z.slowed_until > self.t),
+                    wave=(self.wave_meta['wave'] if self.wave_meta else 0),
+                    remain=round(self.wave_meta['remain']) if self.wave_meta else 0,
+                ))
+                self._snap_tick(alive)
+        return self.report()
+
+    def _index(self):
+        for r in self.by_row:
+            self.by_row[r] = []
+        for z in self.zombies:
+            if z.alive:
+                self.by_row[z.row].append(z)
+                if z.x < self.row_min.get(z.row, 9999):
+                    self.row_min[z.row] = z.x
+
+    def _dbox(self, z):
+        """僵尸防御域 [左界, 右界]。巨人明显比普通僵尸宽，且向左伸出一格。"""
+        off, w = D.DEFENSE_BOX.get(z.kind, D.DEFENSE_BOX['默认'])
+        return z.x + off, z.x + off + w
+
+    def _spike_pop(self, cell, why, source=None):
+        """地刺 / 地刺王 被"砸"或"碾"一次（用户 2026-10-22 的机制说明）。
+
+        · `crush_hits = 1`（地刺）→ 第 1 次就碎
+        · `crush_hits = 9`（地刺王）→ withstand 8、第 9 次才碎（= wiki 口径）
+        · `pops_car = True`（地刺王）→ **与冰车/投篮车同归于尽**（wiki：
+          "destroy specific zombies at the cost of themselves"）
+        """
+        spec = D.PLANTS.get(cell.plant or '') or {}
+        if not spec.get('spike'):
+            return False
+        cell.pops += 1
+        need = spec.get('crush_hits', 1)
+        if cell.pops >= need:
+            name = cell.plant
+            cell.plant = None
+            cell.plant_hp = 0
+            cell.pops = 0
+            self._log('WARN', '%d-%d 的%s被%s毁掉' % (cell.row, cell.col, name, why),
+                      row=cell.row, col=cell.col,
+                      detail='地刺 withstand 0 / 地刺王 withstand 8（第 9 次碎）')
+            return True
+        self._log('INFO', '%d-%d 的%s扛住一次%s（%d/%d）'
+                  % (cell.row, cell.col, cell.plant, why, cell.pops, need),
+                  row=cell.row, col=cell.col)
+        return False
+
+    def _is_tall(self, cell):
+        """高坚果：撑杆 / 跳跳 / 海豚 跳不过去（[维] Tall-nut）"""
+        if cell is None or not cell.plant:
+            return False
+        return bool(D.PLANTS.get(cell.plant, {}).get('tallnut'))
+
+    # ------------------------------------------------ 基座 / 能否种（v0.2.1）
+    def _plant_into(self, cell, name):
+        """把植物种进一格，并处理**蘑菇的睡眠**。
+
+        ★ 用户 2026-10-22 的完整口径：
+          ① 已经唤醒的蘑菇永远醒着；
+          ② 阵图里本来就是醒的（曾哥 / 大喷）永远醒着 —— 由 Cell 初始化保证；
+          ③ 阵图里的寒冰菇是睡着的（= 存冰）；
+          ④ **新种下的蘑菇一定是睡着的** —— 要它干活得先种一颗咖啡豆。
+        """
+        cell.plant = name
+        cell.plant_hp = D.PLANTS.get(name, {}).get('hp', D.PLANT_HP_DEFAULT)
+        if name in D.MUSHROOMS:
+            cell.awake = False
+            cell.atk_t = 0
+            self._log('INFO', '新种下的%s（%d-%d）是睡着的'
+                      % (name, cell.row, cell.col), row=cell.row, col=cell.col,
+                      detail='用户口径：新种的蘑菇一律先睡，要咖啡豆唤醒')
+        else:
+            cell.awake = True
+        cell.sun_born = self.t
+        cell.grown = False
+        return cell
+
+    def _base_ok(self, rc, plant=None):
+        """这一格能不能直接种 `plant`。
+
+        ★ 用户 2026-10-22：「PE / FE 在水路空地上面种植物必须先进行种荷叶；
+          RE 空地上面种植物必须先进行种花盆」
+          → 要种的**不是**那个基座本身时，格子上必须先有基座。
+        """
+        row, col = rc[0], rc[1]
+        if row not in self.by_row:
+            return False
+        req = self.fld.base_for(row)
+        if not req or plant == req:
+            return True
+        cell = self.cells.get((row, col))
+        if cell is None:
+            return False
+        return bool(cell.base or cell.plant == req)
+
+    def _seed_base(self, rc):
+        """给一格补上基座（荷叶 / 花盆）—— 供"必须先种基座"的场景记账用"""
+        req = self.fld.base_for(rc[0])
+        if not req:
+            return True
+        cell = self.cells.get(rc)
+        if cell is None:
+            cell = self.cells[rc] = Cell(rc[0], rc[1])
+        if cell.base or cell.plant == req:
+            return True
+        if cell.plant is not None:
+            return False
+        cell.plant = req
+        cell.plant_hp = D.PLANTS.get(req, {}).get('hp', D.PLANT_HP_DEFAULT)
+        cell.base = True
+        self._log('INFO', '先种基座 %s 在 %d-%d' % (req, rc[0], rc[1]),
+                  row=rc[0], col=rc[1],
+                  detail='水上要荷叶、屋顶要花盆（用户 2026-10-22 的口径）')
+        return True
+
+    def _speed_of(self, z):
+        if z.kind == '冰车':
+            return D.ice_car_speed(z.x)      # 冰车免疫减速
+        # ★ 2026-10-22：分阶段速度。撑杆跳完之后回落"慢速"档（用户：一般的快速僵尸，
+        #   飞跃第一个植物）—— 这里用 spd_alt（init 时按「慢速」档抽好）
+        s = z.spd_alt if (getattr(z, 'phase', 'walk') == 'walk'
+                          and z.spd_alt) else z.spd
+        if z.slowed_until > self.t:
+            s *= (D.SLOW_UNIFORM if z.uniform else D.SLOW_ANIM)
+        return s
+
+    def _ice_trail(self, z):
+        """
+        冰车铺冰道。
+
+        ★★ 2026-10-19 **上一版我做错了，这里改正**。
+        我曾写"冰车被消灭时它铺的冰道一起消失" —— 这是**完全错误**的。
+        真实规则（用户）：
+          · 冰道是**格子属性，会持续保留**；
+          · 只有两种消失方式：**辣椒烧化**、或**长间隔自然融化**；
+          · 车死了、被窝瓜压了，冰道照样留着。
+
+        真正让 "w11 的 5-9 一定干净" 成立的是**车头/车尾差一格**：
+          · 冰车 `z.x` 是**车头**（碾压判定前沿）；
+          · 冰道在**车尾** = `z.x + CAR_HEAD_GAP`（右一格，80px）；
+          → 车头走到 col 8（x=600）时，车尾（x=680）才刚铺上 col 9。
+            所以窝瓜只要在"车头还在 col 8 右边（x > 600）"时引爆，
+            5-9 就永远不会被这辆车铺上。
+            w10 的 `WOGUA_CAR_X = 720` 正好落在这个窗口里。
+        """
+        col = int(round((z.x + D.CAR_HEAD_GAP - 40) / 80.0)) + 1
+        if 1 <= col <= 9:
+            c = self.cells.get((z.row, col))
+            if c is None:
+                c = self.cells[(z.row, col)] = Cell(z.row, col)
+            c.iced = True
+            c.ice_until = self.t + D.ICE_TRAIL_TTL
+            self.ice_touched.add((z.row, col))
+
+    def _tick_ice_refill(self):
+        """
+        **波内即时补种**（用户原话："卡槽的冰一好就拿它补存冰"）。
+
+        原来只在换波时补一次 → 20 波最多 20 次机会，还要跟冰卡 CD 对表，
+        实际只补到 10 次，冰卡有 1/3 的产能被"等下一波"白白浪费。
+        玩家真实动作是：眼睛盯着卡槽，一好就点下去种。
+        所以改成每 2s 检查一次：有空位 + 卡好 + 阳光够 → 立刻补。
+        """
+        if self.t % 200:
+            return
+        chili = self._chili_slot()
+        empty = [rc for rc, full in self.ice_slots.items() if not full]
+        if not empty:
+            return
+        empty.sort(key=lambda rc: (rc == chili, rc[0], rc[1]))
+        rc = empty[0]
+        if rc == chili and len(empty) == 1:
+            # 5-3 与辣椒共用：辣椒快好了就先不占
+            if self.card_ready.get('辣椒', 0) - self.t <= D.CHILI_RESERVE_CS:
+                return
+        card = None
+        for k in ('冰', '模仿冰'):
+            if self.card_ready.get(k, 0) <= self.t:
+                card = k
+                break
+        if card is None or self.sun < D.CARDS[card]['cost']:
+            return
+        self.sun -= D.CARDS[card]['cost']
+        self.card_ready[card] = self.t + D.CARDS[card]['cd']
+        self.ice_slots[rc] = True
+        self.ice_refill_n += 1
+        self.actions.append(dict(t=self.t, wave=self.cur_wave, name='种冰', ok=True))
+        self._log('REPAIR', '补存冰 %d-%d（%s · 现有 %d 个）'
+                  % (rc[0], rc[1], card, self.ice_stock), row=rc[0], col=rc[1],
+                  detail='卡一好就补，不等下一波')
+
+    def _tick_chili_refill(self):
+        """
+        5-3 复用辣椒位后的**即时补种**。
+
+        用户 2026-10-19："如果因 5-3 辣椒复用导致当时没能正常补存冰，
+        辣椒生效后立即补"。
+
+        原来我是"下一波再补"，等于让 5-3 空整整一波（13~19s），
+        这段时间冰卡即使转好也用不上 —— 直接少一次补种机会。
+        现在辣椒一炸完（`_chili_freed_at`）就补，卡一好就补。
+        """
+        if getattr(self, '_chili_freed_at', -1) < 0:
+            return
+        chili = self._chili_slot()
+        if not chili or self.ice_slots.get(chili):
+            self._chili_freed_at = -1
+            return
+        card = None
+        for k in ('冰', '模仿冰'):
+            if self.card_ready.get(k, 0) <= self.t:
+                card = k
+                break
+        if card is None:
+            return
+        self.sun -= D.CARDS[card]['cost']
+        self.card_ready[card] = self.t + D.CARDS[card]['cd']
+        self.ice_slots[chili] = True
+        self.ice_refill_n += 1
+        self._chili_freed_at = -1
+        self.actions.append(dict(t=self.t, wave=self.cur_wave, name='种冰', ok=True))
+        self._log('REPAIR', '辣椒生效后立即补回 5-3 存冰（%s · 现有 %d 个）'
+                  % (card, self.ice_stock), row=chili[0], col=chili[1],
+                  detail='用户口径：辣椒用了就补，不等下一波')
+
+    def _tick_ice_trail(self):
+        for c in self.cells.values():
+            if c.iced and c.ice_until > 0 and self.t >= c.ice_until:
+                c.iced = False
+                c.ice_until = -1
+
+    def _clear_ice_trail(self, row=None):
+        for c in self.cells.values():
+            if row is not None and c.row != row:
+                continue
+            c.iced = False
+            c.ice_until = -1
+
+    def _tick_dying(self):
+        """巨人无临界；冰车临界仍能碾；其它掉头即无威胁"""
+        for z in self.zombies:
+            if not z.alive or z.hp <= 0:
+                continue
+            if z.giant or z.kind == '冰车':
+                continue
+            if z.hp < z.hp0 * D.DYING_RATIO:
+                z.alive = False
+
+    def _summon(self, dancer):
+        for i in range(D.DANCER_SUMMON_N):
+            b = Zombie('伴舞', dancer.row, min(780, dancer.x + 8 - i * 6),
+                       dancer.wave, self.rng)
+            self.zombies.append(b)
+            self.by_row[dancer.row].append(b)
+            # ★ 伴舞必须计入本波血量，否则刷新判定看不见它们（波会被算短）
+            if self.wave_meta is not None:
+                self.wave_meta['zs'].append(b)
+                self.wave_meta['total_hp'] += b.hp0
+
+    def _tick_joker(self):
+        """
+        小丑实体（2026-10-19 用户：只做判定太简单）。
+
+        为什么必须实体化：
+          「是否严谨控丑」取决于**小丑开盒那一刻站在第几列** —— 这是位置问题。
+          查表只能给出"需要 X 秒内点冰"，给不出"这一波到底炸没炸"。
+          让它真的走一遍，炸率就是 **实际炸了几只 ÷ 本波小丑数**，不用建模公式。
+
+        时间轴 [精 十]：
+          早爆 5%   开盒 440~754cs   开盒后 110cs 炸
+          晚爆 95%  开盒 1320~2270cs 开盒后 110cs 炸
+          **冻结时开盒计时整段顺延** —— 这正是"早冰控丑"能生效的机制：
+          冰把开盒时刻推到"它已经走进曾的射程、且身上带着减速"之后。
+        """
+        for z in self.zombies:
+            if not z.alive or z.kind != '小丑':
+                continue
+            if z.frozen_until > self.t:
+                continue                      # 冻住 → 计时停
+            if z.fuse_in < 0:
+                z.box_in -= D.TICK
+                if z.box_in <= 0:
+                    z.fuse_in = D.JOKER_FUSE
+                    self._log('JOKER', '小丑开盒（%.1f 列）x=%d'
+                              % ((z.x - 40) / 80.0 + 1, z.x), row=z.row)
+            else:
+                z.fuse_in -= D.TICK
+                if z.fuse_in <= 0:
+                    self._joker_blast(z)
+
+    def _joker_blast(self, z):
+        """爆炸：判定 x±20、y 0~+80，只炸自己这一行"""
+        z.alive = False
+        bx = z.x
+        zy = self.zy(z.row)
+        hit = []
+        for col in range(1, 10):
+            c = self.cells.get((z.row, col))
+            if c is None or not c.has_content():
+                continue
+            if abs(c.x - bx) > D.JOKER_BOOM_DX:
+                continue
+            py = self.py(z.row)
+            if not (zy - 10 <= py <= zy + D.JOKER_BOOM_H + 10):
+                continue
+            hit.append((col, c))
+        killed = []
+        for col, c in hit:
+            plant, pump = c.wreck()
+            killed.append('%d-%d %s' % (z.row, col, plant or '南瓜'))
+            if plant in D.CORE_PLANTS:
+                self._fatal('小丑炸掉 %d-%d 的%s' % (z.row, col, plant),
+                            'CORE 植物 · 控丑失败', row=z.row, col=col)
+        self.joker_boom.append(dict(t=self.t, wave=self.cur_wave, row=z.row,
+                                    x=round(bx), killed=killed))
+        self._log('JOKER', '小丑爆炸（%.1f 列）炸掉 %s'
+                  % ((bx - 40) / 80.0 + 1, '、'.join(killed) if killed else '空'),
+                  row=z.row, detail='%s（开盒 %.1fs，本波第 %d 只小丑）'
+                  % ('早爆型' if z.joker_early else '晚爆型',
+                     D.JOKER_BOX_EARLY[0] / 100.0 if z.joker_early else 13.2,
+                     getattr(self, '_joker_n', 0)))
+
+    def _tick_spike_crush(self):
+        """巨人砸地刺（用户 2026-10-22）：「巨人可以破坏，其中要砸 1 次地刺、9 次钢地刺」。
+
+        地刺类不挡路、不被啃，所以普通"找目标"的流程里根本不会把它当目标 ——
+        巨人是**踩在上面砸**，这里单独处理。
+
+        冰车/投篮车那一路在 `_tick_icecar` 里（碾压判定域重合 → 互相破坏）。
+        """
+        for z in self.zombies:
+            if not z.alive or not z.giant:
+                continue
+            if z.frozen_until > self.t or z.stall_until > self.t:
+                continue
+            for col in range(1, 10):
+                c = self.cells.get((z.row, col))
+                if c is None or not c.plant:
+                    continue
+                if not D.PLANTS.get(c.plant, {}).get('spike'):
+                    continue
+                # 巨人的攻击判定域比普通僵尸宽（[精 六] 偏移 20 / 宽 50）
+                if not (-40 <= z.x - c.x <= 100):
+                    continue
+                if z.smash_at <= 0:
+                    z.smash_at = self.t + D.SMASH_INTERVAL
+                    continue
+                if self.t < z.smash_at:
+                    continue
+                z.smash_at = self.t + D.SMASH_INTERVAL
+                self._spike_pop(c, '巨人砸')
+
+    def _tick_icecar(self):
+        for z in self.zombies:
+            if not z.alive or z.kind != '冰车':
+                continue
+            # ★ 冰车临界（用户：虽然自己掉血、速度减慢，但**仍然有碾压能力**）
+            #   血 < 1/3 起：自动掉血 60/s + 速度减半，碾压判定照旧
+            crit = z.hp < z.hp0 * D.DYING_RATIO
+            if crit:
+                z.hp -= D.DYING_DPS_BIG * D.TICK / 100.0
+            if z.frozen_until <= self.t:
+                spd = D.ice_car_speed(z.x) * (0.5 if crit else 1.0)
+                z.x -= spd * D.TICK
+            z.min_x = min(z.min_x, z.x)
+            self._ice_trail(z)                     # 车尾（z.x + 80）铺冰道
+            for col in range(9, 0, -1):
+                c = self.cells.get((z.row, col))
+                if c is None or not c.has_content():
+                    continue
+                if abs(z.x - c.x) > 58:            # 车头（z.x）= 碾压判定
+                    continue
+                # ★★ 2026-10-22 用户：地刺/地刺王的"攻击判定域就是这个格子"，
+                #   冰车/投篮车的碾压判定域与它重合时：**双方互相破坏**。
+                #   地刺王（pops_car）能与车同归于尽；地刺只自己碎、车照样过去。
+                #   因为判定域是整个格子（AoE），同一 tick 里压在这个格子上的
+                #   所有车会**同时全部被破坏** —— 这就是"把地刺种在一堆冰车里"的用法。
+                if (c.plant and D.PLANTS.get(c.plant, {}).get('spike')
+                        and not c.ash_pending):
+                    spec = D.PLANTS[c.plant]
+                    if spec.get('pops_car'):
+                        z.hp = 0
+                        z.alive = False
+                        self._log('RESCUE', '%d-%d 的%s与冰车同归于尽'
+                                  % (z.row, col, c.plant), row=z.row, col=col,
+                                  detail='地刺王 pops_car · 每次碾掉一格车')
+                        self.crush.append(dict(t=self.t, wave=z.wave, row=z.row,
+                                               col=col, plant=c.plant,
+                                               killed_car=True))
+                        self._spike_pop(c, '冰车碾压')
+                    else:
+                        self._spike_pop(c, '冰车碾压')
+                        self.crush.append(dict(t=self.t, wave=z.wave, row=z.row,
+                                               col=col, plant='地刺'))
+                    break
+                # ★ 用户："碾压不对已经触发的灰烬（包括窝瓜）生效，
+                #   而且可以把'种植即触发'的灰烬直接种在碾压判定区。"
+                if c.ash_pending:
+                    continue
+                plant, pump = c.wreck()
+                self.crush.append(dict(t=self.t, wave=z.wave, row=z.row,
+                                       col=col, plant=plant))
+                self.car_audit.append(dict(wave=z.wave, row=z.row,
+                                           min_x=round(z.min_x),
+                                           verdict='碾压 %d-%d %s' % (z.row, col, plant or '南瓜'),
+                                           crush=True))
+                if self.rebuild and plant:
+                    self.rebuilds.append(dict(t=self.t, wave=z.wave,
+                                              why='%d-%d %s被冰车碾掉' % (z.row, col, plant),
+                                              row=z.row, col=col, done=False,
+                                              plant=plant))
+                if plant in D.CORE_PLANTS:
+                    self._fatal('冰车碾压 %d-%d 的%s' % (z.row, col, plant),
+                                '冰车不受减速、不被南瓜阻挡 · 碾压是机制杀',
+                                row=z.row, col=col)
+                elif plant:
+                    self._log('WARN', '冰车碾掉 %d-%d %s' % (z.row, col, plant),
+                              row=z.row, col=col,
+                              detail='可补种 · 冰道已铺在该格')
+                    break
+
+    def _tick_move(self):
+        for z in self.zombies:
+            if not z.alive:
+                continue
+            if z.frozen_until > self.t or z.stall_until > self.t:
+                continue
+            if z.kind == '冰车':
+                continue
+            if z.no_eat_x is not None and z.x > z.no_eat_x:
+                z.x -= self._speed_of(z) * D.TICK
+                continue
+            # ★ 跳跳：不啃植物，一路往前（会跳/越过，模型里就是不停）
+            if z.never_eat:
+                z.eating = None
+                z.x -= self._speed_of(z) * D.TICK
+                continue
+            # ★ 2026-10-22 舞王滑步：走到 7 列（x≤520）时**快速滑一格**（后退 80px），
+            #   滑完就起舞。用户：「走到第 7 列的滑步速度很快」。
+            if z.kind == '舞王' and not z.slid and z.x <= D.DANCER_SLIDE_X:
+                z.slid = True
+                z.x += D.DANCER_SLIDE_PX
+                z.phase = 'walk'
+                self._log('INFO', '舞王滑步 %d 路：后退一格起舞' % z.row,
+                          row=z.row, detail='滑步档 0.79~0.81（与带梯扶梯同档）'
+                                           ' · 80px ≈ 100cs')
+            # 舞王召伴舞：走到 7 列后**每 8s 召一批**（不是只召一次）
+            if z.kind == '舞王' and z.x <= D.DANCER_SUMMON_X:
+                if z.summoned == 0:
+                    z.summoned = self.t + D.DANCER_CD
+                    self._summon(z)
+                elif self.t >= z.summoned:
+                    z.summoned = self.t + D.DANCER_CD
+                    self._summon(z)
+            target = None
+            for col in range(9, 0, -1):
+                c = self.cells.get((z.row, col))
+                if c is None or not c.has_content():
+                    continue
+                if c.has_content():
+                    spec = D.PLANTS.get(c.plant) if c.plant else None
+                    # ★ 地刺一类"不挡路、不被啃"的植物：僵尸直接走过去
+                    if (spec and spec.get('no_eat')) or c.tail:
+                        continue
+                # ★ 2026-10-22 梯子南瓜：只有巨人和冰车起作用，其它僵尸**直接走过去**
+                #   （用户：「植物会被巨人、车以外的其它僵尸直接无视」）
+                if c.ladder and not z.giant:
+                    continue
+                if z.x < c.x - D.EAT_OFFSET:
+                    continue          # ★ 已经走过这一格 → 继续往左找（原来会从背后啃）
+                if z.x <= c.x + D.EAT_OFFSET:
+                    target = c
+                break
+            # ★ 撑杆跳：飞跃第一个植物，落地在「目标植物 x − 70」[精 11.2]，
+            #   高坚果挡得住（不跳，改成正常啃）
+            if (z.kind == '撑杆' and not z.vaulted and target is not None
+                    and not self._is_tall(target)):
+                z.vaulted = True
+                z.x = target.x - 70
+                z.phase = 'walk'
+                self._log('INFO', '撑杆跃过 %d-%d %s'
+                          % (target.row, target.col, target.plant or '南瓜'),
+                          row=target.row, col=target.col,
+                          detail='落地 x=%d（目标 x−70）· 之后按慢速档走' % int(z.x))
+                continue
+            if target is not None and target.plant == '大蒜':
+                # ★★ 2026-10-20：大蒜不是"被啃的墙"，它**啃一口就换行**。
+                #   [知识库 14] 1 路→2、6 路→5、中间路随机二选一。
+                #   所以这里不进入普通啃食流程 —— 扣一口血就把它赶走。
+                self._garlic(z, target)
+                continue
+            if target is not None:
+                z.eating = target
+                # ★ 巨人：举锤砸（周期 330cs、单次 1800），不是"啃 100dps"
+                if z.giant:
+                    if z.smash_at <= 0:
+                        z.smash_at = self.t + D.SMASH_INTERVAL
+                    elif self.t >= z.smash_at:
+                        had = target.plant
+                        had_ladder = target.ladder
+                        broke = target.take_damage(D.SMASH_DMG)
+                        z.smash_at = self.t + D.SMASH_INTERVAL
+                        if broke == 'plant':
+                            self._plant_lost(target, had, z)
+                        elif broke == 'pumpkin':
+                            self._log('WARN', '南瓜被 %s 砸穿 %d-%d'
+                                      % (z.kind, target.row, target.col),
+                                      row=target.row, col=target.col, detail='南瓜 125 可补')
+                    continue
+                loss = z.dmg * D.TICK / 100.0
+                if z.slowed_until > self.t:
+                    loss *= 0.5
+                had = target.plant
+                had_ladder = target.ladder
+                broke = target.take_damage(loss)
+                if broke == 'plant':
+                    self._plant_lost(target, had, z)
+                elif broke == 'pumpkin':
+                    self._log('WARN', '南瓜被打穿 %d-%d（%s）' % (target.row, target.col, z.kind),
+                              row=target.row, col=target.col,
+                              detail='南瓜 125 可补' + (' · 梯子一并消失' if had_ladder else ''))
+            else:
+                z.eating = None
+                z.x -= self._speed_of(z) * D.TICK
+
+    def _plant_lost(self, c, name, z):
+        if name in D.CORE_PLANTS:
+            self._fatal('%d-%d 的%s被%s啃掉' % (c.row, c.col, name, z.kind),
+                        'CORE 植物 · 阵线已被突破到 %d 列（x=%d）' % (c.col, z.x),
+                        row=c.row, col=c.col)
+        else:
+            self._log('WARN', '%d-%d %s被%s啃掉' % (c.row, c.col, name, z.kind),
+                      row=c.row, col=c.col, detail='非 CORE · 可补种')
+        # ★ 快速/极速的"死了就补"：连非 CORE（大喷/荷叶/伞/花）也进重建队列。
+        #   否则快速关没有救场，5-7 补种的大喷一被冰车碾就永远没了。
+        if self.rebuild and c.row and c.col:
+            spec = self.array.get((c.row, c.col))
+            if spec and spec.get('plant') and not any(
+                    r['row'] == c.row and r['col'] == c.col and not r['done']
+                    for r in self.rebuilds):
+                self.rebuilds.append(dict(t=self.t, wave=self.cur_wave,
+                                          why='%d-%d %s被%s啃掉' % (c.row, c.col, name, z.kind),
+                                          row=c.row, col=c.col, done=False, plant=name))
+
+    def _garlic(self, z, cell):
+        """
+        僵尸啃到大蒜 → 扣一口血 + **换行**。
+
+        ★★ 2026-10-20 更正（用户）：**大蒜不能跨水陆** ——
+          陆路僵尸吃蒜不会下水，水路僵尸吃蒜也不会爬上岸。
+          所以换行的目标行必须**与当前行同属一种地形**。
+
+        PE 场地（1/2/5/6 陆路、3/4 水池）四个合法边：
+
+          2-9 大蒜 → 僵尸只能去 **1 路**   （3 路是水，去不了）
+          5-9 大蒜 → 僵尸只能去 **6 路**   （4 路是水，去不了）
+          反向：1→2、6→5；水路内部 3↔4
+
+        这就是为什么极速关的 2-9 / 5-9 大蒜不是"分流"而是**单向驱赶**：
+        岸路的压力整股灌进边路，边路的 CORE（3 列冰瓜）要独力吃下。
+        """
+        opts = D.GARLIC_SWAP.get(z.row) or ()
+        # 双保险：再按地形过滤一遍（表写错也翻不了车）
+        water = z.row in self.fld.water
+        opts = tuple(r for r in opts if (r in self.fld.water) == water)
+        if not opts:
+            return
+        bite = D.ASH_DMG if z.giant else D.GARLIC_BITE
+        cell.plant_hp -= bite
+        gone = cell.plant_hp <= 0
+        if gone:
+            cell.plant = None
+            cell.plant_hp = 0
+        old_row = z.row
+        z.row = int(self.rng.choice(opts))
+        # 换行后往回顶一点点（大蒜把僵尸推出去），避免它立刻又啃回同一格
+        z.x += 6
+        self.garlic_swaps.append(dict(t=self.t, wave=self.cur_wave, kind=z.kind,
+                                      frm=old_row, to=z.row, col=cell.col,
+                                      broke=gone))
+        self._log('INFO', '大蒜换行：%s %d 路 → %d 路（%d-%d）'
+                  % (z.kind, old_row, z.row, cell.row, cell.col),
+                  row=cell.row, col=cell.col,
+                  detail='大蒜剩 %d 血%s · 不跨水陆，目标行唯一'
+                         % (max(0, cell.plant_hp),
+                            '（这一口啃碎了）' if gone else ''))
+
+    def _tick_garlic(self):
+        """
+        极速关的大蒜维护：2-9 / 5-9 空了就补（用大蒜卡，CD 7.5s）。
+        被啃碎是常态 —— 一口 100 血、400 血能挨 4 口，两个位轮流碎。
+        """
+        if not self.garlic_slots or self.t % 100:
+            return
+        for rc in self.garlic_slots:
+            cell = self.cells.get(rc)
+            if cell is None:
+                cell = self.cells[rc] = Cell(rc[0], rc[1])
+            if cell.plant == '大蒜' and cell.plant_hp > 0:
+                continue
+            if cell.iced or cell.crater_until > self.t:
+                continue
+            if not self._try_card('大蒜'):
+                return
+            self._plant_into(cell, '大蒜')
+            self._log('REPAIR', '补种大蒜 %d-%d' % rc, row=rc[0], col=rc[1],
+                      detail='极速关：无冰车/投篮 → 核换大蒜，把岸路僵尸赶去边路')
+
+    def _tick_struct_fog(self):
+        """
+        极速关（出怪里有冰车/投篮）：大蒜会被车碾掉，改用**结构**抬丑抗 ——
+        在 2-7 / 5-7 种大喷。
+
+        用户 2026-10-20（第 14 轮）："在有冰车或投篮车的极速关不应该带大蒜，
+        而仅仅是 2-7,5-7 种大喷提高结构丑抗"。
+        5-7 被车压的概率不低，被压就重试；大喷卡 7.5s CD 自己会限住频率。
+        """
+        if not self.struct_fog_slots or self.t % 100:
+            return
+        for rc in self.struct_fog_slots:
+            cell = self.cells.get(rc)
+            if cell is None:
+                cell = self.cells[rc] = Cell(rc[0], rc[1])
+            if cell.plant == '大喷菇' and cell.plant_hp > 0:
+                continue
+            if cell.plant is not None and cell.plant != '大喷菇':
+                continue
+            if cell.iced or cell.crater_until > self.t:
+                continue
+            if not self._try_card('大喷菇'):
+                return
+            self._plant_into(cell, '大喷菇')
+            # 时间轴上的 F 标记由 _try_card 记的 action 负责，这里只记账
+            self.fog_fix.append(dict(t=self.t, wave=max(1, self.cur_wave),
+                                     row=rc[0], col=rc[1]))
+            self._log('REPAIR', '结构补种大喷 %d-%d' % rc, row=rc[0], col=rc[1],
+                      detail='极速关有冰车/投篮：大蒜会被碾，改种大喷抬丑抗')
+
+    def _next_target(self, z):
+        """这只僵尸接下来会啃哪一格（和 _tick_move 用同一套判定）"""
+        for col in range(9, 0, -1):
+            c = self.cells.get((z.row, col))
+            if c is None or not c.has_content():
+                continue
+            spec = D.PLANTS.get(c.plant) if c.plant else None
+            if spec and spec.get('no_eat'):
+                continue                  # 地刺一类：走过去，不啃
+            if c.ladder and not z.giant:
+                continue                  # 梯子南瓜：除巨人外直接走过去
+            if z.x < c.x - D.EAT_OFFSET:
+                continue
+            return c
+        return None
+
+    # ------------------------------------------------ 场况查询（阵解栏用）
+    def plant_counts(self):
+        """
+        场上各植物的数量（阵解栏的条件要问"某种植物还有几个"）。
+
+        ★ 存冰在阵上是"睡着的寒冰菇"：算 `存冰`，也同时算 `寒冰菇`，
+          因为玩家脑子里的名字就是寒冰菇 —— 统一说法就靠这一层映射。
+        """
+        cnt = {}
+        for c in self.cells.values():
+            if not c.plant or c.plant == '存冰':
+                continue
+            cnt[c.plant] = cnt.get(c.plant, 0) + 1
+        ice = self.ice_stock
+        if ice:
+            cnt['寒冰菇'] = cnt.get('寒冰菇', 0) + ice
+            cnt['存冰'] = ice
+        return cnt
+
+    def plan_ctx(self):
+        """给阵解的条件/触发器用的一份只读快照"""
+        ops_by_wave = {}
+        for a in self.actions:
+            if a.get('ok'):
+                ops_by_wave.setdefault(a.get('wave'), []).append(a['name'])
+        return dict(
+            t=self.t, wave=max(1, self.cur_wave),
+            card_ready=dict(self.card_ready),
+            avg_gap=self._avg_gap(), ice_stock=self.ice_stock, sun=self.sun,
+            plants=self.plant_counts(),
+            cells={rc: c.plant for rc, c in self.cells.items() if c.plant},
+            ops_by_wave=ops_by_wave)
+
+    def activate_ice(self, rc):
+        """
+        在 rc 落一颗咖啡豆 → 唤醒那格睡着的寒冰菇 → 立刻全场冰冻。
+
+        ★ v0.3 统一说法：以前这一步叫"点存冰"，现在就是"在某格种咖啡豆"。
+        """
+        rc = tuple(rc)
+        if self.temp_ice.get(rc):
+            self.temp_ice[rc] = False
+            self._log('ICE', '咖啡豆唤醒 %d-%d（前场临时位 · 剩 %d 个）'
+                      % (rc[0], rc[1], self.ice_stock), row=rc[0], col=rc[1])
+            self._freeze()
+            return True
+        if self.ice_slots.get(rc):
+            self.ice_slots[rc] = False
+            self.ice_coffee_n = getattr(self, 'ice_coffee_n', 0) + 1
+            self._log('ICE', '咖啡豆唤醒 %d-%d（剩 %d 个）'
+                      % (rc[0], rc[1], self.ice_stock), row=rc[0], col=rc[1])
+            self._freeze()
+            return True
+        # ★ 2026-10-22：普通格子上睡着的蘑菇也能被咖啡豆唤醒
+        #   （用户口径：咖啡豆唤醒"所在格的蘑菇"，唤醒后**永久清醒**）
+        cell = self.cells.get(rc)
+        if cell is not None and cell.plant in D.MUSHROOMS and not cell.awake:
+            cell.awake = True
+            if cell.plant == '寒冰菇':
+                self._log('ICE', '咖啡豆唤醒 %d-%d 的寒冰菇 → 全场冰冻'
+                          % (rc[0], rc[1]), row=rc[0], col=rc[1])
+                self._freeze()
+            else:
+                self._log('ICE', '咖啡豆唤醒 %d-%d 的%s（永久清醒）'
+                          % (rc[0], rc[1], cell.plant), row=rc[0], col=rc[1])
+            return True
+        return False
+
+    def _tick_globals(self):
+        """全场判定层：每 tick 让阵解看一眼"条件成立了吗"，成立就做"""
+        if self.globals_tick is None:
+            return
+        try:
+            self.globals_tick(self)
+        except Exception:                                    # noqa: BLE001
+            self.globals_tick = None       # 出过一次错就别每 tick 抛了
+
+    # ------------------------------------------------ 救场层
+    def _tick_rescue(self):
+        """
+        ★ 2026-10-18 按用户口径重写（原版是我自己推的，不对）
+
+        用户原话：
+          "橄榄跑到第 6 列时，如果感觉到有啃大喷的可能（判定依据可以是血量还比较高），
+           就在这个格子里面下垫材，就挡得住。"
+          "这个阵除了垫材，**唯一的救场就是窝瓜**，一般用来稳定缓解 **6 路**压力
+           （1 路也可以，但 1 路压力比 6 路大的情况很少见）。"
+          "w10 开始时需要它种在 5-9 压冰车腾出核坑位，这时候窝瓜不要被占用。"
+
+        所以救场只有两条，而且都很窄：
+          ① 垫材：只在 **1 / 6 路**、僵尸走到 **第 6 列**、且**血量还高**时下
+             （普通僵尸 270 血，走到这儿基本已被冰瓜打死，不用浪费垫材）
+          ② 窝瓜：只用于 **6 路**（1 路次选）减压；w10 保核坑期间禁用
+        """
+        if not self.rescue:
+            return
+        if self.rescue_tick is not None:
+            # ★ v0.2 阵解栏：救场层换成"编辑出来的规则"，由 plan 侧驱动
+            self.rescue_tick(self)
+            return
+
+        self.try_stall()
+        if self.t < self.tomato_busy_until:
+            self._rescue_ice_emergency()
+            return
+        self.try_wogua()
+        self._rescue_ice_emergency()
+
+    def stall_at(self, rc, cards=('垫材', '垫材2')):
+        """
+        在**指定格子**下垫材（小喷菇 / 花盆）挡僵尸。
+
+        ★ v0.3：以前垫材只能下在固定的 STALL_SLOTS（1/5/6 列的 6 列位），
+          那是"救场自动挑位"的口径。现在阵解里可以直接写"在某格种小喷菇"，
+          这条是它的执行体。
+        """
+        rc = (int(rc[0]), int(rc[1]))
+        cell = self.cells.get(rc)
+        if cell is None:
+            cell = self.cells[rc] = Cell(rc[0], rc[1])
+        if cell.plant is not None or cell.tail or cell.grave:
+            return False
+        # ★ 水上要先荷叶、屋顶要先花盆（自动补基座）
+        if not self._base_ok(rc):
+            if not self._seed_base(rc):
+                return False
+        cx = D.cell_x(rc[1])
+        zs = [z for z in self.by_row.get(rc[0], ())
+              if z.alive and z.hp > 0 and z.kind != '冰车'
+              and z.stall_until <= self.t
+              and -40 <= z.x - cx <= 170]
+        if not zs:
+            return False
+        used = next((nm for nm in cards if self._try_card(nm)), None)
+        if used is None:
+            return False
+        z = min(zs, key=lambda x: x.x)
+        self._plant_into(cell, '小喷菇' if used == '垫材' else '花盆')
+        z.stall_until = self.t + (D.STALL_CS_SLOWED if z.slowed_until > self.t
+                                  else D.STALL_CS)
+        z.rescued = True
+        z.stall_n = getattr(z, 'stall_n', 0) + 1
+        self.last_rescue[z.row] = self.t
+        self._log('RESCUE', '%s 种在 %d-%d（挡 %s，第 %d 张）'
+                  % (used, rc[0], rc[1], z.kind, z.stall_n),
+                  row=rc[0], col=rc[1],
+                  detail='僵尸 x=%d hp=%d → 钉 %.1fs'
+                         % (z.x, z.hp, (z.stall_until - self.t) / 100.0))
+        return True
+
+    def try_stall(self, rows=None, cards=None):
+        """
+        ① 垫材：1/6 路（5 路次之），只要僵尸能打到 6 列就下，CD 好了就下。
+
+        ★ v0.2：从 `_tick_rescue` 里原样抽出来（行为不变），
+          阵解栏的救场规则可以用 `rows` 限定只救哪几路，
+          用 `cards` 限定只能用哪张垫材卡（轨道里排"垫材"时就这样调用）。
+        """
+        cands = []
+        for row in (rows or (6, 5, 1)):
+            if row not in self.by_row:
+                continue                 # ★ 5 行场地没有 6 路
+            col_spot = D.STALL_SLOTS.get(row)
+            if col_spot is None:
+                continue
+            cx = D.cell_x(col_spot)
+            # 窝瓜刚在这条路强杀过 → 战线前推，这几秒把垫材让给另一路
+            if row == 6 and self.t - self.tomato_used_at < D.TOMATO_PUSH_CS:
+                continue
+            for z in self.by_row[row]:
+                if z.kind == '冰车' or z.hp <= 0 or not z.alive:
+                    continue
+                if z.stall_until > self.t:
+                    continue
+                # 各路的落点不同：6 路/1 路在 6 列（cx=440），5 路在 7 列（cx=520）
+                if not (cx + 10 <= z.x <= cx + 75):
+                    continue
+                # ★ 巨人只要还活着就必须处理（残血巨人照样一锤砸掉植物），
+                #   所以血量门槛对巨人豁免 —— 用户：巨人必须打满血才解除威胁
+                if z.hp <= D.STALL_HP and not z.giant:
+                    continue
+                if getattr(z, 'stall_n', 0) >= 8:
+                    continue          # 同一只最多钉 8 次（≈48s），再多就是白喂
+                # 危险度 = 距本路最靠前 CORE 的剩余距离（越小越危险）
+                # ★ 再加上"饥饿"修正：某路太久没被救，威胁值下调（否则 1 路永远轮不到）
+                # ★ 再加"已钉次数"惩罚：被钉了很多次的僵尸让位给新来的
+                idle = self.t - self.last_rescue.get(row, 0)
+                threat = (z.x - D.CORE_X.get(row, 200) - idle * D.HUNGER_K
+                          + getattr(z, 'stall_n', 0) * 60)
+                cands.append((threat, z.x, row, col_spot, z))
+        if not cands:
+            return False
+        cands.sort(key=lambda c: c[:4])   # 同一时刻刷出 → x 会完全相同，别再比 Zombie
+        _, _, row, col_spot, z = cands[0]
+        if cards:
+            used = next((nm for nm in cards if self._try_card(nm)), None)
+        elif self._try_card('垫材'):
+            used = '垫材'
+        elif self._try_card('垫材2'):
+            used = '垫材2'
+        else:
+            used = None
+        if not used:
+            return False
+        z.stall_until = self.t + (D.STALL_CS_SLOWED if z.slowed_until > self.t
+                                  else D.STALL_CS)
+        z.rescued = True
+        z.stall_n = getattr(z, 'stall_n', 0) + 1
+        self.last_rescue[row] = self.t
+        self._log('RESCUE', '%s 下在 %d-%d（挡 %s，第 %d 张）'
+                  % (used, row, col_spot, z.kind, z.stall_n),
+                  row=row, col=col_spot,
+                  detail='僵尸 x=%d hp=%d → 钉 %.1fs'
+                         % (z.x, z.hp, (z.stall_until - self.t) / 100.0))
+        return True
+
+    def try_wogua(self, rows=None):
+        """
+        ② 窝瓜：6 路巨人**开始对大喷做攻击动作**时强杀；另有"重甲逼近 CORE 3 格"
+        的硬底线。★ v0.2：原样抽出，阵解栏可用 `rows` 限定救援路。
+        """
+        wogua = []
+        for row in (rows or (6, 5, 2, 1)):
+            if row not in self.by_row:
+                continue                 # ★ 5 行场地没有 6 路
+            lo, hi = D.WOGUA_WIN.get(row, (340, 480))
+            for z in self.by_row[row]:
+                if z.hp <= 0 or not z.alive or z.rescued and z.stall_until > self.t:
+                    continue
+                if not (lo <= z.x <= hi):
+                    continue
+                if not (z.giant or z.hp >= D.WOGUA_HP):
+                    continue
+                wogua.append((z.x - hi, z))
+        if not wogua:
+            return False
+        wogua.sort(key=lambda p: p[0])    # 同上：不能用 (float, Zombie) 全序
+        hit = wogua[0][1]
+        if not self._try_card('窝瓜'):
+            return False
+        row = hit.row
+        hp0 = hit.hp
+        hit.hp -= D.ASH_DMG
+        hit.rescued = True
+        self.tomato_used_at = self.t
+        self._log('RESCUE', '窝瓜强杀 %d 路的%s' % (row, hit.kind), row=row,
+                  detail='x=%d（%.1f 列）hp=%d → 战线前推，垫材转给另一路'
+                         % (hit.x, (hit.x - 40) / 80.0 + 1, hp0))
+        return True
+
+    def _rescue_ice_emergency(self):
+        """
+        真·救急点存冰。
+
+        ★ 触发条件收得很窄，只有一条真正成立：
+          **某只僵尸下一口要落的格子，是一个"没南瓜的 CORE 植物"**。
+          本阵里满足这条的其实只有 5-5 / 5-6 两个裸曾（1-3 / 6-3 的冰瓜都在南瓜里，
+          1-4/1-5/6-4/6-5 的大喷不算 CORE）。红眼一锤 1800 就能秒掉 300 血的曾，
+          而曾没了就是不可逆的崩阵 —— 拿一个存冰换，天经地义。
+
+        另外还要满足：
+          ① 距离上一次冰冻 > 3s（不要连着冻）
+          ② 距离上一次救急 > 15s
+          ③ 手上真的有存冰
+        """
+        if self.ice_stock <= 0 or self.t < self.ice_emerg_cd:
+            return
+        # ★ 2026-10-20：w19 / w20 期间**保住最后一个存冰**给 w20 的冰杀蹦极。
+        #   实测变速 seed5：w19 救急把最后 1 个冰点掉（救的是 2-6 裸曾，150 阳光），
+        #   结果 w20 蹦极没冰 —— 损失是整片后场，账完全不划算。
+        if self.ice_stock <= 1 and self.cur_wave >= 19:
+            return
+        if self.t - self.last_freeze_t < D.ICE_EMERG_GAP:
+            return
+        # ★ 只有"别的牌全没了"才轮到存冰：
+        #   两张垫材 + 窝瓜只要有一张转好，就先用它们，不许动轨道口粮。
+        for k in ('垫材', '垫材2', '窝瓜'):
+            if self.card_ready.get(k, 0) <= self.t:
+                return
+        hot = None
+        for row in range(1, self.rows + 1):
+            for z in self.by_row[row]:
+                if not z.alive or z.kind == '冰车':
+                    continue
+                if not (z.giant or z.hp > 800):
+                    continue
+                c = self._next_target(z)
+                if c is None or c.plant not in D.CORE_PLANTS or c.pumpkin:
+                    continue
+                if z.x > c.x + D.ICE_EMERG_REACH:      # 还在远处就不算"要砸"
+                    continue
+                if hot is None or z.x < hot.x:
+                    hot = z
+        if hot is None:
+            return False
+        if self._use_stock_ice('救急：%d 路 %s 要砸 %d-%d 的裸%s'
+                               % (hot.row, hot.kind, hot.row,
+                                  self._next_target(hot).col,
+                                  self._next_target(hot).plant)):
+            self.ice_emerg_cd = self.t + D.ICE_EMERG_CD
+            self.ice_emerg_n += 1
+            return True
+        return False
+
+    def _reserve_tomato(self):
+        """
+        w10 开局：窝瓜固定用于压冰车 / 保 5-9 核坑。
+
+        ★ 2026-10-19 按档位收窄（用户）：
+          慢速/变速 → 要压（有冰车、选卡里有窝瓜）
+          快速      → 选卡里没有窝瓜，不压
+          极速      → 出怪里根本没有冰车，不需要
+        """
+        if not self.wogua_flag:
+            return
+        self.tomato_busy_until = self.t + D.TOMATO_RESERVE_CS
+        c = self.cells.get((5, 9))
+        if c is not None and c.iced:
+            c.iced = False
+            c.ice_until = -1
+            self._log('RESCUE', '窝瓜压 5-9 冰车，保核坑位', row=5, col=9,
+                      detail='w10 固定动作 · 冰道已清')
+        else:
+            self._log('INFO', 'w10 预留窝瓜给 5-9 核坑', row=5, col=9,
+                      detail='本轮救场不得占用窝瓜')
+        # ★ 这里**不能**把窝瓜花掉 —— 真正的消耗在 `窝瓜压车` 动作里。
+        #   原来先 `_try_card('窝瓜')` 预扣，导致 w10 真该压车时卡已在 CD。
+
+    # ------------------------------------------------ 植物输出
+    def _tick_sun(self, c, spec):
+        """阳光生产：向日葵 25/24s、双子花 50/24s、阳光菇 小 15 → 大 25。
+
+        ⚠️ 生产节奏（24s / 首次 ~6s / 阳光菇 120s 长大）用的是 wiki 常用值，
+           没有在 [精] 里逐 cs 标注 —— 只影响经济收支，不影响波长与 CD 结论。
+        """
+        if spec.get('sun_small') is not None:
+            if not c.grown and self.t - getattr(c, 'sun_born', 0) >= spec.get(
+                    'grow_cs', 12000):
+                c.grown = True
+                self._log('INFO', '%d-%d 的阳光菇长大了' % (c.row, c.col),
+                          row=c.row, col=c.col, detail='小 15 → 大 25')
+            amount = spec['sun_big'] if c.grown else spec['sun_small']
+        else:
+            amount = spec['sun']
+        c.sun_t += D.TICK
+        if c.sun_t < spec['interval']:
+            return
+        c.sun_t = 0
+        self.sun = min(D.SUN_CAP, self.sun + amount)
+        if self.sun >= D.SUN_CAP:
+            self.sun_capped = True
+        if self.sun > self.sun_peak:
+            self.sun_peak = self.sun
+
+    def _tick_plants(self):
+        for c in self.cells.values():
+            if not c.plant:
+                continue
+            spec = D.PLANTS.get(c.plant)
+            if not spec:
+                continue
+            # ★ 2026-10-22：白天场的蘑菇是**睡着的**，没被咖啡豆唤醒就完全无行为
+            if not c.awake:
+                continue
+            if spec.get('sun') or spec.get('sun_small'):
+                self._tick_sun(c, spec)
+            # ★ 磁力菇：每 50cs 看一次，把范围内的金属护具吸走
+            if spec.get('magnet'):
+                c.magnet_t += D.TICK
+                if c.magnet_t >= 50:
+                    c.magnet_t = 0
+                    self._magnet(c, spec['magnet'])
+                continue
+            if spec.get('shoot'):
+                c.atk_t += D.TICK
+                if c.atk_t >= spec['interval']:
+                    c.atk_t = 0
+                    self._shoot(c, spec)
+                continue
+            if not spec['interval'] or not spec['dmg']:
+                continue
+            c.atk_t += D.TICK
+            if c.atk_t < spec['interval']:
+                continue
+            c.atk_t = 0
+            self._attack(c, spec)
+
+    def _magnet(self, c, rng_pair):
+        """磁力菇：吸走金属护具（[精 六] R=270；对啃食者 R=320）+ 吸走扶梯的梯子"""
+        r_norm, r_eat = rng_pair
+        best = None
+        for z in self.by_row[c.row]:
+            if not z.alive or not z.armor or z.kind in D.MAGNET_SKIP:
+                continue
+            r = r_eat if z.eating is not None else r_norm
+            d = abs(z.x - c.x)
+            if d <= r and (best is None or d < best[0]):
+                best = (d, z)
+        if best is None:
+            return
+        z = best[1]
+        drop = z.armor
+        z.hp -= 0                       # 护具是被"摘掉"而不是受伤
+        z.armor = 0
+        z.hp0 = max(1, z.hp0 - drop)
+        z.hp = min(z.hp, z.hp0)
+        self._log('REPAIR', '磁力菇吸走 %d 路 %s 的金属护具（−%d 护甲血）'
+                  % (z.row, z.kind, drop), row=c.row, col=c.col,
+                  detail='R=%d · 剩下的只有本体血' % r_norm)
+
+    def _shoot(self, c, spec):
+        """直线射手（双向射手 / 机枪射手 …）。
+
+        简化模型：不做逐颗子弹飞行，**按命中延迟把伤害排进 pending**，
+        判定沿用"攻击框与受击框相交"。火炬树桩在**同一行更右边**时，
+        豌豆穿过它 → 伤害 ×2（[精 七] 火豌豆），并带 40/n 溅射（上限 13）。
+        """
+        sh = spec['shoot']
+        dmg = sh['dmg']
+        torch = self._torch_ahead(c)
+        if torch:
+            dmg *= torch['mult']
+        for d in sh.get('delays', (25,)):
+            for _ in range(sh.get('front', 1)):
+                self.pending.append((self.t + d, c.row, 1, c.x + 60, 9000, dmg))
+            for _ in range(sh.get('back', 0)):
+                self.pending.append((self.t + d, c.row, 1, 0, c.x - 20, dmg))
+
+    def _torch_ahead(self, c):
+        """同一行里 c 右侧最近的活着的火炬树桩（豌豆会穿过它）"""
+        for col in range(c.col + 1, 10):
+            cc = self.cells.get((c.row, col))
+            if cc is not None and cc.plant == '火炬树桩' and cc.awake:
+                return D.PLANTS['火炬树桩']['torch']
+        return None
+
+    def _attack(self, c, spec):
+        # [维 05] 可伤条件：防御域左端 ≤ 800
+        # [精] "僵尸可伤条件：防御域左端 ≤ 800"
+        #   x 取僵尸中心、防御域宽 72 → 左端 = x - 36。
+        #   原来写成 x + 36 ≤ 800（把右端当左端），等于凭空砍掉 36px≈250cs 的可伤时间。
+        def ok(z):
+            # [精] "防御域左端 ≤ 800"。左界 = x + 横偏（普僵 +36，巨人 +0）
+            return z.alive and self._dbox(z)[0] <= D.DMG_LINE
+
+        if spec['rng'] is None:
+            if spec['rows'] >= self.rows:
+                cand = [z for r in range(1, self.rows + 1) for z in self.by_row[r] if ok(z)]
+            else:
+                cand = [z for z in self.by_row[c.row] if ok(z)]
+            if not cand:
+                return
+            t = min(cand, key=lambda z: z.x)
+            t.hp -= spec['dmg']
+            self.dmg_dealt += spec['dmg']
+            if spec.get('splash'):
+                # ★ 溅射：与僵尸**受击框**相交即算（不是比中心点）——
+                #   用户指出的原理：受击框沾边就吃溅射，所以"看起来 61 像素，
+                #   实际要广一些"。
+                s_lo = t.x + D.SPLASH_LO
+                s_hi = t.x + D.SPLASH_HI
+                near = []
+                for rr in range(c.row - 1, c.row + 2):
+                    for z in self.by_row.get(rr, ()):
+                        if z is t or not z.alive:
+                            continue
+                        zl, zr = self._dbox(z)
+                        if zr >= s_lo and zl <= s_hi:
+                            near.append(z)
+                # [精 七] 伤害 = 574 / n，上限 26
+                # [精 七] 伤害 = 574 / n（n = 溅射僵尸数，**不含被直击那只**），
+                #   取整，上限 26，**下限 1**
+                deal = spec['splash']
+                if near and spec.get('splash_div'):
+                    deal = max(1, min(spec['splash'],
+                                      int(spec['splash_div'] / len(near))))
+                for z in near:
+                    z.hp -= deal
+                    self.dmg_dealt += deal
+                    if spec.get('slow'):
+                        z.slowed_until = max(z.slowed_until, self.t + D.CHILL_CS)
+                if spec.get('slow'):
+                    t.slowed_until = max(t.slowed_until, self.t + D.CHILL_CS)
+            return
+
+        lo, hi = spec['rng']
+        lo_x, hi_x = c.x + lo, c.x + hi
+        delays = spec.get('hit_delays')
+        if delays:
+            # ★ 忧郁菇的一轮是**4 次命中**（74/102/130/158cs 各 20 伤害）。
+            #   以前合并成"一次 80"，会让"僵尸在 4 次命中之间死亡"这件事
+            #   完全体现不出来 —— 死亡时刻、溢出、后续僵尸进射程全都不准。
+            for d in delays:
+                self.pending.append((self.t + d, c.row, spec['rows'], lo_x, hi_x,
+                                     spec['dmg']))
+            return
+        # 大喷菇：一轮 1 次 20，立刻结算
+        half = spec['rows'] // 2
+        for rr in range(c.row - half, c.row + half + 1):
+            lst = self.by_row.get(rr)
+            if not lst:
+                continue
+            deal = spec['dmg']
+            for z in lst:
+                # ★ 用各自的防御框求相交（巨人的框宽得多，能多吃到左边一格）
+                zl, zr = self._dbox(z)
+                if ok(z) and zr >= lo_x and zl <= hi_x:
+                    z.hp -= deal
+                    self.dmg_dealt += deal
+
+    def _tick_events(self):
+        """
+        到点的事件 → 执行；带 `trig` 的先求值（fire/wait/expire）。
+
+        ★ v0.2：阵解栏里的积木可以挂"卡片 CD / 距离 / 状态"触发器 ——
+          这类条件不是编译期能算出来的，只能每 tick 看一眼。
+        """
+        if not self.events:
+            return
+        due, keep = [], []
+        for e in self.events:
+            if e['t'] > self.t:
+                keep.append(e)
+                continue
+            trig = e.get('trig')
+            if not trig:
+                due.append(e)
+                continue
+            if 'born' not in e:
+                e['born'] = self.t          # 从"够早"这一刻开始计时
+            st = self._eval_trig(trig)
+            if st == 'fire':
+                due.append(e)
+            elif st == 'wait':
+                if self.t - e['born'] > e.get('ttl', _TRIG_TTL):
+                    self.broken.append(dict(t=self.t, wave=e['wave'], what=e['name'],
+                                            why='触发器超时（%s）'
+                                                % (trig.get('kind') or '?')))
+                else:
+                    keep.append(e)
+            # expire → 直接丢弃（条件是"再也不可能满足"）
+        self.events = keep
+        for e in due:
+            if e['kind'] == 'ice':
+                self._freeze()
+            else:
+                self.do_action(e)
+            self._repeat(e)
+
+    def _repeat(self, e):
+        """积木的"循环"：执行完再排下一次，直到次数用完或 while 不成立"""
+        rp = e.get('repeat')
+        if not rp:
+            return
+        n = e.get('rep_n', 0) + 1
+        times = rp.get('times')
+        if times is not None and n >= int(times):
+            return
+        nxt = dict(e)
+        nxt['t'] = self.t + int(rp.get('every') or 100)
+        nxt['rep_n'] = n
+        nxt['trig'] = rp.get('while') or {'kind': 'spawn'}
+        nxt.pop('born', None)
+        self.events.append(nxt)
+
+    def _tick_pending(self):
+        """结算到点的 AoE 命中（忧郁菇的 4 次命中分别落）"""
+        if not self.pending:
+            return
+        due = [p for p in self.pending if p[0] <= self.t]
+        if not due:
+            return
+        self.pending = [p for p in self.pending if p[0] > self.t]
+        for _, row, rows, lo_x, hi_x, dmg in due:
+            half = rows // 2
+            for rr in range(row - half, row + half + 1):
+                for z in self.by_row.get(rr, ()):
+                    if not z.alive:
+                        continue
+                    zl, zr = self._dbox(z)
+                    if zl > D.DMG_LINE:
+                        continue
+                    if zr >= lo_x and zl <= hi_x:
+                        z.hp -= dmg
+                        self.dmg_dealt += dmg
+
+    def _tick_slow_stat(self):
+        """统计前场僵尸处于减速状态的比例。
+
+        这是用户给的校验指标：
+        「实战中在轨道的 I 和冰瓜群体减速下，绝大多数时间几乎所有怪
+          （免控的冰车除外）都处于减速状态」
+        → 若模型算出来远低于此，说明减速模型（冰瓜索敌/溅射/持续）不对。
+        """
+        for z in self.zombies:
+            if not z.alive or z.kind == '冰车' or z.x > 700:
+                continue                  # 冰车免控；场外的不计
+            self.slow_samples += 1
+            if z.slowed_until > self.t:
+                self.slow_hits += 1
+
+    def _tick_skip(self):
+        """非模拟僵尸按"所在路的实际 dps"被清掉（不是固定寿命）"""
+        for m in self.waves:
+            if m['skip_hp'] <= 0:
+                continue
+            loss = 0.0
+            for e in m['skips']:
+                if e[0] <= 0:
+                    continue
+                d = min(e[0], e[1] * D.TICK / 100.0)
+                e[0] -= d
+                loss += d
+            m['skip_hp'] = max(0.0, m['skip_hp'] - loss)
+
+    # ------------------------------------------------ 刷新
+    def _avg_gap(self):
+        """
+        平均波长只统计**常规波**。
+
+        ★ 2026-10-20：w9 / w19 是"拖满 45s + 红字 7.2s"的收尾波，
+          w20 是清账波，它们的间隔不是"节奏"，混进去会把平均波长抬高。
+          用户看报告时要能分清"常规波长"和"收尾波确实更长"。
+        """
+        # 只取"常规 → 常规"的相邻对
+        bad = (9, 10, 19, 20)
+        gaps = []
+        for a, b in zip(self.waves, self.waves[1:]):
+            if a['wave'] in bad or b['wave'] in bad:
+                continue
+            gaps.append(b['t'] - a['t'])
+        if not gaps:
+            ts = [m['t'] for m in self.waves[-4:]]
+            if len(ts) < 2:
+                return 1500
+            return int((ts[-1] - ts[0]) / (len(ts) - 1))
+        return int(sum(gaps[-6:]) / len(gaps[-6:]))
+
+    def _k9_clear(self):
+        """5-9 是否没有冰道：这是 w11 点 5-9 核的前提"""
+        c = self.cells.get((5, 9))
+        return not (c is not None and c.iced)
+
+    def _snap_tick(self, alive):
+        """
+        每 1s 更新"当前波"的快照（HTML 报告 hover 用）。
+
+        记的是**这一刻的现场**：阳光、存冰、各卡剩余 CD、场上植物、
+        以及每路僵尸推到第几列。波结束时保留最后一帧，就是"本波打到哪了"。
+        """
+        w = self.cur_wave
+        sn = self.wave_snap.get(w)
+        if sn is None:
+            return
+        # ★★ 2026-10-20 用户："阵线栏应该写每一行僵尸所推进到的最深处，而不是本波结束的结果"。
+        #   所以这里是**累积最小值**，不是快照（波末往往僵尸已死光，快照看不出危险）。
+        #
+        # ★ 同事要求："阵线显示参差不齐，有的显示了水路有的没有，统一都显示" ——
+        #   所以固定输出 1~6 路，这一波没僵尸的填 None（报告里显示"无"）。
+        #
+        # ★ 用户认可的口径：海豚 / 矿工 / 小鬼 这一类"已脱离僵尸阵线"的僵尸**不进阵线**
+        #   （它们会造成磨损，但不沿 1~6 路推进）。这类僵尸本来就在 SKIP_KINDS 里、
+        #   不进 self.zombies，所以这里天然看不到 —— 用 FRONT_EXCLUDE 显式挡一道，
+        #   防止以后有人把某种僵尸从 SKIP 里挪出来时又混进阵线。
+        deep = sn.setdefault('front_raw', {})
+        for z in alive:
+            if z.kind in D.FRONT_EXCLUDE:
+                continue
+            col = (z.x - 40) / 80.0 + 1
+            k = str(z.row)
+            if deep.get(k) is None or col < deep[k]:
+                deep[k] = col
+        sn['front'] = {str(r): (round(deep[str(r)], 2)
+                                if deep.get(str(r)) is not None else None)
+                       for r in range(1, self.rows + 1)}
+        sn['sun_end'] = round(self.sun)
+        sn['ice_end'] = self.ice_stock     # ★ 波首的 sun / ice 保留在 spawn_wave 里，别覆盖
+        sn['alive'] = len(alive)
+        sn['cards_end'] = {k: max(0, v - self.t) for k, v in self.card_ready.items()}
+        pc = {}
+        for (rr, cc), cell in self.cells.items():
+            if cell.plant:
+                pc[cell.plant] = pc.get(cell.plant, 0) + 1
+        sn['plants'] = pc
+        sn['pumpkin'] = sum(1 for (rr, cc), cell in self.cells.items()
+                            if self.array.get((rr, cc), {}).get('pumpkin') and cell.pumpkin)
+        sn['t_last'] = self.t
+
+    def _tick_refresh(self):
+        m = self.wave_meta
+        if m is None:
+            if self.t >= D.R0_FIRST:
+                self.spawn_wave(1)
+            return
+        if self.done:
+            return
+        m['age'] = self.t - m['t']
+        remain = m['skip_hp']
+        for z in m['zs']:
+            if z.alive:
+                remain += z.hp
+        m['remain'] = remain
+
+        w = m['wave']
+        nxt = None
+        # ★ w9/w19 的"拖时间"是**玩家策略**，不是机制。
+        #   有巨人的档才需要拖（等炮装填 / 等巨人走到落点）；
+        #   快速/极速档全是脆皮，玩家根本不会停 —— 硬编码成机制会让波长虚高 50%。
+        if w in (9, 19) and self.stall_waves:
+            if remain <= 0 or m['age'] >= D.FLAG_STALL:
+                if m.get('stall') is None:
+                    m['stall'] = self.t
+                    m['reason'] = '清完' if remain <= 0 else '拖满 45s'
+                    # ★ 2026-10-20：w9/w19 一进入"等红字"阶段就**锁住窝瓜**，
+                    #   因为它必须留给下一波（w10 压冰车 / w20 清账）。
+                    #   原来红字这 7.2s 里救场还能把窝瓜抢去砸红眼，
+                    #   结果 w10 开局窝瓜在 CD，5-9 就被冰车铺了。
+                    if w == 9:
+                        self.tomato_busy_until = self.t + D.FLAG_DELAY + 8000
+                if self.t - m['stall'] >= D.FLAG_DELAY:
+                    nxt = self.t
+        elif w == 20:
+            if remain <= 0 or m['age'] >= D.FINAL_STALL:
+                if m.get('stall') is None:
+                    m['stall'] = self.t
+                    m['reason'] = '清完' if remain <= 0 else '拖满 49s'
+                if self.t - m['stall'] >= D.FINAL_DELAY:
+                    self.done = True
+                    return
+        else:
+            if m['age'] >= D.R1_MIN_GAP:
+                if m.get('trig') is None:
+                    if m['total_hp'] > 0 and remain / m['total_hp'] < m['thr']:
+                        m['trig'] = self.t
+                        m['reason'] = 'R2 血线 %.2f' % m['thr']
+                    elif m['age'] >= m['hard']:
+                        m['trig'] = self.t
+                        m['reason'] = 'R3 硬顶 %d' % m['hard']
+                if m.get('trig') is not None and self.t - m['trig'] >= D.R2_VACUUM:
+                    nxt = self.t
+
+        if nxt is not None:
+            if w >= self.total_waves:
+                self.done = True
+                return
+            self.spawn_wave(w + 1)
+
+    def _check_fail(self):
+        if self.fail:
+            return
+        for z in self.zombies:
+            if z.alive and z.x <= -20:
+                self._fatal('进家：%s / 第 %d 路' % (z.kind, z.row),
+                            '走到 x=%d' % z.x, row=z.row)
+
+    def _cleanup(self):
+        for z in self.zombies:
+            if z.alive and z.hp <= 0:
+                z.alive = False
+                self.n_kill += 1
+                if z.kind == '冰车':
+                    self.car_audit.append(dict(wave=z.wave, row=z.row,
+                                               min_x=round(z.min_x),
+                                               verdict='死在 x=%d（没摸到植物）' % round(z.min_x),
+                                               crush=False))
+                if z.kind == '白眼':
+                    # 巨人丢小鬼：期望型（后场曾负责），按其所在路的 dps 清掉
+                    if self.wave_meta:
+                        m = self.wave_meta
+                        m['skip_hp'] += D.ZOMB['小鬼'][0]
+                        m['skips'].append([float(D.ZOMB['小鬼'][0]),
+                                           D.SKIP_DPS.get(z.row, 150.0)])
+        if self.t % 500 == 0:
+            self.zombies = [z for z in self.zombies if z.alive]
+
+    # ------------------------------------------------ 维护层（补南瓜）
+    def _tick_repair(self):
+        """
+        南瓜是耗材，实战里是"边打边补"的。不补 → 任何阵都会被磨死，
+        这不是轨道的问题，是没模拟玩家最基本的维护动作。
+        双南瓜配置下两张卡共用同一条 CD（保守做法：只当一张用，需要时可改）。
+        """
+        if not self.repair:
+            return
+        need = []
+        for (r, c), spec in self.array.items():
+            if not spec.get('pumpkin'):
+                continue
+            cell = self.cells.get((r, c))
+            if cell is None or cell.pumpkin:
+                continue
+            if cell.plant is None and not spec.get('plant'):
+                continue                       # 已经彻底空的格子不用补
+            need.append((r, c))
+        if not need:
+            return
+        need.sort(key=lambda rc: -rc[1])       # 前场优先
+        for (r, c) in need:
+            if not self._try_card('南瓜'):
+                break
+            cell = self.cells[(r, c)]
+            cell.pumpkin = True
+            cell.pumpkin_hp = D.PUMPKIN_HP
+            cell.ladder = False                # 补南瓜 = 梯子没了
+            self._log('REPAIR', '补南瓜 %d-%d' % (r, c), row=r, col=c,
+                      detail='125 阳光 · 该格梯子已失效')
+
+        # ★ 快速/极速关：CORE 植物毁掉后重建（"死了就补"）
+        for rec in self.rebuilds:
+            if rec['done']:
+                continue
+            rc = (rec['row'], rec['col'])
+            spec = self.array.get(rc) or {}
+            cell = self.cells.get(rc)
+            if cell is None:
+                rec['done'] = True
+                continue
+            if cell.plant is not None:
+                rec['done'] = True
+                continue
+            pname = rec.get('plant') or spec.get('plant')
+            if not pname:
+                rec['done'] = True
+                continue
+            cost = D.PLANT_COST.get(pname, 200)
+            if self.sun < cost:
+                continue
+            self.sun -= cost
+            cell.plant = pname
+            cell.plant_hp = D.PLANTS.get(pname, {}).get('hp', 300)
+            rec['done'] = True
+            self._log('REBUILD', '重建 %d-%d 的%s（%d 阳光）'
+                      % (rc[0], rc[1], cell.plant, cost), row=rc[0], col=rc[1],
+                      detail='w%d 被毁 → 补回' % rec['wave'])
+
+    # ------------------------------------------------ 报告
+    def report(self):
+        pump = {}
+        init = sum(D.PUMPKIN_HP for sp in self.array.values() if sp.get('pumpkin'))
+        now = 0.0
+        for (r, c), cell in self.cells.items():
+            if self.array.get((r, c), {}).get('pumpkin'):
+                pump['%d-%d' % (r, c)] = round(cell.pumpkin_hp)
+                now += cell.pumpkin_hp
+        lost_pump = sum(1 for (r, c), cell in self.cells.items()
+                        if self.array.get((r, c), {}).get('pumpkin') and not cell.pumpkin)
+        waves, prev = [], 0
+        for m in self.waves:
+            waves.append(dict(w=m['wave'], t=m['t'], gap=m['t'] - prev,
+                              total_hp=m['total_hp'], remain=round(m.get('remain', 0)),
+                              thr=round(m['thr'], 3), reason=m.get('reason')))
+            prev = m['t']
+        # ★★ 2026-10-20：wave_ctrl 里记的是 **track 排的计划**，
+        #   但救急层 / 维护层还会补发动作（极速关的存冰就是救急点的）。
+        #   表格要与时间轴一致，所以这里按**实际发生的 actions** 再聚合一遍：
+        #     ice_act / ash_act = 相对波首的偏移（cs），garlic = 本波补了几次蒜
+        t0_of = {w: (self.wave_snap.get(w) or {}).get('t0') for w in self.wave_ctrl}
+        for a in self.actions:
+            if not a.get('ok'):
+                continue
+            w = a.get('wave')
+            if w not in self.wave_ctrl:
+                continue
+            t0 = t0_of.get(w)
+            if t0 is None:
+                continue
+            off = a['t'] - t0
+            wc = self.wave_ctrl[w]
+            nm = a['name']
+            if nm in ('冰', '模仿冰', '存冰'):
+                if wc.get('ice_act') is None or off < wc['ice_act']:
+                    wc['ice_act'] = off
+            elif nm in ('核', '模仿核', '樱桃', '辣椒'):
+                if wc.get('ash_act') is None or off < wc['ash_act']:
+                    wc['ash_act'] = off
+            elif nm == '大蒜':
+                wc['garlic'] = wc.get('garlic', 0) + 1
+
+        return dict(
+            t_end=self.t,
+            waves=waves,
+            actions=self.actions,
+            broken=self.broken,
+            log=self.log,
+            sun_end=round(self.sun),
+            sun_peak=round(self.sun_peak),
+            sun_capped=self.sun_capped,
+            pumpkins=pump,
+            pumpkin_lost=lost_pump,
+            pump_dmg=round(init - now),
+            crush=self.crush,
+            ice_cells=sum(1 for c in self.cells.values() if c.iced),
+            ice_touched=len(self.ice_touched),
+            ice_blocks=sum(1 for b in self.broken if '冰道' in (b.get('why') or '')),
+            fail=self.fail,
+            done=self.done,
+            n_kill=self.n_kill,
+            dmg_dealt=round(self.dmg_dealt),
+            dps=round(self.dmg_dealt / max(1.0, self.t / 100.0)),
+            slow_cov=round(100.0 * self.slow_hits / self.slow_samples, 1) if self.slow_samples else 0.0,
+            n_rescue=sum(1 for x in self.log if x['sev'] == 'RESCUE'),
+            n_norescue=sum(1 for x in self.log if x['sev'] == 'NORESCUE'),
+            n_warn=sum(1 for x in self.log if x['sev'] == 'WARN'),
+            series=self.series,
+            wave_snap={str(k): v for k, v in self.wave_snap.items()},
+            # ★ 2026-10-20：来源/去向要**全量聚合**，不能只给前 40 条明细
+            #   （上一版 detail[:40] 截断，导致 table 里 20+20=40 与总数 93 对不上）
+            garlic=dict(n=len(self.garlic_swaps),
+                        broke=sum(1 for g in self.garlic_swaps if g['broke']),
+                        by_frm={str(r): sum(1 for g in self.garlic_swaps
+                                            if g['frm'] == r) for r in range(1, self.rows + 1)},
+                        by_to={str(r): sum(1 for g in self.garlic_swaps
+                                           if g['to'] == r) for r in range(1, self.rows + 1)},
+                        detail=self.garlic_swaps[:40]),
+            # ★ 极速关有车时的替代方案：2-7 / 5-7 结构位大喷（补了几次、被碾几次）
+            fog=dict(n=len(self.fog_fix),
+                     crushed=sum(1 for c in self.crush
+                                 if c.get('plant') == '大喷菇'
+                                 and (c.get('row'), c.get('col'))
+                                 in set(self.struct_fog_slots)),
+                     detail=self.fog_fix[:40]),
+            end_state=dict(
+                ice_stock=self.ice_stock,
+                ice_stock_perm=sum(1 for v in self.ice_slots.values() if v),
+                ice_stock_temp=sum(1 for v in self.temp_ice.values() if v),
+                ice_slots={'%d-%d' % rc: ('满' if v else '空')
+                           for rc, v in self.ice_slots.items()},
+                temp_ice={'%d-%d' % rc: ('满' if v else '空')
+                          for rc, v in self.temp_ice.items()},
+                ice_refill=self.ice_refill_n,
+                ice_temp_planted=self.ice_temp_n,
+                ice_refill_skip=self.ice_refill_skip,
+                ice_emerg=self.ice_emerg_n,
+                ice_used=sum(1 for x in self.log if x['sev'] == 'ICE'),
+                ice_chili_reuse=self.ice_chili_reuse,
+                row_min={r: (None if v > 9000 else round(v)) for r, v in self.row_min.items()},
+                core_x=dict(D.CORE_X),
+                cards={k: (0 if v <= self.t else round(v - self.t)) for k, v in self.card_ready.items()},
+                cards_ready=sum(1 for v in self.card_ready.values() if v <= self.t),
+                cars_spawned=len(self.car_audit),
+                cars_crushed=sum(1 for c in self.car_audit if c.get('crush')),
+                cars_min_x=(min((c['min_x'] for c in self.car_audit), default=None)),
+                cars_min_margin=(min((c['min_x'] - D.CORE_X.get(c['row'], 200)
+                                      for c in self.car_audit), default=None)),
+                pumpkins_alive=sum(1 for (r, c), cell in self.cells.items()
+                                   if self.array.get((r, c), {}).get('pumpkin') and cell.pumpkin),
+                plants_lost=[x['what'] for x in self.log if x['sev'] == 'WARN'],
+                repairs=sum(1 for x in self.log if x['sev'] == 'REPAIR'),
+                kernel_log=self.kernel_log,
+                joker=dict(
+                    spawned=getattr(self, '_joker_n', 0),
+                    spawned_rows={str(r): v for r, v in self.joker_row_n.items()},
+                    # ★ 用户 2026-10-19 定义的"炸率"：
+                    #   **小丑爆炸导致 CORE 被摧毁的概率**，在 PE.电波钟里
+                    #   特指 **2 路 / 5 路** 小丑爆炸的概率 —— 只有这两路
+                    #   的小丑爆炸会死 core（1/6 路 CORE 在 3 列，7-8 列炸不到；
+                    #   3/4 路根本不出小丑）。
+                    boom25=sum(1 for b in self.joker_boom if b['row'] in (2, 5)),
+                    spawn25=(self.joker_row_n.get(2, 0) + self.joker_row_n.get(5, 0)),
+                    core_kill=sum(1 for b in self.joker_boom
+                                  if any(k in ('忧郁菇', '冰瓜')
+                                         for k in b['killed'])),
+                    booms=len(self.joker_boom),
+                    boom_rows={str(r): sum(1 for b in self.joker_boom if b['row'] == r)
+                               for r in range(1, self.rows + 1)},
+                    kill=[b for b in self.joker_boom if b['killed']],
+                    detail=self.joker_boom[:30],
+                ),
+                bungee=self.bungee_risk,
+                wave_ctrl={str(k): v for k, v in self.wave_ctrl.items()},
+                rebuilds=self.rebuilds,
+            ),
+            car_audit=self.car_audit,
+            kernel_log=self.kernel_log,
+            joker=dict(
+                spawned=getattr(self, '_joker_n', 0),
+                booms=len(self.joker_boom),
+                boom_rows={r: sum(1 for b in self.joker_boom if b['row'] == r)
+                           for r in range(1, self.rows + 1)},
+                kill=[b for b in self.joker_boom if b['killed']],
+                detail=self.joker_boom[:30],
+            ),
+            bungee=self.bungee_risk,
+            wave_ctrl={str(k): v for k, v in self.wave_ctrl.items()},
+            rebuilds=self.rebuilds,
+            avg_gap=round((self.waves[-1]['t'] - self.waves[0]['t']) /
+                          max(1, len(self.waves) - 1)) if len(self.waves) > 1 else 0,
+        )

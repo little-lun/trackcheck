@@ -1,0 +1,63 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">
+<title>轨道验证器 · C4io 慢速关（N | AA&#x27; | I | I）</title>
+<style>
+body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;
+     background:#0f1115;color:#e6e6e6;margin:0;padding:28px 32px;line-height:1.7}
+h1{font-size:20px;margin:0 0 4px} h2{font-size:15px;margin:28px 0 10px;color:#9ad}
+.sub{color:#888;font-size:12px;margin-bottom:20px}
+table{border-collapse:collapse;width:100%;font-size:12px;margin:8px 0}
+th,td{border-bottom:1px solid #262a33;padding:5px 8px;text-align:left}
+th{color:#8b93a7;font-weight:500}
+tr.ok td:nth-child(6){color:#3fb950} tr.bad td:nth-child(6){color:#f85149}
+.cards{display:flex;flex-wrap:wrap;gap:10px}
+.kpi{background:#171a21;border:1px solid #262a33;border-radius:8px;padding:12px 16px;min-width:130px}
+.kpi b{display:block;font-size:22px;color:#fff}
+.kpi span{font-size:11px;color:#8b93a7}
+.cell{background:#171a21;border:1px solid #262a33;border-radius:6px;padding:6px 10px;font-size:11px;color:#8b93a7}
+.cell b{color:#e6e6e6;font-size:13px}
+.note{background:#1a1d24;border-left:3px solid #d29922;padding:10px 14px;font-size:12px;color:#c9d1d9;margin:14px 0}
+.warn{border-left-color:#f85149}
+</style></head><body>
+<h1>轨道验证器 · C4io 慢速关（N | AA&#x27; | I | I）</h1>
+<div class="sub">阵型：PE.电波钟无炮 ｜ 种子 6 个 ｜ 生成时间见文件属性</div>
+
+<div class="cards">
+  <div class="kpi"><b>0/6</b><span>零断裂且跑完 20 波</span></div>
+  <div class="kpi"><b>19.1s</b><span>平均波长</span></div>
+  <div class="kpi"><b>0.0</b><span>南瓜平均打穿（共 24）</span></div>
+  <div class="kpi"><b>1750</b><span>结余阳光</span></div>
+</div>
+
+<div class="note">
+<b>L1 是确定层，L2 是近似层。</b>
+L1（卡 CD / 运算量 / 阳光）不依赖任何物理假设，结论可以直接信；
+L2（刷新、损耗）依赖速度与血量模型，看趋势不看小数点。
+</div>
+
+<h2>L1 · 卡 CD（零误差）</h2>
+<div class="sub">循环 4 波 × 19.06s = 76.2s</div>
+<table><tr><th>卡片</th><th>用次</th><th>实际间隔</th><th>卡片 CD</th><th>余量</th><th>结论</th></tr>
+<tr class="ok"><td>核</td><td>1</td><td>76.2s</td><td>50.0s</td><td>26.2s</td><td>OK</td></tr><tr class="ok"><td>樱桃</td><td>1</td><td>76.2s</td><td>50.0s</td><td>26.2s</td><td>OK</td></tr><tr class="ok"><td>辣椒</td><td>1</td><td>76.2s</td><td>50.0s</td><td>26.2s</td><td>OK</td></tr><tr class="ok"><td>冰</td><td>1</td><td>76.2s</td><td>50.0s</td><td>26.2s</td><td>OK</td></tr><tr class="ok"><td>模仿冰</td><td>1</td><td>76.2s</td><td>50.0s</td><td>26.2s</td><td>OK</td></tr></table>
+<div class="sub">运算量：轨道给 4，需求 8（4 波 × 2），缺口 4 → 由 IO 补</div>
+<div class="sub">阳光：收入 953 / 循环，支出 550，净 +403</div>
+
+<h2>L2 · 逐波明细（seed 0）</h2>
+<svg viewBox="0 0 1000 220" width="100%" style="max-width:1000px"><line x1="40" y1="195" x2="980" y2="195" stroke="#ddd"/><rect x="40.0" y="151.2" width="82.2" height="43.8" fill="#5b8def" opacity="0.75"/><text x="81.1" y="210.0" font-size="9" fill="#666" text-anchor="middle">1</text><rect x="157.5" y="25.0" width="82.2" height="170.0" fill="#5b8def" opacity="0.75"/><text x="198.6" y="210.0" font-size="9" fill="#666" text-anchor="middle">2</text><rect x="275.0" y="135.9" width="82.2" height="59.1" fill="#5b8def" opacity="0.75"/><text x="316.1" y="210.0" font-size="9" fill="#666" text-anchor="middle">3</text><rect x="392.5" y="51.3" width="82.2" height="143.7" fill="#5b8def" opacity="0.75"/><text x="433.6" y="210.0" font-size="9" fill="#666" text-anchor="middle">4</text><rect x="510.0" y="84.8" width="82.2" height="110.2" fill="#5b8def" opacity="0.75"/><text x="551.1" y="210.0" font-size="9" fill="#666" text-anchor="middle">5</text><rect x="627.5" y="81.5" width="82.2" height="113.5" fill="#5b8def" opacity="0.75"/><text x="668.6" y="210.0" font-size="9" fill="#666" text-anchor="middle">6</text><rect x="745.0" y="45.8" width="82.2" height="149.2" fill="#5b8def" opacity="0.75"/><text x="786.1" y="210.0" font-size="9" fill="#666" text-anchor="middle">7</text><rect x="862.5" y="80.1" width="82.2" height="114.9" fill="#5b8def" opacity="0.75"/><text x="903.6" y="210.0" font-size="9" fill="#666" text-anchor="middle">8</text><polyline points="81.1,113.2 198.6,65.3 316.1,120.8 433.6,119.8 551.1,98.2 668.6,115.3 786.1,102.4 903.6,147.5" fill="none" stroke="#e2574c" stroke-width="2"/><text x="4" y="20" font-size="10" fill="#888">柱=波长(最大23.3s)</text><text x="4" y="34" font-size="10" fill="#e2574c">线=波尾剩余血量比</text></svg>
+<table><tr><th>波</th><th>刷新(s)</th><th>间隔(s)</th><th>本波总血</th>
+<th>波尾剩余</th><th>阈值</th><th>刷新原因</th></tr>
+<tr><td>1</td><td>6.00</td><td>6.00</td><td>83250</td><td>40050</td><td>0.52</td><td>R2 血线 0.52</td></tr><tr><td>2</td><td>29.30</td><td>23.30</td><td>55560</td><td>42404</td><td>0.65</td><td>R2 血线 0.65</td></tr><tr><td>3</td><td>37.40</td><td>8.10</td><td>64300</td><td>28050</td><td>0.50</td><td>R2 血线 0.50</td></tr><tr><td>4</td><td>57.10</td><td>19.70</td><td>57420</td><td>25400</td><td>0.61</td><td>R2 血线 0.61</td></tr><tr><td>5</td><td>72.20</td><td>15.10</td><td>75940</td><td>43253</td><td>0.65</td><td>R2 血线 0.65</td></tr><tr><td>6</td><td>87.75</td><td>15.55</td><td>80490</td><td>37742</td><td>0.51</td><td>R2 血线 0.51</td></tr><tr><td>7</td><td>108.20</td><td>20.45</td><td>66570</td><td>36259</td><td>0.62</td><td>R2 血线 0.62</td></tr><tr><td>8</td><td>123.95</td><td>15.75</td><td>69480</td><td>19400</td><td>0.66</td><td></td></tr></table>
+
+<h2>南瓜血线（seed 0 结束时）</h2>
+<div class="cards"><div class="cell">1-1<br><b>4000</b></div><div class="cell">1-2<br><b>4000</b></div><div class="cell">1-3<br><b>4000</b></div><div class="cell">1-4<br><b>4000</b></div><div class="cell">2-1<br><b>4000</b></div><div class="cell">2-2<br><b>4000</b></div><div class="cell">2-3<br><b>4000</b></div><div class="cell">2-4<br><b>4000</b></div><div class="cell">3-6<br><b>4000</b></div><div class="cell">3-7<br><b>4000</b></div><div class="cell">3-8<br><b>4000</b></div><div class="cell">3-9<br><b>4000</b></div><div class="cell">4-6<br><b>4000</b></div><div class="cell">4-7<br><b>4000</b></div><div class="cell">4-8<br><b>4000</b></div><div class="cell">4-9<br><b>4000</b></div><div class="cell">5-1<br><b>4000</b></div><div class="cell">5-2<br><b>4000</b></div><div class="cell">5-3<br><b>4000</b></div><div class="cell">5-4<br><b>4000</b></div><div class="cell">6-1<br><b>4000</b></div><div class="cell">6-2<br><b>4000</b></div><div class="cell">6-3<br><b>4000</b></div><div class="cell">6-4<br><b>4000</b></div></div>
+
+<h2>轨道断裂</h2>
+<ul style="font-size:12px;color:#f0883e"><li>樱桃 @w6 × 6</li><li>樱桃 @w2 × 5</li><li>核 @w5 × 5</li><li>核 @w9 × 4</li><li>樱桃 @w14 × 3</li><li>樱桃 @w18 × 3</li><li>核 @w13 × 2</li><li>核 @w17 × 2</li></ul>
+
+<div class="note warn">
+<b>已知误差来源（务必先读）：</b><br>
+① 出怪脚本是<b>占位</b>，不是真实出怪 → L2 的绝对数值不可用，只能看趋势；<br>
+② 僵尸速度基准 361cs/格 是由 06 的关键波长表反推的，与"普僵 4.7s/格"的社区口径冲突 30%；<br>
+③ 未建模：小丑爆炸、冰车碾压、矿工、蹦极、投篮、舞王召唤、珊瑚；<br>
+④ 目标选择规则被简化（忧郁菇打范围内全部、冰瓜打最前一只）。
+</div>
+</body></html>

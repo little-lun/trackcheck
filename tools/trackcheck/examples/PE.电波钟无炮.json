@@ -1,0 +1,2742 @@
+{
+  "format": "trackcheck-plan/3",
+  "name": "PE.电波钟无炮",
+  "note": "C4io 判定式轨道的积木化版本（内置判定轨道仍可用，两者可同场对比）",
+  "deck": [
+    "寒冰菇",
+    "模仿寒冰菇",
+    "毁灭菇",
+    "樱桃",
+    "辣椒",
+    "窝瓜",
+    "小喷菇",
+    "花盆",
+    "南瓜",
+    "咖啡豆"
+  ],
+  "rhythm": {
+    "system": "C",
+    "name": "C4io",
+    "beats": [
+      "N",
+      "AA'",
+      "I",
+      "I"
+    ],
+    "note": "4 拍循环；N=毁灭菇、A=樱桃、A′=辣椒、I=寒冰菇"
+  },
+  "waves": [
+    {
+      "w": 1,
+      "role": "起手",
+      "note": "C4io 锚点：2-9 反应核 + 两个前场临时存冰（I / I′ 各一张）",
+      "sets": [
+        {
+          "when": {
+            "kind": "card_ready",
+            "card": "毁灭菇"
+          },
+          "ops": [
+            {
+              "op": "毁灭菇",
+              "aim": [
+                2,
+                9
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            },
+            {
+              "op": "寒冰菇",
+              "aim": [
+                2,
+                7
+              ],
+              "trig": {
+                "kind": "time",
+                "at": 0
+              }
+            },
+            {
+              "op": "模仿寒冰菇",
+              "aim": [
+                5,
+                7
+              ],
+              "trig": {
+                "kind": "time",
+                "at": 400
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "plant_count",
+            "plant": "寒冰菇",
+            "cmp": ">=",
+            "value": 1
+          },
+          "ops": [
+            {
+              "op": "咖啡豆",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "寒冰菇",
+              "aim": [
+                2,
+                7
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "w": 2,
+      "role": "常规",
+      "note": "AA′：2-8 樱桃 + 5 路辣椒；缺一张就先拆开用",
+      "sets": [
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "毁灭菇"
+              },
+              {
+                "kind": "any",
+                "of": [
+                  {
+                    "kind": "card_ready",
+                    "card": "樱桃"
+                  },
+                  {
+                    "kind": "card_ready",
+                    "card": "辣椒"
+                  }
+                ]
+              },
+              {
+                "kind": "kernel_slack"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "毁灭菇",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                2,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            },
+            {
+              "op": "辣椒",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "any",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "plant_count",
+            "plant": "寒冰菇",
+            "cmp": ">=",
+            "value": 1
+          },
+          "ops": [
+            {
+              "op": "咖啡豆",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "寒冰菇",
+              "aim": null,
+              "trig": {
+                "kind": "card",
+                "name": "寒冰菇"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "w": 3,
+      "role": "常规",
+      "note": "铺节奏",
+      "sets": [
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "毁灭菇"
+              },
+              {
+                "kind": "any",
+                "of": [
+                  {
+                    "kind": "card_ready",
+                    "card": "樱桃"
+                  },
+                  {
+                    "kind": "card_ready",
+                    "card": "辣椒"
+                  }
+                ]
+              },
+              {
+                "kind": "kernel_slack"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "毁灭菇",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                2,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            },
+            {
+              "op": "辣椒",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "any",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "plant_count",
+            "plant": "寒冰菇",
+            "cmp": ">=",
+            "value": 1
+          },
+          "ops": [
+            {
+              "op": "咖啡豆",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "寒冰菇",
+              "aim": null,
+              "trig": {
+                "kind": "card",
+                "name": "寒冰菇"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "w": 4,
+      "role": "常规",
+      "note": "补 AA′ 的欠账",
+      "sets": [
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "毁灭菇"
+              },
+              {
+                "kind": "any",
+                "of": [
+                  {
+                    "kind": "card_ready",
+                    "card": "樱桃"
+                  },
+                  {
+                    "kind": "card_ready",
+                    "card": "辣椒"
+                  }
+                ]
+              },
+              {
+                "kind": "kernel_slack"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "毁灭菇",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                2,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            },
+            {
+              "op": "辣椒",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "any",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "plant_count",
+            "plant": "寒冰菇",
+            "cmp": ">=",
+            "value": 1
+          },
+          "ops": [
+            {
+              "op": "咖啡豆",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "寒冰菇",
+              "aim": null,
+              "trig": {
+                "kind": "card",
+                "name": "寒冰菇"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "w": 5,
+      "role": "常规",
+      "note": "C4io：N → AA′ → I → I，按 CD + 坑位择一拍",
+      "sets": [
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "毁灭菇"
+              },
+              {
+                "kind": "any",
+                "of": [
+                  {
+                    "kind": "card_ready",
+                    "card": "樱桃"
+                  },
+                  {
+                    "kind": "card_ready",
+                    "card": "辣椒"
+                  }
+                ]
+              },
+              {
+                "kind": "kernel_slack"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "毁灭菇",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                2,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            },
+            {
+              "op": "辣椒",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "any",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "plant_count",
+            "plant": "寒冰菇",
+            "cmp": ">=",
+            "value": 1
+          },
+          "ops": [
+            {
+              "op": "咖啡豆",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "寒冰菇",
+              "aim": null,
+              "trig": {
+                "kind": "card",
+                "name": "寒冰菇"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "w": 6,
+      "role": "常规",
+      "note": "C4io：N → AA′ → I → I，按 CD + 坑位择一拍",
+      "sets": [
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "毁灭菇"
+              },
+              {
+                "kind": "any",
+                "of": [
+                  {
+                    "kind": "card_ready",
+                    "card": "樱桃"
+                  },
+                  {
+                    "kind": "card_ready",
+                    "card": "辣椒"
+                  }
+                ]
+              },
+              {
+                "kind": "kernel_slack"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "毁灭菇",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                2,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            },
+            {
+              "op": "辣椒",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "any",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "plant_count",
+            "plant": "寒冰菇",
+            "cmp": ">=",
+            "value": 1
+          },
+          "ops": [
+            {
+              "op": "咖啡豆",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "寒冰菇",
+              "aim": null,
+              "trig": {
+                "kind": "card",
+                "name": "寒冰菇"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "w": 7,
+      "role": "常规",
+      "note": "C4io：N → AA′ → I → I，按 CD + 坑位择一拍",
+      "sets": [
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "毁灭菇"
+              },
+              {
+                "kind": "any",
+                "of": [
+                  {
+                    "kind": "card_ready",
+                    "card": "樱桃"
+                  },
+                  {
+                    "kind": "card_ready",
+                    "card": "辣椒"
+                  }
+                ]
+              },
+              {
+                "kind": "kernel_slack"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "毁灭菇",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                2,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            },
+            {
+              "op": "辣椒",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "any",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "plant_count",
+            "plant": "寒冰菇",
+            "cmp": ">=",
+            "value": 1
+          },
+          "ops": [
+            {
+              "op": "咖啡豆",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "寒冰菇",
+              "aim": null,
+              "trig": {
+                "kind": "card",
+                "name": "寒冰菇"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "w": 8,
+      "role": "常规",
+      "note": "C4io：N → AA′ → I → I，按 CD + 坑位择一拍",
+      "sets": [
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "毁灭菇"
+              },
+              {
+                "kind": "any",
+                "of": [
+                  {
+                    "kind": "card_ready",
+                    "card": "樱桃"
+                  },
+                  {
+                    "kind": "card_ready",
+                    "card": "辣椒"
+                  }
+                ]
+              },
+              {
+                "kind": "kernel_slack"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "毁灭菇",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                2,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            },
+            {
+              "op": "辣椒",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "any",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "plant_count",
+            "plant": "寒冰菇",
+            "cmp": ">=",
+            "value": 1
+          },
+          "ops": [
+            {
+              "op": "咖啡豆",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "寒冰菇",
+              "aim": null,
+              "trig": {
+                "kind": "card",
+                "name": "寒冰菇"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "w": 9,
+      "role": "收尾",
+      "note": "收尾波：照常控丑，但不点核（留给下一个旗波锚点）",
+      "sets": [
+        {
+          "when": {
+            "kind": "any",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                2,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            },
+            {
+              "op": "辣椒",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "plant_count",
+            "plant": "寒冰菇",
+            "cmp": ">=",
+            "value": 1
+          },
+          "ops": [
+            {
+              "op": "咖啡豆",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "寒冰菇",
+              "aim": null,
+              "trig": {
+                "kind": "card",
+                "name": "寒冰菇"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "w": 10,
+      "role": "旗波",
+      "note": "旗波：冰杀蹦极 + w10 窝瓜压车保 5-9 核坑",
+      "sets": [
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "咖啡豆",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            },
+            {
+              "op": "窝瓜压车",
+              "aim": null,
+              "trig": {
+                "kind": "time",
+                "at": 0
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "plant_count",
+            "plant": "寒冰菇",
+            "cmp": "<=",
+            "value": 0
+          },
+          "ops": [
+            {
+              "op": "寒冰菇",
+              "aim": null,
+              "trig": {
+                "kind": "card",
+                "name": "寒冰菇"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "w": 11,
+      "role": "常规",
+      "note": "C4io：N → AA′ → I → I，按 CD + 坑位择一拍",
+      "sets": [
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "毁灭菇"
+              },
+              {
+                "kind": "any",
+                "of": [
+                  {
+                    "kind": "card_ready",
+                    "card": "樱桃"
+                  },
+                  {
+                    "kind": "card_ready",
+                    "card": "辣椒"
+                  }
+                ]
+              },
+              {
+                "kind": "kernel_slack"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "毁灭菇",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                2,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            },
+            {
+              "op": "辣椒",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "any",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "plant_count",
+            "plant": "寒冰菇",
+            "cmp": ">=",
+            "value": 1
+          },
+          "ops": [
+            {
+              "op": "咖啡豆",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "寒冰菇",
+              "aim": null,
+              "trig": {
+                "kind": "card",
+                "name": "寒冰菇"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "w": 12,
+      "role": "常规",
+      "note": "C4io：N → AA′ → I → I，按 CD + 坑位择一拍",
+      "sets": [
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "毁灭菇"
+              },
+              {
+                "kind": "any",
+                "of": [
+                  {
+                    "kind": "card_ready",
+                    "card": "樱桃"
+                  },
+                  {
+                    "kind": "card_ready",
+                    "card": "辣椒"
+                  }
+                ]
+              },
+              {
+                "kind": "kernel_slack"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "毁灭菇",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                2,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            },
+            {
+              "op": "辣椒",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "any",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "plant_count",
+            "plant": "寒冰菇",
+            "cmp": ">=",
+            "value": 1
+          },
+          "ops": [
+            {
+              "op": "咖啡豆",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "寒冰菇",
+              "aim": null,
+              "trig": {
+                "kind": "card",
+                "name": "寒冰菇"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "w": 13,
+      "role": "常规",
+      "note": "C4io：N → AA′ → I → I，按 CD + 坑位择一拍",
+      "sets": [
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "毁灭菇"
+              },
+              {
+                "kind": "any",
+                "of": [
+                  {
+                    "kind": "card_ready",
+                    "card": "樱桃"
+                  },
+                  {
+                    "kind": "card_ready",
+                    "card": "辣椒"
+                  }
+                ]
+              },
+              {
+                "kind": "kernel_slack"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "毁灭菇",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                2,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            },
+            {
+              "op": "辣椒",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "any",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "plant_count",
+            "plant": "寒冰菇",
+            "cmp": ">=",
+            "value": 1
+          },
+          "ops": [
+            {
+              "op": "咖啡豆",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "寒冰菇",
+              "aim": null,
+              "trig": {
+                "kind": "card",
+                "name": "寒冰菇"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "w": 14,
+      "role": "常规",
+      "note": "C4io：N → AA′ → I → I，按 CD + 坑位择一拍",
+      "sets": [
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "毁灭菇"
+              },
+              {
+                "kind": "any",
+                "of": [
+                  {
+                    "kind": "card_ready",
+                    "card": "樱桃"
+                  },
+                  {
+                    "kind": "card_ready",
+                    "card": "辣椒"
+                  }
+                ]
+              },
+              {
+                "kind": "kernel_slack"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "毁灭菇",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                2,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            },
+            {
+              "op": "辣椒",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "any",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "plant_count",
+            "plant": "寒冰菇",
+            "cmp": ">=",
+            "value": 1
+          },
+          "ops": [
+            {
+              "op": "咖啡豆",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "寒冰菇",
+              "aim": null,
+              "trig": {
+                "kind": "card",
+                "name": "寒冰菇"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "w": 15,
+      "role": "常规",
+      "note": "C4io：N → AA′ → I → I，按 CD + 坑位择一拍",
+      "sets": [
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "毁灭菇"
+              },
+              {
+                "kind": "any",
+                "of": [
+                  {
+                    "kind": "card_ready",
+                    "card": "樱桃"
+                  },
+                  {
+                    "kind": "card_ready",
+                    "card": "辣椒"
+                  }
+                ]
+              },
+              {
+                "kind": "kernel_slack"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "毁灭菇",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                2,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            },
+            {
+              "op": "辣椒",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "any",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "plant_count",
+            "plant": "寒冰菇",
+            "cmp": ">=",
+            "value": 1
+          },
+          "ops": [
+            {
+              "op": "咖啡豆",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "寒冰菇",
+              "aim": null,
+              "trig": {
+                "kind": "card",
+                "name": "寒冰菇"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "w": 16,
+      "role": "常规",
+      "note": "C4io：N → AA′ → I → I，按 CD + 坑位择一拍",
+      "sets": [
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "毁灭菇"
+              },
+              {
+                "kind": "any",
+                "of": [
+                  {
+                    "kind": "card_ready",
+                    "card": "樱桃"
+                  },
+                  {
+                    "kind": "card_ready",
+                    "card": "辣椒"
+                  }
+                ]
+              },
+              {
+                "kind": "kernel_slack"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "毁灭菇",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                2,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            },
+            {
+              "op": "辣椒",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "any",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "plant_count",
+            "plant": "寒冰菇",
+            "cmp": ">=",
+            "value": 1
+          },
+          "ops": [
+            {
+              "op": "咖啡豆",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "寒冰菇",
+              "aim": null,
+              "trig": {
+                "kind": "card",
+                "name": "寒冰菇"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "w": 17,
+      "role": "常规",
+      "note": "C4io：N → AA′ → I → I，按 CD + 坑位择一拍",
+      "sets": [
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "毁灭菇"
+              },
+              {
+                "kind": "any",
+                "of": [
+                  {
+                    "kind": "card_ready",
+                    "card": "樱桃"
+                  },
+                  {
+                    "kind": "card_ready",
+                    "card": "辣椒"
+                  }
+                ]
+              },
+              {
+                "kind": "kernel_slack"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "毁灭菇",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                2,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            },
+            {
+              "op": "辣椒",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "any",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "plant_count",
+            "plant": "寒冰菇",
+            "cmp": ">=",
+            "value": 1
+          },
+          "ops": [
+            {
+              "op": "咖啡豆",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "寒冰菇",
+              "aim": null,
+              "trig": {
+                "kind": "card",
+                "name": "寒冰菇"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "w": 18,
+      "role": "常规",
+      "note": "C4io：N → AA′ → I → I，按 CD + 坑位择一拍",
+      "sets": [
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "毁灭菇"
+              },
+              {
+                "kind": "any",
+                "of": [
+                  {
+                    "kind": "card_ready",
+                    "card": "樱桃"
+                  },
+                  {
+                    "kind": "card_ready",
+                    "card": "辣椒"
+                  }
+                ]
+              },
+              {
+                "kind": "kernel_slack"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "毁灭菇",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                2,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            },
+            {
+              "op": "辣椒",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "any",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                5,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "plant_count",
+            "plant": "寒冰菇",
+            "cmp": ">=",
+            "value": 1
+          },
+          "ops": [
+            {
+              "op": "咖啡豆",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "寒冰菇",
+              "aim": null,
+              "trig": {
+                "kind": "card",
+                "name": "寒冰菇"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "w": 19,
+      "role": "收尾",
+      "note": "收尾波：照常控丑，但不点核（留给下一个旗波锚点）",
+      "sets": [
+        {
+          "when": {
+            "kind": "any",
+            "of": [
+              {
+                "kind": "card_ready",
+                "card": "樱桃"
+              },
+              {
+                "kind": "card_ready",
+                "card": "辣椒"
+              }
+            ]
+          },
+          "ops": [
+            {
+              "op": "樱桃",
+              "aim": [
+                2,
+                8
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            },
+            {
+              "op": "辣椒",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "plant_count",
+            "plant": "寒冰菇",
+            "cmp": ">=",
+            "value": 1
+          },
+          "ops": [
+            {
+              "op": "咖啡豆",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "寒冰菇",
+              "aim": null,
+              "trig": {
+                "kind": "card",
+                "name": "寒冰菇"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "w": 20,
+      "role": "旗波",
+      "note": "w20：清账",
+      "sets": [
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "咖啡豆",
+              "aim": null,
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        },
+        {
+          "when": {
+            "kind": "plant_count",
+            "plant": "寒冰菇",
+            "cmp": "<=",
+            "value": 0
+          },
+          "ops": [
+            {
+              "op": "寒冰菇",
+              "aim": null,
+              "trig": {
+                "kind": "card",
+                "name": "寒冰菇"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "globals": [
+    {
+      "id": "补存冰",
+      "enabled": true,
+      "every": 50,
+      "cooldown": 0,
+      "note": "冰卡一好就补：3-2 / 3-3 / 4-3 里第一格空着的",
+      "when": {
+        "kind": "all",
+        "of": [
+          {
+            "kind": "card_ready",
+            "card": "寒冰菇"
+          },
+          {
+            "kind": "any",
+            "of": [
+              {
+                "kind": "cell_is",
+                "row": 3,
+                "col": 2,
+                "plant": ""
+              },
+              {
+                "kind": "cell_is",
+                "row": 3,
+                "col": 3,
+                "plant": ""
+              },
+              {
+                "kind": "cell_is",
+                "row": 4,
+                "col": 3,
+                "plant": ""
+              }
+            ]
+          }
+        ]
+      },
+      "ops": [
+        {
+          "op": "寒冰菇",
+          "aim": "stock",
+          "trig": {
+            "kind": "spawn"
+          }
+        }
+      ]
+    }
+  ],
+  "rescue_simple": {
+    "enabled": true,
+    "note": "岸路 2-6 的曾哥优先级最高，但可以等僵尸贴脸（急迫级 0 格）；边路 1-5 的大喷差一格就该救（急迫级 1 格），优先级低一档",
+    "resources": [
+      {
+        "op": "小喷菇",
+        "aim": null,
+        "trig": {
+          "kind": "spawn"
+        }
+      },
+      {
+        "op": "花盆",
+        "aim": null,
+        "trig": {
+          "kind": "spawn"
+        }
+      },
+      {
+        "op": "窝瓜",
+        "aim": null,
+        "trig": {
+          "kind": "spawn"
+        }
+      }
+    ],
+    "targets": [
+      {
+        "id": "2-6 曾哥",
+        "protect": {
+          "row": 2,
+          "col": 6
+        },
+        "urgency_cells": 0,
+        "priority": 100,
+        "cooldown": 60
+      },
+      {
+        "id": "5-6 曾哥",
+        "protect": {
+          "row": 5,
+          "col": 6
+        },
+        "urgency_cells": 0,
+        "priority": 100,
+        "cooldown": 60
+      },
+      {
+        "id": "1-5 大喷",
+        "protect": {
+          "row": 1,
+          "col": 5
+        },
+        "urgency_cells": 1,
+        "priority": 30,
+        "cooldown": 60
+      },
+      {
+        "id": "6-5 大喷",
+        "protect": {
+          "row": 6,
+          "col": 5
+        },
+        "urgency_cells": 1,
+        "priority": 30,
+        "cooldown": 60
+      }
+    ]
+  },
+  "rescue": [
+    {
+      "id": "垫材",
+      "note": "僵尸能打到 6 列就下；小喷菇→花盆→窝瓜 三层兜底",
+      "cooldown": 10,
+      "event": {
+        "kind": "zombie_in_window",
+        "rows": [
+          6,
+          5,
+          1
+        ],
+        "col": 6,
+        "window": [
+          10,
+          75
+        ],
+        "min_hp": 500,
+        "zombie": "任意"
+      },
+      "levels": [
+        [
+          {
+            "op": "小喷菇",
+            "aim": null,
+            "trig": {
+              "kind": "spawn"
+            }
+          }
+        ],
+        [
+          {
+            "op": "花盆",
+            "aim": null,
+            "trig": {
+              "kind": "spawn"
+            }
+          }
+        ],
+        [
+          {
+            "op": "窝瓜",
+            "aim": null,
+            "trig": {
+              "kind": "spawn"
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "id": "窝瓜强杀",
+      "note": "重甲逼近 CORE 3 格内，垫材全 CD 也要拦",
+      "cooldown": 30,
+      "event": {
+        "kind": "heavy_near_core",
+        "rows": [
+          6,
+          5,
+          2,
+          1
+        ],
+        "cells": 3
+      },
+      "levels": [
+        [
+          {
+            "op": "窝瓜",
+            "aim": null,
+            "trig": {
+              "kind": "spawn"
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "id": "救急冰",
+      "note": "裸 CORE 要被砸、且垫材/窝瓜都不可用",
+      "cooldown": 300,
+      "event": {
+        "kind": "bare_core_threat"
+      },
+      "levels": [
+        [
+          {
+            "op": "咖啡豆",
+            "aim": null,
+            "trig": {
+              "kind": "spawn"
+            }
+          }
+        ]
+      ]
+    }
+  ],
+  "slots": {
+    "kernel": [
+      [
+        5,
+        8
+      ],
+      [
+        5,
+        7
+      ],
+      [
+        2,
+        7
+      ],
+      [
+        6,
+        8
+      ],
+      [
+        6,
+        9
+      ],
+      [
+        1,
+        8
+      ],
+      [
+        1,
+        9
+      ],
+      [
+        5,
+        9
+      ],
+      [
+        2,
+        9
+      ]
+    ],
+    "stock": [
+      [
+        3,
+        2
+      ],
+      [
+        3,
+        3
+      ],
+      [
+        4,
+        3
+      ],
+      [
+        5,
+        3
+      ]
+    ],
+    "temp_ice": [
+      [
+        2,
+        7
+      ],
+      [
+        5,
+        7
+      ]
+    ],
+    "chili": [
+      5,
+      3
+    ],
+    "cherry_row": 2,
+    "cherry_cols": [
+      8,
+      9,
+      7,
+      6
+    ],
+    "fast_fog": [
+      [
+        5,
+        7
+      ],
+      [
+        2,
+        7
+      ],
+      [
+        5,
+        8
+      ]
+    ]
+  },
+  "params": {
+    "skip_hp": 3000,
+    "stall_hp": 500,
+    "tomato_x": 520,
+    "tomato_hp": 800
+  }
+}
