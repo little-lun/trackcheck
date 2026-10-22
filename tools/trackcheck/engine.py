@@ -848,8 +848,12 @@ class Sim:
             elif stock_rcs:
                 pos = stock_rcs[0]
             if pos is None:
+                # ★ 2026-10-22 夜场（FE / NE）：蘑菇种下就醒 → **没有"存冰"这回事**，
+                #   所以夜场写"补存冰"是阵解本身写错了，要明确告诉用户。
+                why = ('夜场没有存冰位（蘑菇种下就醒、蘑菇阵不能存冰/存核）'
+                       if self.fld.night else '没有空着的存冰位')
                 self.broken.append(dict(t=self.t, wave=ev['wave'], what=name,
-                                        why='没有空着的存冰位'))
+                                        why=why))
                 return
 
         is_stock = pos is not None and pos in self.ice_slots
@@ -933,8 +937,10 @@ class Sim:
                 cand = [rc for rc, c in self.cells.items()
                         if c.plant and not c.awake and c.plant in D.MUSHROOMS]
             if not cand:
+                why = ('夜场蘑菇种下就醒，没有睡着的蘑菇要唤醒（夜场不需要咖啡豆）'
+                       if self.fld.night else '场上没有睡着的蘑菇可唤醒')
                 self.broken.append(dict(t=self.t, wave=ev['wave'], what='咖啡豆',
-                                        why='场上没有睡着的蘑菇可唤醒'))
+                                        why=why))
                 self.actions.append(dict(t=self.t, wave=ev['wave'],
                                          name='咖啡豆', ok=False))
                 return
@@ -1185,7 +1191,8 @@ class Sim:
                 out.append(r)
         return out
 
-    def _slide_col(self, row, radius=None, dy=None, head_dx=None, integer=False):
+    def _slide_col(self, row, radius=None, dy=None, head_dx=None, integer=False,
+                   threat=False):
         """**滑列落点**（用户 2026-10-22）：不写死第几列，而是让判定域
         "最靠前的那只僵尸"**恰好**被切到，剩下的距离全留给后面的怪。
 
@@ -1193,6 +1200,12 @@ class Sim:
           炮的圆 R=115 纵向能盖 3~4 行、樱桃 R=115 也能盖 3 行，
           所以"最靠前"必须取**被这一炮盖到的所有行**里最靠前的那只，
           不是只看准星那一行。
+
+        ★ `threat=True`：**先挑会造成不可逆损失的**（冰车 / 投篮车 / 巨人），
+          没有才退回"最靠前那只"。原因：一炮横盖 3 行时，"最靠前"常常是
+          已经被减速、还有时间处理的那只，而刚刷出来、正往阵里冲的冰车会被漏掉
+          —— 冰车免疫减速、不被南瓜阻挡，漏一次就是碾掉一整格植物。
+          （实测 FE.雾四炮：边路的冰车一路碾到 3 列，就是因为滑列滑到了更深的那只。）
 
         反解 `爆心 x = cell_x(col) − head_dx`：
             cx = 最靠前那只受击框的**右缘** + R − 1   ← 圆的最右位置，刚好切到它
@@ -1209,6 +1222,10 @@ class Sim:
               if z.alive and z.hp > 0 and self._dbox(z)[0] <= D.DMG_LINE]
         if not zs:
             return 8.0
+        if threat:
+            hard = [z for z in zs if z.kind in ('冰车', '投篮') or z.giant]
+            if hard:
+                zs = hard
         front = min(zs, key=lambda z: z.x)
         _zl, zr = self._dbox(front)
         cx = zr + r_ - 1.0                          # −1：别卡在浮点边界上
@@ -1249,9 +1266,11 @@ class Sim:
             return
         if isinstance(aim, (tuple, list)) and len(aim) == 2:
             row = float(aim[0])
-            # ★ 滑列落点：`[行, "front"]` → 由这一路最靠前的僵尸反解出列
+            # ★ 滑列落点：`[行, "front"]` → 由这一路最靠前的僵尸反解出列；
+            #   `[行, "threat"]` → 先挑冰车/投篮车/巨人（漏一次就碾掉一格植物）
             if isinstance(aim[1], str):
-                col = self._slide_col(int(round(row)))
+                col = self._slide_col(int(round(row)),
+                                      threat=(aim[1].lower().startswith('threat')))
             else:
                 col = float(aim[1])
         else:

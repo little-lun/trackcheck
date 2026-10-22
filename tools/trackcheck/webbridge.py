@@ -61,6 +61,9 @@ def handle(path, query='', body=''):
                        for k, v in CFG.ARRAY.items()}))
         if path == '/api/example/classic8':
             return _json(200, PL.example_classic8())
+        if path.startswith('/api/example/fe4'):
+            rid = (parse_qs(query or '').get('rid') or ['N6s'])[0]
+            return _json(200, PL.example_fe4(rid))
         if path == '/api/plan/example':
             return _json(200, PL.example_split_aa())
         if path == '/api/plan/list':

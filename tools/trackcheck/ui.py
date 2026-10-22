@@ -470,6 +470,7 @@ __PLANPAGE__
         <button id="help-load">载入示例阵容</button>
         <button id="help-plan">载入示例阵解</button>
         <button id="help-classic8">载入 PE.经典八炮（炮阵样板）</button>
+ <button id="help-fe4">载入 FE.雾四炮（少炮重 IO 样板）</button>
         <span class="hint" id="help-msg"></span>
       </div>
       <h3>示例阵型字符串（PvZ Tools）</h3>
@@ -1013,6 +1014,37 @@ async function tcLoadClassic8(){
   tcTab('layout');
 }
 document.getElementById('help-classic8').onclick = tcLoadClassic8;
+
+/* ★ 2026-10-22：FE.雾四炮 —— 少炮重 IO 阵的样板（夜场；阵型 + N6s 阵解一起载入）
+   四个阵解都在 `example_fe4(rid)` 里：N6s / P3n / S3 / C4io。 */
+async function tcLoadFe4(){
+  const msg = document.getElementById('help-msg');
+  if (typeof plEnterPlan === 'function' && (typeof PLAN === 'undefined' || !PLAN.cat)) {
+    try { await plEnterPlan(); } catch (e) {}
+  }
+  const r = await fetch('/api/example/fe4');
+  const d = await r.json();
+  if (!d.ok) { msg.textContent = '载入失败：' + (d.error || ''); return; }
+  LY.field = d.field || 'FE';
+  LY.array = {};
+  Object.keys(d.array || {}).forEach(k => {
+    LY.array[k] = Object.assign({ plant: null, pumpkin: false, ladder: false,
+                                  awake: true, base: null, grave: false }, d.array[k]);
+  });
+  LY.name = lyBareName(d.name || '雾四炮');
+  localStorage.setItem(LY_NAME_KEY, LY.name);
+  localStorage.setItem('tc.field', LY.field);
+  LY.sel = null;
+  lyNormalizeRules();
+  lyRender();
+  if (typeof plAddBank === 'function' && d.plan) {
+    plAddBank(d.plan, d.name || '雾四炮');
+  }
+  msg.textContent = '已载入「' + lyFullName() + '」的阵型与 N6s 阵解'
+    + '（54s 循环、双冰单核；换 P3n / S3 / C4io 请在「节奏型」里选）';
+  tcTab('layout');
+}
+document.getElementById('help-fe4').onclick = tcLoadFe4;
 
 lyRender();
 

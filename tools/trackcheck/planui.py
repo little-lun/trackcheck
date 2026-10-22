@@ -133,11 +133,12 @@ MARKUP = r"""
         placeholder="P|P|P|P">
       <label class="hint">波长串</label><input type="text" id="pl-gaps" style="width:150px"
         placeholder="(9,9,9,9)">
+      <span class="hint" id="pl-gaps-tip"></span>
       <button class="primary mini2" data-act="quick">⚡ 快捷布置阵解</button>
       <button class="ghost mini2" data-act="validate">✓ 校验</button>
     </div>
     <div class="hint" style="margin-top:4px">
-      快捷布置只把「做什么」铺进常规波（w2~w20，跳过旗波 w10/w20），落点 / 时机 / 兜底留给你填。<br>
+      快捷布置只把「做什么」铺进常规波（20 波全填），落点 / 时机 / 兜底留给你填。<br>
       轨道认得 <code>|</code> 波次、<code>-</code> 同一波的第二个时机、<code>/</code> 上下半场、
       <code>~</code> 两套节奏摆动；波长串写 <code>(9,9,9,9)</code> 或 <code>(9|9|9|9)</code>。
     </div>
@@ -335,13 +336,27 @@ function plPreset(id) {
 }
 
 /* 选中节奏型时，把它的**波长串**自动填进输入框（26 版速查表给的官方波长）。
-   gaps 里有 null / 缺项 → 不填，留给用户自己按实战改。 */
+   ★ 官方没给固定波长（C4io / S3 这类"看阵"的）→ **清空**并提示，
+     不能留着上一个节奏型的旧值（用户会以为那是官方值）。
+   用户口径：波长串是**可选**的，io 高的阵本来就难精确控波长。 */
 function plFillGaps(q) {
   const g = (q && q.gaps) || [];
   const box = document.getElementById('pl-gaps');
-  if (!box) return;
-  if (!g.length || g.some(function (x) { return x === null || x === undefined; })) return;
-  box.value = '(' + g.join(',') + ')';
+  const tip = document.getElementById('pl-gaps-tip');
+  const ok = g.length && !g.some(function (x) { return x === null || x === undefined; });
+  if (box) box.value = ok ? ('(' + g.join(',') + ')') : '';
+  if (tip) {
+    tip.textContent = ok
+      ? '官方波长 ' + g.join(' / ') + 's（循环 ' +
+        (g.reduce(function (a, b) { return a + (+b || 0); }, 0)) + 's）'
+      : '这个节奏型官方没给固定波长 —— 按实战填，留空就不校验';
+  }
+}
+/* 节奏型下拉里的显示：`P3n ｜ 12,12,12` —— 一眼看到波长 */
+function plPresetLabel(q) {
+  const g = (q && q.gaps) || [];
+  const ok = g.length && !g.some(function (x) { return x === null || x === undefined; });
+  return plName(q) + (ok ? ' ｜ ' + g.join(',') : '');
 }
 
 const PL_CMP = ['>=', '<=', '>', '<', '=='];
@@ -878,6 +893,13 @@ function plRender() {
   document.getElementById('pl-beats').value = (p.rhythm.beats || []).join(' | ');
   const gEl = document.getElementById('pl-gaps');
   if (gEl && document.activeElement !== gEl) gEl.value = plGapsText(p.rhythm.gaps);
+  const gTip = document.getElementById('pl-gaps-tip');
+  if (gTip) {
+    const gg = p.rhythm.gaps || [];
+    gTip.textContent = gg.length
+      ? '循环 ' + gg.reduce(function (a, b) { return a + (+b || 0); }, 0) + 's（' + gg.length + ' 拍）'
+      : '留空 = 不校验波长（io 高的阵本来难控）';
+  }
   document.getElementById('pl-note').textContent = p.note || '';
   const sys = document.getElementById('pl-sys');
   sys.innerHTML = PLAN.cat.rhythms.map(function (r) {
@@ -888,7 +910,7 @@ function plRender() {
   const pre = document.getElementById('pl-preset');
   pre.innerHTML = (cur.presets || []).length ? cur.presets.map(function (q) {
     return '<option value="' + plEsc(q.id) + '"' + (q.id === p.rhythm.id ? ' selected' : '') + '>'
-      + plEsc(plName(q)) + '</option>';
+      + plEsc(plPresetLabel(q)) + '</option>';
   }).join('') : '<option value="">（该系暂无预设）</option>';
   const info = document.getElementById('pl-rhythm-info');
   if (info) {

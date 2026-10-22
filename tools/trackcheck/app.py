@@ -181,6 +181,13 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(PL.example_classic8())
             except Exception as e:                           # noqa: BLE001
                 return self._json({'ok': False, 'error': str(e)}, 500)
+        if path.startswith('/api/example/fe4'):
+            q = parse_qs(urlsplit(self.path).query)
+            rid = (q.get('rid') or ['N6s'])[0]
+            try:
+                return self._json(PL.example_fe4(rid))
+            except Exception as e:                           # noqa: BLE001
+                return self._json({'ok': False, 'error': str(e)}, 500)
         if path == '/api/plan/example':
             return self._json(PL.example_split_aa())
         if path == '/api/spec':

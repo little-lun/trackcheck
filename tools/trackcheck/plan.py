@@ -1814,6 +1814,47 @@ CLASSIC8_STR = (
     '30 6 3 0 0 0,2C 6 4 0 0 0,1E 6 4 0 0 1,30 6 4 0 0 0,2F 6 5 0 0 0')
 
 
+# ══════════════════════════════════════════════════════════════════
+# 示例：FE.雾四炮（少炮重 IO，用户 2026-10-22 提供的阵型 + 四个阵解）
+#   阵解出处：《练习/FE.雾四炮/研讨笔记.md》§五
+# ══════════════════════════════════════════════════════════════════
+FE4_STR = (
+    '1,2A 1 1 1 0 0,1E 1 1 0 0 0,25 1 2 0 0 0,1E 1 2 0 0 1,30 1 2 0 0 0,'
+    '2C 1 3 0 0 0,1E 1 3 0 0 1,30 1 3 0 0 0,A 1 4 1 0 0,1E 1 4 0 0 0,A 1 5 1 0 0,'
+    '29 2 1 0 0 0,1E 2 1 0 0 0,2A 2 2 1 0 0,1E 2 2 0 0 1,30 2 2 0 0 0,2C 2 3 0 0 0,'
+    '1E 2 3 0 0 1,30 2 3 0 0 0,A 2 4 1 0 0,1E 2 4 0 0 0,A 2 5 1 0 0,'
+    '10 3 1 0 0 0,2F 3 1 0 0 0,10 3 2 0 0 0,10 3 3 0 0 0,2F 3 3 0 0 0,10 3 4 0 0 0,'
+    '10 3 5 0 0 0,1E 3 5 0 0 0,10 3 6 0 0 0,2A 3 6 1 0 0,1E 3 6 0 0 0,'
+    '10 4 1 0 0 0,2F 4 1 0 0 0,10 4 2 0 0 0,10 4 3 0 0 0,2F 4 3 0 0 0,10 4 4 0 0 0,'
+    '10 4 5 0 0 0,29 4 5 0 0 0,1E 4 5 0 0 0,10 4 6 0 0 0,2A 4 6 1 0 0,1E 4 6 0 0 0,'
+    '29 5 1 0 0 0,1E 5 1 0 0 0,2A 5 2 1 0 0,1E 5 2 0 0 1,30 5 2 0 0 0,2C 5 3 0 0 0,'
+    '1E 5 3 0 0 1,30 5 3 0 0 0,A 5 4 1 0 0,1E 5 4 0 0 0,A 5 5 1 0 0,'
+    '2A 6 1 1 0 0,1E 6 1 0 0 0,25 6 2 0 0 0,1E 6 2 0 0 1,30 6 2 0 0 0,2C 6 3 0 0 0,'
+    '1E 6 3 0 0 1,30 6 3 0 0 0,A 6 4 1 0 0,1E 6 4 0 0 0,A 6 5 1 0 0')
+
+# 夜场：蘑菇免唤醒 → 咖啡豆没用；冰/核的落点必须是**陆路空格**（水路要荷叶，
+# 而夜场又没有存冰位）。荷叶留在卡组里给"7~9 列核坑"用。
+_FE4_DECK = ['寒冰菇', '模仿寒冰菇', '毁灭菇', '模仿毁灭菇',
+             '樱桃', '辣椒', '窝瓜', '南瓜', '荷叶', '小喷菇']
+
+_FE4_PLANS = {
+    'N6s': dict(system='N', beats=['I-PP', 'I-PP', 'N', 'PP'],
+                gaps=[18, 18, 9, 9],
+                note='N6s（wiki 的 c6u）：I-PP|I-PP|N|PP(18,18,9,9)，54s 循环、'
+                     '双冰单核、4 炮够用。★ 别和 N6（20,20,7.5×2）搞混，差 2 秒。'),
+    'P3n': dict(system='P', beats=['PP', 'PP', 'N'], gaps=[12, 12, 12],
+                note='P3n（= P3-n）：PP|PP|N(12,12,12)，36s 循环，'
+                     '**P3 的第二对炮换成核弹**。核 CD 50s > 36s，所以必须带模仿核。'),
+    'S3': dict(system='S', beats=['I-PP', 'PP'], gaps=[24, 12],
+               note='S3：I-PP|PP(24,12)，36s 循环、单冰。慢波（24s）里冰要**晚放**，'
+                    '先把海豚冻进 6 列曾的射程（拆 3-5/4-5 曾的阵改尤其如此）。'),
+    'C4io': dict(system='C', beats=['N', 'PP', 'PP', 'I'], gaps=[12.5] * 4,
+                 note='C4io：N|PP|PP|I(50s 均分)，4 波一循环、双冰单核 —— '
+                      '原帖 2010 的解法，"不用把小丑冰在特定位置，一出来就冰"。'),
+}
+
+
+
 def example_classic8():
     """PE.经典八炮：**常规炮阵的样板**（用户 2026-10-22 给的阵型字符串）
 
@@ -1912,6 +1953,98 @@ def example_classic8():
     return dict(ok=True, field='PE', name='经典八炮',
                 array={'%d-%d' % k: v for k, v in arr.items()},
                 string=CLASSIC8_STR, plan=p)
+
+
+def example_fe4(rid='N6s'):
+    """FE.雾四炮：**少炮重 IO 阵的样板**（用户 2026-10-22 给的阵型 + 四个阵解）
+
+    阵型（原阵，8 曾口径）：4 门炮在**水路 1~4 列**（两两并排、各占 1×2）、
+          水路 5/6 列双曾、陆路 1~3 列「曾 / 伞 / 冰瓜」三件套、4~5 列大喷 ×2。
+    场地：**FE（雾夜）** —— 夜场蘑菇种下就醒，**没有存冰、没有存核**
+      （所以寒冰菇/毁灭菇的落点必须是**场上任意空格**，不是存冰位）。
+
+    阵解（`rid` 可选，见《练习/FE.雾四炮/研讨笔记.md》§五）：
+      · `N6s`  `I-PP|I-PP|N|PP(18,18,9,9)`  54s 循环，双冰单核（wiki 的 c6u）
+      · `P3n`  `PP|PP|N(12,12,12)`          36s 循环，核顶掉一对炮
+      · `S3`   `I-PP|PP(24,12)`             36s 循环，单冰
+      · `C4io` `N|PP|PP|I`                  50s 循环，不规则（IO 主导）
+
+    ★ 落点用**滑列**（`[行, 'front']`）：炮的圆心 y 取准星那行的植物 y+40，
+      R=115 纵向上盖 3 行 → 仰 2 路盖 1/2/3、仰 5 路盖 4/5/6，**六路全覆盖**；
+      列不写死，而由"被这一炮盖到的所有行里最靠前的那只僵尸"反解出来。
+      用户口径（2026-10-22）：「落点按列滑动」。
+    """
+    from . import layout as LY
+    arr, _fld, _rake = LY.decode_tools(FE4_STR, 'FE')
+    p = template('FE')
+    p['name'] = '雾四炮'
+    conf = _FE4_PLANS.get(rid) or _FE4_PLANS['N6s']
+    p['note'] = conf['note']
+    p['deck'] = list(_FE4_DECK)
+    rp = {}
+    try:
+        from . import metainfo as _MI
+        rp = _MI.RHYTHM_BY_ID.get(rid) or {}
+    except Exception:
+        rp = {}
+    p['rhythm'].update(system=conf['system'], id=rid, name=rid,
+                       beats=list(rp.get('beats') or conf['beats']),
+                       gaps=list(rp.get('gaps') or conf['gaps']),
+                       pair='full')
+    # 把节奏型铺进常规波（轨道串 / 波长串一起进 rhythm）
+    p['rhythm'][GAPS_KEY] = [float(g) for g in conf['gaps']]
+    p, _n = quick_layout(p, '|'.join(conf['beats']), pair='full')
+
+    # ★ 落点：炮按列滑动；冰 / 核种在**陆路空格**（夜场没有存冰位、水路要荷叶）
+    #   冰的格子要**逐波轮换**：冰车压过会留冰道、毁灭菇会留弹坑，
+    #   一直种同一格会被"种不下（冰道/弹坑）"卡死 → 后面的冰全失效。
+    ICE_CELLS = [(2, 9), (1, 9), (5, 9), (6, 9), (2, 8), (1, 8), (5, 8), (6, 8)]
+    NUKE_CELLS = [(5, 8), (2, 8), (6, 8), (1, 8)]
+    KEEP = {2: (2, 'threat'), 5: (5, 'threat')}     # 一对炮：仰 2 / 仰 5（滑列）
+
+    for wi, row in enumerate(p['waves']):
+        ice_rc = ICE_CELLS[wi % len(ICE_CELLS)]
+        nuke_rc = NUKE_CELLS[wi % len(NUKE_CELLS)]
+        for st in row['sets']:
+            k = 0
+            for b in st['ops']:
+                op = b['op']
+                if op == '玉米炮':
+                    b['aim'] = list(KEEP[2 if k % 2 == 0 else 5])
+                    k += 1
+                    # ★ 按「一对炮装好了才打」门控，而不是写死"刷怪后 7s 开炮"：
+                    #   本模型的波是**运算量驱动**的（血量打够就推进），
+                    #   IO 重的阵波距会比名义波长（18s）短得多；
+                    #   写死时间会让 4 门炮的 3475cs 装填跟不上 →
+                    #   「所有炮都在装填」，冰车正好从这段真空里碾进来。
+                    b['trig'] = {'kind': 'state', 'what': 'cobs_ready',
+                                 'cmp': '>=', 'value': 2, 'ttl': 9000}
+                elif op in ('寒冰菇', '模仿寒冰菇'):
+                    b['aim'] = list(ice_rc)
+                    b['trig'] = {'kind': 'spawn'}
+                elif op in ('毁灭菇', '模仿毁灭菇'):
+                    b['aim'] = list(nuke_rc)
+                    b['trig'] = {'kind': 'time', 'at': 1200}
+                elif op in ('樱桃', '辣椒', '窝瓜'):
+                    b['trig'] = {'kind': 'time', 'at': 1200}
+    p['waves'][0]['note'] = '起手：冰 + 一对炮（落点按列滑动，炮从水路打出来）'
+    for w in (10, 20):
+        next(x for x in p['waves'] if int(x['w']) == w)['note'] = '旗波：同常规'
+
+    # 救场层：贴脸才出手（炮在水路 1~4 列，保护这四门）
+    p['rescue_simple'] = dict(
+        enabled=True,
+        resources=[{'op': '樱桃'}, {'op': '窝瓜'}, {'op': '辣椒'},
+                   {'op': '小喷菇', 'pad_col': 'front'},
+                   {'op': '南瓜'}],
+        targets=[dict(id='%d-%d 炮' % (r, c), protect={'row': r, 'col': c},
+                      urgency_cells=2, priority=100 - 10 * c + r,
+                      cooldown=50, include_icecar=True)
+                 for (r, c) in ((3, 1), (3, 3), (4, 1), (4, 3))])
+    p = norm(p)
+    return dict(ok=True, field='FE', name='雾四炮',
+                array={'%d-%d' % k: v for k, v in arr.items()},
+                string=FE4_STR, plan=p)
 
 
 def example_split_aa():
