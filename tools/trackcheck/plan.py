@@ -526,6 +526,30 @@ def _run_rescue_resource(sim, res, row=None, target_rc=None):
             return False
     if op in ('小喷菇', '花盆', '阳光菇', '胆小菇'):
         card = _card_key(op)
+        # ★ 2026-10-22 用户：「垫材视作救场而不是轨道」。
+        #   救场资源可以给 `pad_col`：
+        #     数字     → 种在**危险那一路的指定列**（炮阵要垫在 8 列这种判定域里）
+        #     'front'  → 种在**僵尸脚下那一格**（动态选列，最贴合"什么时候真的需要"）
+        col = res.get('pad_col')
+        if col == 'front' and row is not None:
+            zs = [z for z in sim.by_row.get(int(row), ())
+                  if z.alive and z.hp > 0 and z.kind != '冰车']
+            # ★ 2026-10-22：`only_giant` —— 垫材只用来钉**巨人**。
+            #   路障 / 橄榄这种一炮就死的，用垫材纯属浪费经济。
+            if res.get('only_giant'):
+                zs = [z for z in zs if z.giant]
+            if not zs:
+                return False
+            z = min(zs, key=lambda x: x.x)
+            from tools.trackcheck import data as _D
+            c0 = max(1, min(9, int((z.x - 40) // _D.CELL_W) + 1))
+            for cc in (c0, c0 - 1, c0 + 1):
+                if 1 <= cc <= 9 and sim.stall_at((int(row), cc), cards=(card,)):
+                    return True
+            return False
+        if col is not None and row is not None:
+            if sim.stall_at((int(row), int(col)), cards=(card,)):
+                return True
         if res.get('aim'):
             return run_plan_op(sim, op, res.get('aim'))
         if sim.try_stall([row] if row else None, cards=(card,)):
@@ -1782,8 +1806,8 @@ def example_classic8():
     p['note'] = ('P4：P|P|P|P(9,9,9,9)，9s 一对炮。一门仰 2-8 盖 1~4 路、'
                  '一门仰 5-8 盖 4~6 路 —— **落点必须分开写**，留空会让两门炮'
                  '一起挑最密的一路、另三路整场不挨炸。'
-                 '边路红眼靠 4 张垫材钉在 8 列（判定域内）慢慢打死；'
-                 '总血 6 万+/波时这就是全部运算量。')
+                 '垫材属于**救场**（不进轨道）：只在边路巨人真的逼近时才垫一张，'
+                 '循环狂垫会把阳光吃光。')
     # 这个阵基本不需要灰烬/冰 → 按用户口径带满 4 张垫材；
     # 咖啡豆留给"新种的蘑菇是睡着的"（补曾 / 补大喷要顺手唤醒）
     p['deck'] = ['玉米炮', '小喷菇', '花盆', '阳光菇', '胆小菇',
@@ -1791,27 +1815,17 @@ def example_classic8():
     p['rhythm'].update(system='P', id='P4', name='P4', beats=['P', 'P', 'P', 'P'],
                        gaps=[9, 9, 9, 9], pair='short')
 
-    # 常规波：一对炮 + 边路连续垫材。
-    #   at=700（7s）——僵尸走进判定域的下限；再晚换波就追不上 9s。
-    #   垫材 repeat：每 350cs 试一次（≈ 巨人一个砸击周期 + 余量），
-    #   四张卡轮着用，卡没好 / 窗口没开就静默跳过（垫材是机会性的）。
-    PAD_ROWS = (1, 6)
+    # ★★ 2026-10-22 用户：「垫材视作**救场**而不是轨道；一直循环垫垫材让经济压力不小」
+    #   → 轨道里**只有炮**（和"两对炮好了才开"的条件块），
+    #     垫材全部下沉到简化救场层：只在"边路有僵尸真的逼近这一门炮"时才垫一张，
+    #     而且垫在 **8 列**（炮的判定域里），不是固定垫材位。
     PAD_COL = 8               # x=600，正好在炮的判定域（z.x∈[482,712]）正中
-    PAD_PLANTS = ('小喷菇', '花盆', '阳光菇', '胆小菇')
     # 8 门炮的格子（1×2 占格，记前格）—— 救场层的保护对象
     COBS = ((1, 5), (2, 5), (3, 1), (3, 3), (4, 1), (4, 3), (5, 5), (6, 5))
 
     def pair(at=700):
         return [_b('玉米炮', [2, 8], trig={'kind': 'time', 'at': at}),
                 _b('玉米炮', [5, 8], trig={'kind': 'time', 'at': at})]
-
-    def pads(at=800, times=4):
-        out = []
-        for r in PAD_ROWS:
-            for nm in PAD_PLANTS:
-                out.append(_b(nm, [r, PAD_COL], trig={'kind': 'time', 'at': at},
-                              repeat={'every': 350, 'times': times}))
-        return out
 
     def pad_bar():
         """收尾波的第二对炮：**只有"两对炮都好了"才开**（用户口径）
@@ -1824,16 +1838,14 @@ def example_classic8():
     for r in p['waves']:
         w = int(r['w'])
         ops = pair()
-        if w not in (9, 19):
-            ops += pads()
-            if w == 20:                 # 最后一波：不留余量，能开几对开几对
-                ops += pad_bar()
-        else:
-            # 收尾：45s 拖时间里，先垫着；一旦两对炮（4 门）装填完毕就直接开一对。
-            ops += pad_bar() + pads(times=6)
-            r['note'] = '收尾：垫材拖时间；两对炮好了就开一对，另一对留给下一波'
+        if w == 20:                     # 最后一波：不留余量，能开几对开几对
+            ops += pad_bar()
+        elif w in (9, 19):
+            # 收尾：一旦两对炮（4 门）装填完毕就直接开一对（垫材由救场层按需出手）
+            ops += pad_bar()
+            r['note'] = '收尾：两对炮好了就开一对，另一对留给下一波（垫材按需，救场层管）'
         r['sets'] = [dict(when={'kind': 'always'}, ops=ops)]
-    p['waves'][0]['note'] = '起手：一对炮打 2-8 / 5-8，边路开始垫材'
+    p['waves'][0]['note'] = '起手：一对炮打 2-8 / 5-8（垫材由救场层按需出手）'
     for w in (10, 20):
         next(x for x in p['waves'] if int(x['w']) == w)['note'] = \
             '旗波：一对炮（旗波出怪整体右移 40px，落点不变）'
@@ -1848,12 +1860,20 @@ def example_classic8():
     #   （即：模型不计生效时延，救场策略仍然要提前一格，两回事。）
     #   资源顺序就是优先级：先炸（樱桃 R115）→ 再压（窝瓜）→ 再整行（辣椒）
     #   → 最后两张是垫材（挡住，让炮自己解决）。
+    #   ★ 用户 2026-10-22：「垫材视作救场而不是轨道；一直循环垫垫材让经济压力不小」
+    #     → 垫材**只在有人逼近这一门炮时才垫一张**（救场层按需出手），
+    #       种在**僵尸脚下那一格**（`pad_col: 'front'`）—— 那一格就在炮的判定域里，
+    #       僵尸停下来啃的时候仍然挨炮。
+    #   urgency_cells = 2：僵尸走到"离炮还有 2 格"才出手（不是全程循环垫）。
     p['rescue_simple'] = dict(
         enabled=True,
         resources=[{'op': '樱桃'}, {'op': '窝瓜'}, {'op': '辣椒'},
-                   {'op': '小喷菇'}, {'op': '花盆'}],
+                   {'op': '小喷菇', 'pad_col': 'front'},
+                   {'op': '花盆', 'pad_col': 'front'},
+                   {'op': '阳光菇', 'pad_col': 'front'},
+                   {'op': '胆小菇', 'pad_col': 'front'}],
         targets=[dict(id='%d-%d 炮' % (r, c), protect={'row': r, 'col': c},
-                      urgency_cells=1, priority=100 - 10 * c + r,
+                      urgency_cells=2, priority=100 - 10 * c + r,
                       cooldown=50, include_icecar=True)
                  for (r, c) in COBS])
     p = norm(p)
