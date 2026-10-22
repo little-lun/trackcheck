@@ -688,6 +688,16 @@ function plRenderGlobals() {
 }
 
 /* ---------------- 渲染：简化救场 ---------------- */
+const S_RES_DEFAULT = ['小喷菇', '花盆', '阳光菇', '胆小菇', '窝瓜', '樱桃', '辣椒', '咖啡豆'];
+function plSResOptions(p) {
+  const deck = (p.deck || []).filter(function (c) { return c !== '玉米炮'; });
+  const list = deck.length ? deck : S_RES_DEFAULT;
+  return list.map(function (c) {
+    const v = plEsc(c);
+    const t = plEsc(String(c).replace('模仿者:', '模仿'));
+    return '<option value="' + v + '">' + t + '</option>';
+  }).join('');
+}
 function plRenderSimple() {
   const p = plP();
   const s = p.rescue_simple || (p.rescue_simple = { enabled: true, resources: [], targets: [] });
@@ -713,8 +723,10 @@ function plRenderSimple() {
     + (s.enabled !== false ? ' checked' : '') + '>启用简化救场</label>'
     + '<span class="hint">' + plEsc(s.note || '') + '</span></div>'
     + '<div class="row" style="margin-top:6px"><label>救场资源</label>' + (res || '<span class="hint">（没有）</span>')
+    + '<select id="pl-sres-sel">' + plSResOptions(p) + '</select>'
     + '<button class="ghost mini2" data-act="addSRes">+ 加资源</button></div>'
-    + '<div class="hint" style="margin:6px 0">资源按顺序试：用不了（CD / 没位置）就换下一份。</div>'
+    + '<div class="hint" style="margin:6px 0">资源按顺序试：用不了（CD / 没位置）就换下一份。'
+    + '列表来自「选卡」卡槽 —— 卡槽里没有的卡救场也用不出来。</div>'
     + '<table class="maptable"><tr><th>要保的</th><th>格子</th><th>急迫级</th><th>优先级</th><th>冷却cs</th><th></th></tr>'
     + (rows || '<tr><td colspan="6" class="hint">还没有要保护的目标</td></tr>') + '</table>'
     + '<button class="ghost mini2" data-act="addSTgt" style="margin-top:6px">+ 加要保护的植物</button>'
@@ -982,7 +994,11 @@ PL_ROOT.addEventListener('click', async function (e) {
     delGlobal: function () { plSnap(); p.globals.splice(+el.dataset.g, 1); PLAN.sel.g = -1; },
     addGOp: function () { plSnap(); plPath(p, path).push({ op: '寒冰菇', aim: 'stock', trig: { kind: 'spawn' } }); },
     delGOp: function () { plSnap(); plPath(p, path.replace(/\.[^.]+$/, '')).splice(+path.split('.').pop(), 1); },
-    addSRes: function () { plSnap(); p.rescue_simple.resources.push({ op: '小喷菇', aim: null }); },
+    addSRes: function () {
+    plSnap();
+    const sel = document.getElementById('pl-sres-sel');
+    p.rescue_simple.resources.push({ op: (sel && sel.value) || '小喷菇', aim: null });
+  },
     delSRes: function () { plSnap(); p.rescue_simple.resources.splice(+el.dataset.i, 1); },
     addSTgt: function () {
       plSnap();

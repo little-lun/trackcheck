@@ -517,9 +517,24 @@ def classify(r, dev=None):
         out.append(dict(lv=lv, what=what, why=why, fix=fix, ws=list(ws or [])))
 
     f = r.get('fail')
+    # ★★ 2026-10-22：最常见的误配置 —— **阵解里排了 P，但阵型里根本没画玉米炮**。
+    #   这时所有 P 都会报"场上没有玉米炮"，最后以"进家：橄榄 / 第 N 路"收尾，
+    #   看起来像"模型算错了"，其实是阵型/阵解没对上。必须顶到第一条说清楚。
+    n_nocob = sum(1 for b in (r.get('broken') or [])
+                  if '场上没有玉米炮' in (b.get('why') or ''))
+    if n_nocob:
+        add('L0', '阵型里没有玉米炮，但阵解里排了 %d 次开炮（P）' % n_nocob,
+            '<b>这不是模拟的锅</b>：炮全部打不出去，僵尸一路走到进家。'
+            '先到「① 阵容布置」把 8 门炮画上去，或者把这一组出怪绑到有炮的那套阵型上。'
+            '（阵解里的 P 只看<b>场上有没有炮</b>，与卡槽无关）',
+            '补阵型，或换阵解', ws=[])
     if f:
-        add('L0', '崩阵：%s' % f['why'],
-            'w%d · %.1fs —— CORE 已经没了，不可逆' % (f['wave'], f['t'] / 100.0),
+        why = f['why'] or ''
+        head = '僵尸进家' if '进家' in why else '崩阵'
+        add('L0', '%s：%s' % (head, why),
+            'w%d · %.1fs —— %s' % (f['wave'], f['t'] / 100.0,
+                                   '一路走到房子，整局作废' if '进家' in why
+                                   else 'CORE 已经没了，不可逆'),
             f.get('detail') or '必须改轨道', ws=[f['wave']])
 
     core = ('忧郁菇', '冰瓜', '香蒲', '玉米炮')
