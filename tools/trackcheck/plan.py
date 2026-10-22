@@ -175,7 +175,10 @@ OPS = [
     #   P 不指定具体哪一门炮，只看每门炮各自的 3475cs 装填；落点可带一位小数。
     dict(name='玉米炮', group='炮', need_aim=True, aim_kind='aim',
          note='**开炮（P）**：任意一门装填好的炮，爆炸 R=115 / 1800 即刻生效；'
-              '落点可带一位小数（如 3-4.5），与僵尸受击框有重合就吃满 1800'),
+              '落点可带一位小数（如 3-4.5），与僵尸受击框有重合就吃满 1800。'
+              '**滑列落点**：列填 "front"（JSON 里 `"aim": [2, "front"]`）'
+              '= 自动把圆挪到"这一路最靠前那只刚好被圆切到"的位置，'
+              '最靠前的怪漏网时用它兜底'),
     # ---- v0.2.1 新增的积木
     dict(name='地刺', group='卡', need_aim=True, aim_kind='cell',
          note='不挡路、不被啃；101cs 一次 20，判定 x+21~+49'),
@@ -479,7 +482,11 @@ def probe_target(sim, target):
     if c is None or not c.plant:
         return None
     zs = [z for z in sim.by_row.get(rc[0], ())
-          if z.alive and z.hp > 0 and z.kind != '冰车' and z.x >= c.x - 40]
+          if z.alive and z.hp > 0 and z.x >= c.x - 40]
+    # ★ 2026-10-22：冰车默认不当"救场对象"（垫材挡不住它），
+    #   但救急卡（樱桃/辣椒/窝瓜）是能直接炸掉它的 → 由 include_icecar 打开。
+    if not target.get('include_icecar'):
+        zs = [z for z in zs if z.kind != '冰车']
     if not zs:
         return None
     z = min(zs, key=lambda x: x.x)
@@ -1770,6 +1777,8 @@ def example_classic8():
     PAD_ROWS = (1, 6)
     PAD_COL = 8               # x=600，正好在炮的判定域（z.x∈[482,712]）正中
     PAD_PLANTS = ('小喷菇', '花盆', '阳光菇', '胆小菇')
+    # 8 门炮的格子（1×2 占格，记前格）—— 救场层的保护对象
+    COBS = ((1, 5), (2, 5), (3, 1), (3, 3), (4, 1), (4, 3), (5, 5), (6, 5))
 
     def pair(at=700):
         return [_b('玉米炮', [2, 8], trig={'kind': 'time', 'at': at}),
@@ -1807,6 +1816,22 @@ def example_classic8():
     for w in (10, 20):
         next(x for x in p['waves'] if int(x['w']) == w)['note'] = \
             '旗波：一对炮（旗波出怪整体右移 40px，落点不变）'
+
+    # ---- 简化救场层：把"救急卡"丢进去，贴脸才出手
+    #   用户口径：「这些意外发生时樱桃、窝瓜这些救急卡肯定是好的、能用，
+    #   丢进救急层（贴脸才救急）把它们种出去」。
+    #   urgency_cells = 1（≈ 距目标 1 格 + 45px）—— =0 是纯"已经开始啃"，
+    #   但灰烬有 100~299cs 的生效延迟，等它真贴上就赶不及了，所以留 1 格。
+    #   资源顺序就是优先级：先炸（樱桃 R115）→ 再压（窝瓜）→ 再整行（辣椒）
+    #   → 最后两张是垫材（挡住，让炮自己解决）。
+    p['rescue_simple'] = dict(
+        enabled=True,
+        resources=[{'op': '樱桃'}, {'op': '窝瓜'}, {'op': '辣椒'},
+                   {'op': '小喷菇'}, {'op': '花盆'}],
+        targets=[dict(id='%d-%d 炮' % (r, c), protect={'row': r, 'col': c},
+                      urgency_cells=1, priority=100 - 10 * c + r,
+                      cooldown=50, include_icecar=True)
+                 for (r, c) in COBS])
     p = norm(p)
     return dict(ok=True, field='PE', name='经典八炮',
                 array={'%d-%d' % k: v for k, v in arr.items()},

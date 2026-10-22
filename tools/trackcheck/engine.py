@@ -1149,6 +1149,32 @@ class Sim:
         y1 = self.py(nxt, c)
         return y0 + (y1 - y0) * frac
 
+    def _slide_col(self, row, radius=None, head_dx=None):
+        """**滑列落点**（用户 2026-10-22）：不写死第几列，而是让这一路
+        "最靠前的那只僵尸"**恰好**落在爆炸判定域里，剩下的距离全留给后面的怪。
+
+        ★ 用户原话：「巨人、冰车受击判定域都比较大，至少有 1 格宽，
+          第 8 列落点无论如何都应该炸得到」，所以滑列只用来**补**这种情况：
+          最靠前那只已经走过 8 列的判定域了（红眼/橄榄漏网），就往左挪。
+
+        反解 `爆心 x = cell_x(col) + 7`（`head_dx = −7`）：
+            cx = 最靠前那只受击框的**右缘** + R   ← 刚好切到（圆的最右位置）
+            col = (cx − base) / 80 + 1
+        """
+        spec = D.PLANTS['玉米炮']['cob']
+        r = spec['radius'] if radius is None else radius
+        hx = spec['head_dx'] if head_dx is None else head_dx
+        base = D.cell_x(1) - hx                     # col=1 时的爆心 x
+        zs = [z for z in self.by_row.get(row, ())
+              if z.alive and z.hp > 0 and self._dbox(z)[0] <= D.DMG_LINE]
+        if not zs:
+            return 8.0
+        front = min(zs, key=lambda z: z.x)
+        _zl, zr = self._dbox(front)
+        cx = zr + r - 1.0                           # −1：别卡在浮点边界上
+        col = (cx - base) / float(D.CELL_W) + 1.0
+        return max(1.0, min(9.0, round(col * 10) / 10.0))
+
     def _fire_cob(self, ev, aim):
         """玉米炮开炮。`aim=(row, col)` 是**准星落点**（可以在任意行，可带小数）。
 
@@ -1181,7 +1207,12 @@ class Sim:
                                      name='玉米炮', ok=False))
             return
         if isinstance(aim, (tuple, list)) and len(aim) == 2:
-            row, col = float(aim[0]), float(aim[1])
+            row = float(aim[0])
+            # ★ 滑列落点：`[行, "front"]` → 由这一路最靠前的僵尸反解出列
+            if isinstance(aim[1], str):
+                col = self._slide_col(int(round(row)))
+            else:
+                col = float(aim[1])
         else:
             row = float(self._pick_row())
             zs = [z for z in self.by_row[int(row)] if z.alive]
@@ -2438,11 +2469,15 @@ class Sim:
              （普通僵尸 270 血，走到这儿基本已被冰瓜打死，不用浪费垫材）
           ② 窝瓜：只用于 **6 路**（1 路次选）减压；w10 保核坑期间禁用
         """
-        if not self.rescue:
-            return
+        # ★ 2026-10-22 修：阵解自带的救场层（`rescue_simple` / `rescue`）**不受**
+        #   内置救场开关 `rescue` 管。原来先判 `self.rescue` 再判 `rescue_tick`，
+        #   而"选了阵解"时 `run_once` 会把 `rescue` 置 False
+        #   → 阵解里写的救场层一直是死代码，从来没跑过。
         if self.rescue_tick is not None:
             # ★ v0.2 阵解栏：救场层换成"编辑出来的规则"，由 plan 侧驱动
             self.rescue_tick(self)
+            return
+        if not self.rescue:
             return
 
         self.try_stall()
