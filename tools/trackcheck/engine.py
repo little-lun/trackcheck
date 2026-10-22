@@ -593,10 +593,13 @@ class Sim:
         )
         if script.get('蹦极'):
             has_ice = any(nm in ice_names for nm, _o, _a, _t in acts)
-            self.bungee_risk.append(dict(wave=w, n=script['蹦极'], ice=has_ice))
-            # ★ 2026-10-22：真判一次"会偷谁、谁能救"
+            # ★ 2026-10-22 用户：**炮不会被蹦极锁定**；保护伞覆盖的植物也不用管。
+            #   所以"这一波要防蹦极"只在**真的有目标暴露**时才算 —— 否则不记风险，
+            #   报告里也不会冒出"蹦极无冰"这种误报（经典八炮除炮外全在伞下）。
             self._bungee_resolve()          # 上一波若还没结算，先收尾
             self._bungee_cur = self._bungee_plan(w)
+            if self._bungee_cur and self._bungee_cur.get('targets'):
+                self.bungee_risk.append(dict(wave=w, n=script['蹦极'], ice=has_ice))
 
         # ---- hover 快照：计划内 / 机会性 分开记
         #   计划内 = N / A / A' / I / 窝瓜压车 / 种大喷（轨道明确排的动作）
@@ -1941,23 +1944,37 @@ class Sim:
     def _bungee_plan(self, w):
         """蹦极的简化判定（用户 2026-10-22 口径）
 
-        · **保护伞覆盖的植物 / 玉米炮** → 不做任何操作也不会被偷
-        · 被**冰杀定式**覆盖（二曾 / 瓜曾喷）的植物 → 必须让寒冰菇生效
-        · 炮阵还可以**用炮炸蹦极**（爆炸判定域盖到那一格就算救下）
-        · 其余植物 → 会被偷
+        ★★ 用户原话：
+          「炮不用管，因为不会被蹦极锁定；场上植物全都被保护伞覆盖（3×3）时
+           不用额外操作处理蹦极；对于没有被保护伞覆盖却处于冰杀定式下的植物，
+           必须寒冰菇生效冰冻落下来的蹦极；对于保护伞覆盖也没有处于冰杀定式下的
+           植物，用炮炸蹦极。」
+
+        → 所以候选里**根本不该出现玉米炮**，也不该出现伞覆盖的格子。
+          只有"既不在伞下、也不在冰杀定式下"的才是真·裸奔目标（需要炮炸）。
         """
         if not self.wave_script(w).get('蹦极'):
             return None
         n = int(self.wave_script(w).get('蹦极') or 0)
         cand = []
+        n_umbrella = 0          # 被伞罩住（含炮）→ 不用管
+        n_cob_exempt = 0        # 玉米炮 → 不会被锁定
+        n_pad_exempt = 0        # 垫材 → 本来就是消耗品，不值得为它防蹦极
         for (r, c), cell in self.cells.items():
             if not (cell.plant or cell.tail):
                 continue
             name = cell.plant or '玉米炮'
-            if name in D.BUNGEE_SAFE_PLANTS or self._umbrella_covers((r, c)):
+            if name == '玉米炮' or cell.tail:
+                n_cob_exempt += 1
+                continue
+            if name in D.PAD_PLANT.values():
+                n_pad_exempt += 1
+                continue
+            if self._umbrella_covers((r, c)):
+                n_umbrella += 1
                 continue
             cand.append(dict(rc=(r, c), plant=name,
-                             need=('ice' if self._ice_kill_cover((r, c)) else 'none'),
+                             need=('ice' if self._ice_kill_cover((r, c)) else 'cob'),
                              saved=None))
         # 按"价值"排：曾 / 冰瓜 > 一般输出 > 其他；同价值取更靠后（玩家更在意的后场）
         rank = {'忧郁菇': 0, '冰瓜': 0, '冰西瓜': 0, '香蒲': 1, '双发射手': 1,
@@ -1965,7 +1982,9 @@ class Sim:
         cand.sort(key=lambda t: (rank.get(t['plant'], 2), -t['rc'][1]))
         targets = cand[:n]
         return dict(wave=w, n=n, targets=targets,
-                    stolen=[], saved_ice=0, saved_cob=0, safe_umbrella=0)
+                    stolen=[], saved_ice=0, saved_cob=0,
+                    safe_umbrella=n_umbrella, cob_exempt=n_cob_exempt,
+                    pad_exempt=n_pad_exempt, exposed=len(cand))
 
     def _bungee_mark(self, kind, rc=None, center=None):
         """冰 / 炮 救下蹦极目标；`center=(cx,cy)` = 爆炸判定域（盖到那格就算救）"""
@@ -2010,7 +2029,8 @@ class Sim:
             b['stolen'].append(dict(rc=(r, c), plant=name))
             self._log('BUNGEE', '蹦极偷走 %d-%d 的%s' % (r, c, name),
                       row=r, col=c,
-                      detail='保护伞/炮之外、冰杀定式之外的植物，没点冰就会被偷')
+                      detail='既不在保护伞 3×3 内，也不在冰杀定式下 → 只能靠炮炸，'
+                             '这一波没炸到')
         self.bungee_log.append(b)
         if b['stolen']:
             self._log('WARN', '本波蹦极偷走 %d 株（%s）'

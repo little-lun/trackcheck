@@ -554,13 +554,25 @@ def classify(r, dev=None):
             '不用改轨道' if lv == 'L1' else '必须重新排这一波的操作', ws=ws)
 
     # ---- 蹦极无冰（同样：事件级 L0）
-    for b in es.get('bungee', []):
-        if b.get('ice'):
+    # ★ 2026-10-22 用户：**只在"真的有植物暴露"时才谈防蹦极**。
+    #   炮不会被蹦极锁定；伞覆盖的不用管 —— 所以候选为空就不该报这一条
+    #   （经典八炮除炮外全在伞下，根本不欠这方面操作）。
+    for b in (es.get('bungee_detail') or []):
+        if not (b.get('targets') or []):
+            continue
+        if b.get('saved_ice') and not b.get('stolen'):
             continue
         lv, why = _judge_control(r, [b['wave']])
-        add(lv, 'w%d 蹦极无冰' % b['wave'],
-            why + '　<b>后果</b>：蹦极稳偷后场植物（南瓜 / 曾 / 冰瓜）',
-            '看到蹦极先点冰' if lv == 'L1' else '旗波冰是硬动作，必须提前留',
+        need_ice = [t for t in (b.get('targets') or []) if t.get('need') == 'ice']
+        add(lv, 'w%d 蹦极没处理干净' % b['wave'],
+            why + ('　<b>暴露目标</b>：%s（冰杀定式，必须点冰）'
+                   % '、'.join('%d-%d %s' % (t['rc'][0], t['rc'][1], t['plant'])
+                              for t in need_ice)
+                   if need_ice else
+                   '　<b>暴露目标</b>：%s（伞与冰杀定式都没覆盖 → 用炮炸）'
+                   % '、'.join('%d-%d %s' % (t['rc'][0], t['rc'][1], t['plant'])
+                              for t in (b.get('targets') or []))),
+            '看到蹦极先点冰 / 留一对炮' if lv == 'L1' else '这一波必须腾出冰或炮',
             ws=[b['wave']])
 
     for b in r.get('broken', []):
@@ -820,16 +832,26 @@ def bungee_table(r):
     det = es.get('bungee_detail') or []
     if not det:
         return '<div class="dim small">本档不出蹦极。</div>'
+    risky = [b for b in det if (b.get('targets') or [])]
+    if not risky:
+        # ★ 用户 2026-10-22：炮不会被蹦极锁定；伞覆盖的也不用管；垫材是消耗品。
+        #   全都在伞下 → 直接说"不用额外操作"，别报风险。
+        tot = sum(b.get('n', 0) for b in det)
+        return ('<div class="ok small">本档蹦极 <b>%d</b> 只，'
+                '落点都在**保护伞覆盖范围内**（玉米炮不会被蹦极锁定，垫材是消耗品）'
+                '→ <b>不需要为蹦极做额外操作</b>。</div>' % tot)
     rows = []
-    for b in det:
+    n_ok = len(det) - len(risky)
+    for b in risky:
         tg = b.get('targets') or []
         by_ice = [t for t in tg if t.get('saved') == 'ice']
         by_cob = [t for t in tg if t.get('saved') == 'cob']
         stolen = b.get('stolen') or []
-        free = [t for t in tg if not t.get('saved')]
-        def fmt(lst):
+        def fmt(lst, show_need=False):
+            if not lst:
+                return '—'
             return '、'.join('%d-%d%s' % (x['rc'][0], x['rc'][1], x['plant'])
-                            for x in lst) or '—'
+                            for x in lst)
         rows.append(
             '<tr><td>w%s</td><td>%d</td><td class="dim">%s</td>'
             '<td class="ok">%s</td><td class="ok">%s</td>'
@@ -839,12 +861,13 @@ def bungee_table(r):
     n_stolen = sum(len(b.get('stolen') or []) for b in det)
     return '''
   <table class="mini">
-    <tr><th>波</th><th>蹦极</th><th>会偷的目标</th><th>冰杀救下</th><th>炮炸救下</th><th>被偷</th></tr>
+    <tr><th>波</th><th>蹦极</th><th>暴露的目标</th><th>冰杀救下</th><th>炮炸救下</th><th>被偷</th></tr>
     %s
     <tr><td class="b">结论</td><td colspan="5" class="%s">
-      被偷 <b>%d</b> 株　<span class="dim">口径：保护伞覆盖的植物与玉米炮不做操作也不会被偷；
-      被「冰杀定式」（二曾 / 瓜曾喷）覆盖的必须让寒冰菇真的生效；炮阵可以用炮炸蹦极。</span></td></tr>
-  </table>''' % (''.join(rows), 'ok' if not n_stolen else 'bad', n_stolen)
+      被偷 <b>%d</b> 株　<span class="dim">口径：玉米炮不会被蹦极锁定；
+      伞覆盖的不用管；没伞但在「冰杀定式」（二曾 / 瓜曾喷）下的必须让寒冰菇生效；
+      其余用炮炸。另外 %d 波蹦极全部落在伞下 → 无需操作。</span></td></tr>
+  </table>''' % (''.join(rows), 'ok' if not n_stolen else 'bad', n_stolen, n_ok)
 
 
 def plant_status_html(r):
