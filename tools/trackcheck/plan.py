@@ -2002,6 +2002,7 @@ def example_fe4(rid='N6s'):
     NUKE_CELLS = [(5, 8), (2, 8), (6, 8), (1, 8)]
     KEEP = {2: (2, 'threat'), 5: (5, 'threat')}     # 一对炮：仰 2 / 仰 5（滑列）
 
+    ice_n = nuke_n = 0          # 冰 / 核各用掉几次（决定用原卡还是模仿者）
     for wi, row in enumerate(p['waves']):
         ice_rc = ICE_CELLS[wi % len(ICE_CELLS)]
         nuke_rc = NUKE_CELLS[wi % len(NUKE_CELLS)]
@@ -2013,16 +2014,20 @@ def example_fe4(rid='N6s'):
                     b['aim'] = list(KEEP[2 if k % 2 == 0 else 5])
                     k += 1
                     # ★ 按「一对炮装好了才打」门控，而不是写死"刷怪后 7s 开炮"：
-                    #   本模型的波是**运算量驱动**的（血量打够就推进），
-                    #   IO 重的阵波距会比名义波长（18s）短得多；
-                    #   写死时间会让 4 门炮的 3475cs 装填跟不上 →
-                    #   「所有炮都在装填」，冰车正好从这段真空里碾进来。
+                    #   炮的装填是 3475cs，比不少波长还长，写死时间会撞上"所有炮都在装填"。
                     b['trig'] = {'kind': 'state', 'what': 'cobs_ready',
                                  'cmp': '>=', 'value': 2, 'ttl': 9000}
                 elif op in ('寒冰菇', '模仿寒冰菇'):
+                    # ★ 冰卡 CD 50s > N6s 的 18s 慢波 → **必须两张冰卡轮流上**，
+                    #   否则第二颗冰永远"CD 没好"（实测：整个 20 波只冻了一次）。
+                    b['op'] = '寒冰菇' if ice_n % 2 == 0 else '模仿寒冰菇'
+                    ice_n += 1
                     b['aim'] = list(ice_rc)
                     b['trig'] = {'kind': 'spawn'}
                 elif op in ('毁灭菇', '模仿毁灭菇'):
+                    # 同理：核 CD 50s > P3n 的 36s 循环
+                    b['op'] = '毁灭菇' if nuke_n % 2 == 0 else '模仿毁灭菇'
+                    nuke_n += 1
                     b['aim'] = list(nuke_rc)
                     b['trig'] = {'kind': 'time', 'at': 1200}
                 elif op in ('樱桃', '辣椒', '窝瓜'):

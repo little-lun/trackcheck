@@ -1192,7 +1192,7 @@ class Sim:
         return out
 
     def _slide_col(self, row, radius=None, dy=None, head_dx=None, integer=False,
-                   threat=False):
+                   threat=False, allow_none=False):
         """**滑列落点**（用户 2026-10-22）：不写死第几列，而是让判定域
         "最靠前的那只僵尸"**恰好**被切到，剩下的距离全留给后面的怪。
 
@@ -1221,7 +1221,10 @@ class Sim:
         zs = [z for r in rows for z in self.by_row.get(r, ())
               if z.alive and z.hp > 0 and self._dbox(z)[0] <= D.DMG_LINE]
         if not zs:
-            return 8.0
+            # ★ 没有"可伤"的僵尸（新刷的还在 800 以外，`可伤条件 = 防御域左端 ≤ 800`）
+            #   → 滑列落点算不出列。`allow_none=True` 时返回 None，让调用方**等一等**
+            #   （别对着空气开炮：这一炮会打空，而且白进 3475cs 装填）。
+            return None if allow_none else 8.0
         if threat:
             hard = [z for z in zs if z.kind in ('冰车', '投篮') or z.giant]
             if hard:
@@ -1270,7 +1273,21 @@ class Sim:
             #   `[行, "threat"]` → 先挑冰车/投篮车/巨人（漏一次就碾掉一格植物）
             if isinstance(aim[1], str):
                 col = self._slide_col(int(round(row)),
-                                      threat=(aim[1].lower().startswith('threat')))
+                                      threat=(aim[1].lower().startswith('threat')),
+                                      allow_none=True)
+                # ★ 场上还没有"可伤"的僵尸 → **等**（玩家不会对着空气开炮）。
+                #   刚刷出来的僵尸在 800 以外，`dbox` 还没进可伤区；
+                #   这时开炮这一发就是白的，而且白搭 3475cs 装填。
+                if col is None:
+                    n = getattr(self, '_cob_wait', 0)
+                    if n < 40:
+                        self._cob_wait = n + 1
+                        self._schedule(self.t + 50, '玉米炮', aim, ev.get('wave'))
+                        return
+                    self._cob_wait = 0
+                    col = 8.0
+                else:
+                    self._cob_wait = 0
             else:
                 col = float(aim[1])
         else:
