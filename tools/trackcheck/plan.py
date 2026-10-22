@@ -501,7 +501,21 @@ def urgency_px(target):
 
 
 def run_rescue_resource(sim, res, row=None, target_rc=None):
-    """用一份救场资源；返回 True = 用掉了"""
+    """用一份救场资源；返回 True = 用掉了
+
+    ★ 2026-10-22：成功用掉的动作会打上 `rescue=True` —— 报告里要能分清
+      「这张卡是**轨道计划内**用的，还是**救场层**临时用的」（用户：
+      "樱桃当时并不是用于灰烬控丑而是救场，搞清楚为什么用卡"）。
+    """
+    n0 = len(sim.actions)
+    ok = _run_rescue_resource(sim, res, row, target_rc)
+    if ok:
+        for a in sim.actions[n0:]:
+            a['rescue'] = True
+    return ok
+
+
+def _run_rescue_resource(sim, res, row=None, target_rc=None):
     op = LEGACY_OP.get(res.get('op'), res.get('op'))
     # ★ 2026-10-22：卡还在 CD 就直接返回 False（去试下一份资源），
     #   不要走 do_action —— 那会往 broken 里塞一条"断轨：樱桃 CD 没好"，

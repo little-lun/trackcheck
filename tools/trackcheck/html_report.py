@@ -16,9 +16,50 @@ sys.path.insert(0, '.')
 from tools.trackcheck import config_dianbozhong as C
 from tools.trackcheck import run as R
 from tools.trackcheck import data as D
+from tools.trackcheck import plan as PL
 
 # 垫材 = 消耗品（小喷菇 / 花盆 / 阳光菇 / 胆小菇）—— 不进损失清单、不计磨损
 PAD_PLANTS = tuple(D.PAD_PLANT.values())
+
+
+def _deck_key(entry):
+    """选卡条目 → 引擎里的**卡片键**（用于查 card_ready）"""
+    e = str(entry)
+    if e.startswith('模仿者:'):
+        t = e.split(':', 1)[1]
+        return {'寒冰菇': '模仿冰', '毁灭菇': '模仿核'}.get(t, '模仿' + t)
+    return PL.CARD_KEY.get(e, e)
+
+
+# 引擎内部的旧动作名 → 植物名（hover 的"用卡"要统一显示成植物名）
+_ACTION_ALIAS = {'垫材': '小喷菇', '垫材2': '花盆', '垫材3': '阳光菇',
+                 '垫材4': '胆小菇', '核': '毁灭菇', '冰': '寒冰菇'}
+
+
+def _chill_hint(r):
+    """本波"临场用卡"的归因（计划内 vs 救场）—— 用户要"搞清楚为什么用卡\""""
+    acts = r.get('actions') or []
+    out = {}
+    for a in acts:
+        if not a.get('ok'):
+            continue
+        w = a.get('wave')
+        nm = _ACTION_ALIAS.get(a['name'], a['name'])
+        rec = out.setdefault(w, {})
+        e = rec.setdefault(nm, dict(plan=0, rescue=0))
+        if a.get('rescue'):
+            e['rescue'] += 1
+        else:
+            e['plan'] += 1
+    return out
+
+
+def _card_label(entry):
+    """选卡里的一项 → 显示名（'模仿者:寒冰菇' → '模仿冰'）"""
+    e = str(entry)
+    if e.startswith('模仿者:'):
+        return '模仿' + e.split(':', 1)[1]
+    return e
 
 # ★ v0.2.2：这里原来是 PE.电波钟无炮 四档的**实机录像波长**（15.84/12.30/10.24/8.56）。
 #   阵型改成用户自己配之后，没有可比的录像了 → 清空，报告里偏差显示「自定义（无参照）」。
@@ -51,6 +92,17 @@ ABBR = {
     '玉米炮': 'P',
     # ★ 极速关的 N 换成大蒜（2-9 / 5-9），它也是**结构性动作**，要画出来
     '大蒜': '·',
+    # ★★ 2026-10-22：垫材现在是**四张独立的卡**（小喷菇 / 花盆 / 阳光菇 / 胆小菇），
+    #   以前只认 '垫材'/'垫材2' 两个内部别名 → 新名字查不到缩写，落到默认泳道（I 道），
+    #   画出一个灰色的 '?'。这里补齐，并把默认泳道改到 CW 行。
+    '小喷菇': 'C', '花盆': 'C', '阳光菇': 'C', '胆小菇': 'C',
+    '垫材3': 'C', '垫材4': 'C',
+    # 其它"种植物"类动作：结构维护，画在 CW 行的小点
+    '南瓜': '·', '荷叶': '·', '睡莲': '·', '保护伞': '·', '双子花': '·',
+    '寒冰菇': 'I', '毁灭菇': 'N', '模仿寒冰菇': 'I', '模仿毁灭菇': 'N',
+    '三叶草': '·', '墓碑吞噬者': '·', '地刺': '·', '钢地刺': '·',
+    '高坚果': '·', '双向射手': '·', '机枪射手': '·', '火炬树桩': '·',
+    '磁力菇': '·', '咖啡豆': '·', '向日葵': '·',
 }
 ABBR_COLOR = {
     'P': '#7c3aed',
@@ -159,8 +211,8 @@ def svg_for(r, W=1180):
         if not a.get('ok'):
             continue
         nm = a['name']
-        ab = ABBR.get(nm, '?')
-        lane = LANE_OF.get(ab, 5)
+        ab = ABBR.get(nm, '·')
+        lane = LANE_OF.get(ab, 6)          # 认不出来的动作放 CW 行，别再掉进 I 道
         _, y, hgt = LANES[lane]
         x = X(a['t'])
         col = ABBR_COLOR.get(ab, '#64748b')
@@ -316,6 +368,12 @@ def hover_json(r):
             ev_by_w.setdefault(w, []).append(it)
 
     out = {}
+    used_by_w = _chill_hint(r)
+    # ★ 2026-10-22：阵上到底有没有存冰 —— 没有就整段不显示，
+    #   有的话分母也用**阵图里的实际存冰位数**（不再是写死的 4）。
+    ice_cap = (r.get('end_state') or {}).get('ice_cap')
+    if ice_cap is None:
+        ice_cap = (r.get('end_state') or {}).get('ice_stock_perm', 0)
     for k, wv in enumerate(waves):
         w = wv['w']
         t0 = wv['t']
@@ -326,25 +384,33 @@ def hover_json(r):
         plan = [CARD_ABBR.get(x, x) for x in sn.get('plan', [])]
         extra = [CARD_ABBR.get(x, x) for x in sn.get('extra', [])]
 
-        if (v.get('ash_act', v.get('ash'))) is not None:
-            how = '灰烬控丑（%s）' % '＋'.join(
-                CARD_ABBR.get(a, a) for a in sn.get('plan', [])
-                if a in ('核', '模仿核', '樱桃', '辣椒'))
+        # ★★ 2026-10-22 用户：「樱桃当时并不是用于灰烬控丑而是救场，搞清楚为什么用卡」。
+        #   → 控丑判定只看**轨道计划内**的灰烬/冰；救场层临时用的卡不算控丑手段。
+        ash_plan = [a for a in (sn.get('plan') or ())
+                    if a in ('核', '模仿核', '樱桃', '辣椒')]
+        ice_plan = [a for a in (sn.get('plan') or ())
+                    if a in ('冰', '模仿冰', '寒冰菇', '模仿寒冰菇')]
+        if ash_plan:
+            how = '灰烬控丑（%s）' % '＋'.join(CARD_ABBR.get(a, a) for a in ash_plan)
             how_c = '#059669'
-        elif (v.get('ice_act', v.get('ice'))) is not None:
-            how = '早冰控丑（%+.1fs 生效）' % (((v.get('ice_act', v.get('ice'))) + 299) / 100.0)
+        elif ice_plan:
+            how = '计划点冰控丑'
             how_c = '#1d4ed8'
         elif not v.get('n_joker'):
             how, how_c = '本波无小丑', '#94a3b8'
         elif r.get('_tier', '').startswith('极速'):
             how, how_c = '策略性放弃（极速关不点火）', '#94a3b8'
         else:
-            how, how_c = '无控制 ⚠', '#dc2626'
+            how, how_c = '无控丑操作（小丑靠 IO / 溅射处理）', '#94a3b8'
 
-        # 卡槽：按该档真实选卡**逐张**列（不再只列"轨道用到的 8 张"）
+        # 卡槽：**有阵解就用阵解的真实选卡**（没有才退回按档位猜的旧表）
         cards = sn.get('cards', {}) or {}
         tier0 = r.get('_tier', '').split(' / ')[0]
-        deck = deck_for(tier0, r.get('_kinds'))
+        deck_plan = r.get('_deck') or []
+        if deck_plan:
+            deck = [(_deck_key(c), _card_label(c)) for c in deck_plan]
+        else:
+            deck = deck_for(tier0, r.get('_kinds'))
         cells = []
         for k2, lab in deck:
             # ★ 南瓜（复制）在模型里与南瓜共用同一张卡的 CD —— 不编一个假的独立 CD，
@@ -390,10 +456,25 @@ def hover_json(r):
                 '<b style="color:%s">%s</b></div>' % (how_c, how),
                 '<div><span class="k2">计划</span> %s</div>'
                 % (' '.join('<b>%s</b>' % x for x in plan) if plan else '—')]
+        # ★ 2026-10-22 用户：「搞清楚为什么用卡」—— 逐张列出本波真的用掉的卡，
+        #   并标出它是**计划内**还是**救场层**临时用的。
+        used = used_by_w.get(w) or {}
+        if used:
+            seg = []
+            for nm2, cnt in sorted(used.items(), key=lambda x: -x[1]['plan'] - x[1]['rescue']):
+                why = []
+                if cnt['plan']:
+                    why.append('计划 ×%d' % cnt['plan'])
+                if cnt['rescue']:
+                    why.append('<span style="color:#0ea5e9">救场 ×%d</span>'
+                               % cnt['rescue'])
+                seg.append('<b>%s</b><span class="k2">（%s）</span>'
+                           % (PLANT_SHORT.get(nm2, nm2), ' · '.join(why)))
+            body.append('<div><span class="k2">用卡</span> %s</div>' % '　'.join(seg))
         if extra:
-            body.append('<div><span class="k2">临场</span> '
+            body.append('<div><span class="k2">机会性</span> '
                         '<span style="color:#cbd5e1">%s</span>'
-                        '<span class="k2">（不入轨迹）</span></div>'
+                        '<span class="k2">（自动选址 / 不入轨迹，明细见上面的「用卡」）</span></div>'
                         % ' '.join(extra))
         evs = ev_by_w.get(w) or []
         if evs:
@@ -405,10 +486,11 @@ def hover_json(r):
                  '<div><span class="k2">本波</span> %d 只 ｜ 小丑 %d ｜ 冰车 %d ｜ 总血 %.0fk</div>'
                  % (sn.get('n', 0), sn.get('n_joker', 0), sn.get('n_car', 0),
                     sn.get('total_hp', 0) / 1000.0),
-                 '<div><span class="k2">阳光</span> %s → %s ｜ '
-                 '<span class="k2">存冰</span> %s → %s / 4</div>'
+                 '<div><span class="k2">阳光</span> %s → %s%s</div>'
                  % (sn.get('sun', '—'), sn.get('sun_end', sn.get('sun', '—')),
-                    sn.get('ice', '—'), sn.get('ice_end', sn.get('ice', '—'))),
+                    (' ｜ <span class="k2">存冰</span> %s → %s / %d'
+                     % (sn.get('ice', '—'), sn.get('ice_end', sn.get('ice', '—')),
+                        ice_cap)) if ice_cap else ''),
                  '<div><span class="k2">卡槽</span> %s</div>'
                  '<div class="k2" style="font-size:10px">'
                  '— = 这局没有启用这张卡（建阵固定 / 未建模它的补种）；'

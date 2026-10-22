@@ -92,6 +92,9 @@ def run_once(seed, rescue=None, plan=None, field=None, array=None):
     # 供报告层决定卡槽显示（极速关有冰车/投篮 → 卡槽里没有大蒜）
     r['_kinds'] = CFG.active_kinds()
     r['_plan'] = (plan or {}).get('name') if plan else None
+    # ★ 2026-10-22：把阵解的**真实选卡**交给报告层 —— 否则 hover 里的"卡槽"
+    #   还是按档位猜出来的旧模板（经典八炮会显示成电波钟那 10 张）。
+    r['_deck'] = list((plan or {}).get('deck') or [])
     r['_field'] = field
     return r
 

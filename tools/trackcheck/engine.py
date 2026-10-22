@@ -604,7 +604,8 @@ class Sim:
         # ---- hover 快照：计划内 / 机会性 分开记
         #   计划内 = N / A / A' / I / 窝瓜压车 / 种大喷（轨道明确排的动作）
         #   机会性 = 补存冰（卡一好就补）、垫材、救急窝瓜（临场反应，不算轨迹）
-        opportunistic = {'寒冰菇', '模仿寒冰菇', '小喷菇', '花盆', '窝瓜'}
+        opportunistic = {'寒冰菇', '模仿寒冰菇', '小喷菇', '花盆', '阳光菇', '胆小菇',
+                         '窝瓜'}
         plan = [nm for nm, _o, _a, _t in acts if nm not in opportunistic]
         extra = [nm for nm, _o, _a, _t in acts if nm in opportunistic]
         self.wave_snap[w] = dict(
