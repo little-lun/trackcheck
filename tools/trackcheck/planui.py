@@ -120,7 +120,9 @@ MARKUP = r"""
   <div class="panel">
     <div class="ptitle">基本信息 · 节奏 · 快捷布置
       <i class="info" data-spec="spawnmech"></i>
-      <span class="hint" style="font-weight:400">（i = 刷怪机制说明）</span></div>
+      <span class="hint" style="font-weight:400">（i = 刷怪机制说明）</span>
+      <i class="info" data-spec="resultonly"></i>
+      <span class="hint" style="font-weight:400">（i = 建模原则：结果导向 / 哪些时延不计）</span></div>
     <div class="row" style="flex-wrap:wrap;gap:8px">
       <label class="hint">名称</label>
       <input type="text" id="pl-name" style="width:210px" placeholder="电波钟无炮">

@@ -319,7 +319,7 @@ class Sim:
         self.lost = {}                   # {(row,col): plant} 已丧失的植物
         self.ice_touched = set()
         self.pending = []            # 待结算的 AoE 命中（忧郁菇一轮 4 次）
-        self.boom_q = []             # 待生效的灰烬（种植→生效有延迟）
+        self.boom_q = []             # 待生效的灰烬（结果导向下 delay=0，当帧就结算）
         self.chili_q = []            # 待生效的辣椒
         self.fail = None
         self.events = []
@@ -1324,10 +1324,14 @@ class Sim:
         return max(pool, key=pool.get) if pool else self.rng.choice(list(self._rows()))
 
     def _boom(self, row, col, radius, dmg, delay=None, center=None):
-        """灰烬：排进队列，**延迟到点才结算**（PE 白天要咖啡豆，299cs）。
+        """灰烬：排进队列，到点结算。
 
         ★ 种下即 `ash_pending = True` —— 用户："碾压不对已经触发的灰烬生效，
           而且可以把'种植即触发'的灰烬直接种在碾压判定区"。
+
+        ★★ 结果导向（用户 2026-10-22）：**种植即生效** ——
+          `D.ASH_DELAY` 在 `RESULT_ONLY` 下就是 0（白天咖啡豆唤醒的 299cs 也不计），
+          所以这里实际上当帧就结算。真实时延值仍保留在 `data.py` 的注释里。
 
         ★ 2026-10-22：`center` 显式给爆心。`[精 六]` 明确：
           樱桃 / 毁灭菇的圆心都是 **(x+40, y+40)**，不是格子中心 ——
