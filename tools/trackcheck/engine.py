@@ -2086,17 +2086,32 @@ class Sim:
             if not (zy - 10 <= py <= zy + D.JOKER_BOOM_H + 10):
                 continue
             hit.append((col, c))
+        # ★★ 2026-10-22 用户：「垫材甚至不该出现在损失名单里面。垫材的死亡不仅
+        #   不影响控丑程度、也不应该反复报 L2」。
+        #   → 炸到垫材 = 炸在"空地"上，按**炸空**算（垫材是消耗品，本来就是为了挨这一下）。
+        pads = []
         killed = []
         for col, c in hit:
             plant, pump = c.wreck()
-            killed.append('%d-%d %s' % (z.row, col, plant or '南瓜'))
+            nm = plant or '南瓜'
+            if nm in D.PAD_PLANT.values() and not pump:
+                pads.append('%d-%d %s' % (z.row, col, nm))
+                continue
+            killed.append('%d-%d %s' % (z.row, col, nm))
             if plant in D.CORE_PLANTS:
                 self._fatal('小丑炸掉 %d-%d 的%s' % (z.row, col, plant),
                             'CORE 植物 · 控丑失败', row=z.row, col=col)
         self.joker_boom.append(dict(t=self.t, wave=self.cur_wave, row=z.row,
-                                    x=round(bx), killed=killed))
-        self._log('JOKER', '小丑爆炸（%.1f 列）炸掉 %s'
-                  % ((bx - 40) / 80.0 + 1, '、'.join(killed) if killed else '空'),
+                                    x=round(bx), killed=killed, pads=pads))
+        if killed:
+            msg = '小丑爆炸（%.1f 列）炸掉 %s' % ((bx - 40) / 80.0 + 1,
+                                                 '、'.join(killed))
+        elif pads:
+            msg = ('小丑爆炸（%.1f 列）只炸掉垫材 %s → 按**炸空**算'
+                   % ((bx - 40) / 80.0 + 1, '、'.join(pads)))
+        else:
+            msg = '小丑爆炸（%.1f 列）炸空' % ((bx - 40) / 80.0 + 1)
+        self._log('JOKER', msg,
                   row=z.row, detail='%s（开盒 %.1fs，本波第 %d 只小丑）'
                   % ('早爆型' if z.joker_early else '晚爆型',
                      D.JOKER_BOX_EARLY[0] / 100.0 if z.joker_early else 13.2,
@@ -2195,6 +2210,10 @@ class Sim:
                     self._fatal('冰车碾压 %d-%d 的%s' % (z.row, col, plant),
                                 '冰车不受减速、不被南瓜阻挡 · 碾压是机制杀',
                                 row=z.row, col=col)
+                elif plant in D.PAD_PLANT.values():
+                    # 垫材被碾 = 消耗品用完，不计损失
+                    self._log('INFO', '冰车碾掉垫材 %d-%d %s（消耗品，不计损失）'
+                              % (z.row, col, plant), row=z.row, col=col)
                 elif plant:
                     self._log('WARN', '冰车碾掉 %d-%d %s' % (z.row, col, plant),
                               row=z.row, col=col,
@@ -2311,8 +2330,15 @@ class Sim:
                         'CORE 植物 · 阵线已被突破到 %d 列（x=%d）' % (c.col, z.x),
                         row=c.row, col=c.col)
         else:
-            self._log('WARN', '%d-%d %s被%s啃掉' % (c.row, c.col, name, z.kind),
-                      row=c.row, col=c.col, detail='非 CORE · 可补种')
+            if name in D.PAD_PLANT.values():
+                # ★ 2026-10-22 用户：「垫材甚至不该出现在损失名单里面」
+                #   —— 垫材就是拿来换僵尸一顿咬的消耗品，吃掉就吃掉，
+                #     不进 plants_lost、也不升级成 L2。
+                self._log('INFO', '垫材 %d-%d %s 被%s吃掉（消耗品，不计损失）'
+                          % (c.row, c.col, name, z.kind), row=c.row, col=c.col)
+            else:
+                self._log('WARN', '%d-%d %s被%s啃掉' % (c.row, c.col, name, z.kind),
+                          row=c.row, col=c.col, detail='非 CORE · 可补种')
         # ★ 快速/极速的"死了就补"：连非 CORE（大喷/荷叶/伞/花）也进重建队列。
         #   否则快速关没有救场，5-7 补种的大喷一被冰车碾就永远没了。
         if self.rebuild and c.row and c.col:

@@ -829,6 +829,9 @@ def joker_table(r):
     lvl_cls = 'ok' if lvl == '严谨' else ('warn' if lvl == '有限' else 'bad')
     span = ('空窗 w' + ',w'.join(str(x) for x in waves[:6])
             + ('…' if len(waves) > 6 else '')) if waves else '—'
+    n_pad = sum(len(b.get('pads') or []) for b in (j.get('detail') or []))
+    pad_note = ('　另外炸掉垫材 <b>%d</b> 张 —— 垫材是消耗品，'
+                '<b>按炸空算</b>，不计入控丑也不进损失名单。' % n_pad) if n_pad else ''
     return '''
   <table class="mini">
     <tr><th>路</th><th>出现</th><th>爆炸</th><th>炸到植物</th><th>具体炸了什么</th></tr>
@@ -836,9 +839,10 @@ def joker_table(r):
     <tr><td class="b">控丑等级</td><td colspan="4" class="%s">
         <b>%s</b>　<span class="dim">%s</span>
         <br><span class="dim">口径：每只小丑要么炸前死亡、要么炸空 = 严谨；
-        炸到植物的概率 &lt; 5%% = 有限。早爆 / 晚爆的权重按「这一路最靠前的植物在第几列」取
-        （7~9 列重点模拟早爆，2~4 列重点模拟晚爆）。</span></td></tr>
-  </table>''' % (''.join(rows), lvl_cls, lvl, span)
+        炸到植物的概率 &lt; 5%% = 有限。**炸到垫材 = 炸空**（消耗品不算植物）。
+        早爆 / 晚爆的权重按「这一路最靠前的植物在第几列」取
+        （7~9 列重点模拟早爆，2~4 列重点模拟晚爆）。</span>%s</td></tr>
+  </table>''' % (''.join(rows), lvl_cls, lvl, span, pad_note)
 
 
 def bungee_table(r):
