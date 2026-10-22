@@ -621,7 +621,13 @@ class Sim:
         ev = dict(t=t, name=name, aim=aim, wave=w, kind=kind)
         if trig:
             ev['trig'] = trig
-            ev['ttl'] = trig.get('ttl') or _TRIG_TTL
+            # ★ 2026-10-22：`since`（距上次某积木生效后）是跨波锚点，
+            #   等待时间本身就是用户给的 at，所以 TTL 至少要覆盖它。
+            ttl = trig.get('ttl')
+            if ttl is None:
+                ttl = (_TRIG_TTL if trig.get('kind') != 'since'
+                       else int(trig.get('at') or 0) + _TRIG_TTL)
+            ev['ttl'] = ttl
             if trig.get('repeat'):
                 ev['repeat'] = trig['repeat']
         self.events.append(ev)
@@ -656,6 +662,21 @@ class Sim:
             if v is None:
                 return 'wait'
             return 'fire' if _CMP[trig.get('cmp', '>=')](v, trig.get('value', 0)) else 'wait'
+        if k == 'since':
+            # ★ 2026-10-22 用户口径：**距离上次某个积木生效 N cs 之后**
+            #   —— 跨波锚点。例：上一波的「玉米炮」生效后 8800cs 再开炮，
+            #   把 9s 节奏**用手算的时机**表达出来（而不是强制刷波）。
+            op = trig.get('op')
+            names = {op, _OP_ALIAS.get(op, op)} if op else set()
+            last = None
+            for a in self.actions:
+                if a.get('name') in names and a.get('ok') is not False:
+                    if last is None or a['t'] > last:
+                        last = a['t']
+            if last is None:
+                last = (self.wave_meta or {}).get('t', self.t)
+            return ('fire' if self.t - last >= int(trig.get('at') or 0)
+                    else 'wait')
         if k == 'not':
             r = self._eval_trig(trig.get('of') or {})
             return {'fire': 'wait', 'wait': 'fire', 'expire': 'expire'}[r]

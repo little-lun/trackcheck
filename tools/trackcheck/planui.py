@@ -118,7 +118,9 @@ MARKUP = r"""
   </div>
 
   <div class="panel">
-    <div class="ptitle">基本信息 · 节奏 · 快捷布置</div>
+    <div class="ptitle">基本信息 · 节奏 · 快捷布置
+      <i class="info" data-spec="spawnmech"></i>
+      <span class="hint" style="font-weight:400">（i = 刷怪机制说明）</span></div>
     <div class="row" style="flex-wrap:wrap;gap:8px">
       <label class="hint">名称</label>
       <input type="text" id="pl-name" style="width:210px" placeholder="电波钟无炮">
@@ -380,6 +382,11 @@ function plCond(c, path, kinds) {
     extra = plSel(path, 'cmp', c.cmp || '>=', PL_CMP) + plNum(path, 'value', c.value || 0, 52);
   } else if (k === 'time' || k === 'after') {
     extra = plNum(path, 'at', c.at || 0, 62) + '<span class="hint">cs</span>';
+  } else if (k === 'since') {
+    // ★ 2026-10-22：跨波锚点 —— 距上次某个积木生效 N cs 之后
+    extra = plSel(path, 'op', c.op || '玉米炮', (PLAN.cat.ops || []).map(function (o) { return [o.name, o.name]; }))
+      + '<span class="hint">生效后</span>' + plNum(path, 'at', c.at || 8800, 62)
+      + '<span class="hint">cs</span>';
   } else if (k === 'dist') {
     extra = plSel(path, 'zombie', c.zombie || '任意', ZOMBIES)
       + '<span class="hint">到</span>' + plNum(path, 'row', c.row || 6, 36) + '-'
@@ -440,6 +447,7 @@ function plTrigLabel(t) {
   if (t.kind === 'time') return '波内' + (t.at || 0) + 'cs';
   if (t.kind === 'after') return '接上块+' + (t.at || 0) + 'cs';
   if (t.kind === 'card') return '等' + (t.name || '') + '好';
+  if (t.kind === 'since') return '距' + (t.op || '上次') + '生效+' + (t.at || 0) + 'cs';
   if (t.kind === 'dist') return '等到' + (t.zombie || '任意') + '距 ' + (t.row || '') + '-' + (t.col || '') + (t.cmp || '') + (t.value || '');
   if (t.kind === 'state') return '等到场况' + (t.what || '');
   if (t.kind === 'all') return '等全部';

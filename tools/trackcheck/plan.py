@@ -201,6 +201,8 @@ TRIGGERS = [
     dict(kind='card', label='卡片 CD 转好', params=['name', 'offset']),
     dict(kind='dist', label='距离', params=['zombie', 'row', 'col', 'axis', 'cmp', 'value']),
     dict(kind='state', label='场况', params=['what', 'cmp', 'value', 'row']),
+    # ★ 2026-10-22：跨波锚点 —— "距上次某个积木生效 N cs 之后"
+    dict(kind='since', label='距上次某积木生效后', params=['op', 'at']),
     dict(kind='all', label='全部满足', params=['of']),
     dict(kind='any', label='任一满足', params=['of']),
     dict(kind='not', label='取反', params=['of']),
@@ -390,6 +392,10 @@ def _blocks_acts(blocks, ctx):
             at += max(0, int(ready.get(_card_key(name), 0)) - now) \
                 + int(trig.get('offset') or 0)
             trig = dict(trig, kind='card', name=name)
+        elif kind == 'since':
+            # ★ 2026-10-22：跨波锚点。编译期不折算，交给引擎在运行时求值
+            #   —— 因为"上次生效"可能发生在上一波。
+            trig = dict(trig, kind='since')
         elif kind in ('spawn', None):
             trig = None
         if b.get('repeat'):
@@ -1722,10 +1728,10 @@ def example_classic8():
     arr, _fld, _rake = LY.decode_tools(CLASSIC8_STR, 'PE')
     p = template('PE')
     p['name'] = '经典八炮'
-    p['note'] = ('P4：P|P|P|P(9,9,9,9)，9s 一对炮。起手直接进轨道；'
-                 '收尾在轨道一对炮的基础上再开一对炮，用垫材拖时间；旗波额外操作。'
-                 '⚠️ 这是**结构样板**：落点用引擎默认（优先打最危险那一路）、'
-                 '时机给 +120cs 等僵尸进入可伤线。'
+    p['note'] = ('P4：P|P|P|P(9,9,9,9)，9s 一对炮，落点 2-8 / 5-8。'
+                 '⚠️ 本模型里波长由「血量掉到 R2 阈值」决定（不是"打了必刷"），'
+                 '一对炮 + 冰瓜 IO 实测约 12.1s 一波；想把节奏压到 9s 需要手算开炮时机，'
+                 '可用触发器 since（距上次某积木生效后 N cs）表达。'
                  '冰车 / 红眼这类要临场点名的目标，请自己按实战改落点与时机。')
     p['deck'] = ['玉米炮', '寒冰菇', '咖啡豆', '南瓜', '樱桃', '辣椒', '荷叶',
                  '毁灭菇', '窝瓜', '大蒜']
@@ -1733,41 +1739,37 @@ def example_classic8():
                        gaps=[9, 9, 9, 9], pair='short')
     p, _n = quick_layout(p, 'P|P|P|P', pair='short', gaps_text='(9,9,9,9)')
 
-    # 快捷布置只给"做什么"。示例里给一个**通用**的时机与落点：
-    #   · 落点留空 → 引擎按"最危险的那一路"自动挑（有冰车优先打冰车那一路）
-    #   · 时机 +120cs → 等僵尸走进可伤线（x ≤ 764）再炸
-    #   真打请按实战改落点与时机（冰车 / 红眼这类要临场点名）。
+    # 快捷布置只给"做什么"。这里按用户口径给：落点 **2-8 / 5-8**（一门盖 1~3 路、
+    # 一门盖 4~6 路，纵向刚好全覆盖），时机 +1000cs（等僵尸走进判定域）。
+    # 9s 节奏想用"手算的跨波锚点"，把 trig 换成 {"kind":"since","op":"玉米炮","at":...}。
     for row in p['waves']:
         for st in row['sets'] or []:
             for b in st.get('ops') or []:
                 if b.get('op') == '玉米炮':
                     b['aim'] = None
-                    b['trig'] = {'kind': 'time', 'at': 120}
+                    b['trig'] = {'kind': 'time', 'at': 1000}
 
     def row(w):
         return next(r for r in p['waves'] if int(r['w']) == w)
 
-    # 起手 w1：四条陆路各来一发（先把开局的冰车 / 快僵尸压下去）
-    row(1)['sets'] = [dict(when={'kind': 'always'}, ops=[
-        _b('玉米炮', None, trig={'kind': 'time', 'at': 120}),
-        _b('玉米炮', None, trig={'kind': 'time', 'at': 120}),
-        _b('玉米炮', None, trig={'kind': 'time', 'at': 400}),
-        _b('玉米炮', None, trig={'kind': 'time', 'at': 400})])]
-    row(1)['note'] = '起手：直接进轨道，连开两对炮把开局压下去'
+    def pair(at=1000, extra=None):
+        ops = [_b('玉米炮', [2, 8], trig={'kind': 'time', 'at': at}),
+               _b('玉米炮', [5, 8], trig={'kind': 'time', 'at': at})]
+        return ops + list(extra or [])
+
+    # 起手 w1：一对炮
+    row(1)['sets'] = [dict(when={'kind': 'always'}, ops=pair())]
+    row(1)['note'] = '起手：一对炮打 2-8 / 5-8'
     for w in (10, 20):
         r = row(w)
-        r['sets'] = [dict(when={'kind': 'always'}, ops=[
-            _b('玉米炮', None, trig={'kind': 'time', 'at': 120}),
-            _b('玉米炮', None, trig={'kind': 'time', 'at': 120}),
-            _b('寒冰菇', None, trig={'kind': 'spawn'})])]
+        r['sets'] = [dict(when={'kind': 'always'},
+                          ops=pair(extra=[_b('寒冰菇', None, trig={'kind': 'spawn'})]))]
         r['note'] = '旗波：一对炮 + 冰（冰杀蹦极 / 控丑）'
     for w in (9, 19):
         r = row(w)
-        r['sets'] = [dict(when={'kind': 'always'}, ops=[
-            _b('玉米炮', None, trig={'kind': 'time', 'at': 120}),
-            _b('玉米炮', None, trig={'kind': 'time', 'at': 120}),
-            _b('玉米炮', None, trig={'kind': 'after', 'at': 0}),
-            _b('玉米炮', None, trig={'kind': 'after', 'at': 0})])]
+        r['sets'] = [dict(when={'kind': 'always'}, ops=pair(extra=[
+            _b('玉米炮', [2, 8], trig={'kind': 'after', 'at': 0}),
+            _b('玉米炮', [5, 8], trig={'kind': 'after', 'at': 0})]))]
         r['note'] = '收尾：再补一对炮 + 垫材拖时间（垫材自己排）'
     p = norm(p)
     return dict(ok=True, field='PE', name='经典八炮',
@@ -1827,6 +1829,8 @@ def spec_text(what='plan'):
                               for k, v in LAYOUT_LETTERS.items()))
     if what == 'spawn':
         return _SPEC_SPAWN
+    if what == 'spawnmech':
+        return _SPEC_SPAWN_MECH
     if what == 'layout':
         return _SPEC_LAYOUT
     return _SPEC_CONFIG
@@ -2083,6 +2087,57 @@ _SPEC_PLAN = """# TrackCheck 阵解 JSON 格式说明（format = {fmt}）
 所以旧版的「窝瓜压车」这种**特技操作已经取消**：它就是
 `窝瓜` + `aim:[5,9]` + 一个「5 路冰车距 5-9 还有 N px」的触发器。
 """
+
+_SPEC_SPAWN_MECH = """# TrackCheck · 刷怪（刷新）机制说明
+
+> 依据 `docs/知识库/02-核心-僵尸刷新机制.md`（R0/R1/R2/R3 四条基本规则，
+> 来源：贴吧 5194693832、维基《生存无尽入门》六(四)、新旧读本）。
+> **引擎按这个机制算，不套"运算量定律"** —— 运算量只是这套机制在长期实践里的经验总结。
+
+## 四条规则
+
+| 编号 | 规则 | 数值 |
+|---|---|---|
+| **R0** | 进场后固定刷第 1 波 | **6.0s** |
+| **R0a** | w9/w19：本波僵尸全灭**或拖延 45s** → 红字 → **7.2s** 后刷下一波 | 45s / 7.2s |
+| **R0b** | w20：全灭**或拖延 49s** → 白字 → **5s** 后结束 | 49s / 5s |
+| **R1** | 任意两波间隔**绝不少于 6s** | 6.0s |
+| **R2** | 本波剩余血量 / 本波总血量 < **随机阈值** → 激活刷新，**2s** 后刷出下一波 | 阈值 0.5~0.67（该波刷新瞬间就固定） |
+| **R3** | 每波额外 roll 一个 **25~31s** 的强制刷新时间，到点必刷 | 25~31s |
+
+所以实际波长由「**血量掉到阈值的那一刻**」和「R1 下限 / R3 上限」共同决定：
+
+```
+波长 = clamp( R1 6s , 血量跌破阈值 + 2s , R3 25~31s )
+```
+
+## 这对"什么时候开炮"意味着什么
+
+- **炮不是"打了必刷"**，而是"把血打到阈值才刷"。
+  一对炮（2 门）通常打不到阈值 → 这一波会靠 IO 继续磨，直到跌破阈值。
+- 想让波长稳定在 9s，就要让**血量在 ~7s 掉到阈值**（+2s 真空 = 9s）。
+  也就是说：**开炮时机要按"这一波的怪走到哪、还有多少血"手算**，没有捷径。
+- 早期波（血少）一对炮就能打过阈值 → 波长会明显短于 9s；这是机制本身，不是 bug。
+
+## 阵解里怎么表达"手算的时机"
+
+| 触发器 | 用法 |
+|---|---|
+| `time`（波内时间） | 本波刷新后第 N cs 生效 |
+| `since`（距上次某积木生效后） | **跨波锚点**：上一次「玉米炮」生效后 N cs 再开 —— 把 9s 节奏直接写出来 |
+| `dist`（距离） | 某类僵尸离某格还有多少 px |
+| `card`（卡片 CD） | 某张卡转好后 N cs |
+
+例：P4 的 9s 一对炮 ——
+
+```json
+{"op":"玉米炮","aim":[2,8],"trig":{"kind":"since","op":"玉米炮","at":8800}}
+```
+
+（`at` 用 8800 而不是 9000：R2 激活后还有 2s 刷新真空，实际波长 ≈ 8.8 + 0.2
+——真要 9s 就按实测微调。）
+"""
+
 
 _SPEC_SPAWN = """# TrackCheck 出怪列表 JSON 格式
 
