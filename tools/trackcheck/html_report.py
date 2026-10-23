@@ -891,7 +891,7 @@ def joker_table(r):
     """控丑栏（用户 2026-10-23 重做）：**逐路 × 早爆/晚爆**分别分析。
 
     结论只有三种，按实际模拟结果统计：
-      · **炸前死亡** → 控丑成功（再看是不是"冰冻后被 IO 打死"= 早冰控丑）
+      · **炸前死亡** → 控丑成功（小丑在炸之前就被打死了）
       · **炸空** → 没炸到任何植物（炸到垫材也算炸空）
       · **炸到植物** → 列出具体炸掉了哪一格的什么（CORE 就是崩阵）
     PE / FE 的**水路不出小丑**，那几路直接标出来。
@@ -917,9 +917,9 @@ def joker_table(r):
             return '<span class="dim">无</span>'
         parts.append('共 <b>%d</b> 只' % len(u))
         if died:
-            extra = '（其中 %d 只是<b>冰冻后被 IO 打死</b> → 早冰控丑）' % len(frozen) \
-                if frozen else ''
-            parts.append('炸前死亡 <b class="ok">%d</b>%s' % (len(died), extra))
+            # ★ 2026-10-23 用户：「『冰冻后被 IO 打死 → 早冰控丑』这种说法取缔，
+            #   只说是被打死了」—— 报告不再区分"早冰控丑"，统一说"被打死"。
+            parts.append('炸前死亡 <b class="ok">%d</b>' % len(died))
         if blank:
             parts.append('炸空 <b>%d</b>' % len(blank))
         if boom:
@@ -956,13 +956,13 @@ def joker_table(r):
     <tr><th>路</th><th>早爆丑</th><th>晚爆丑</th></tr>
     %s
     <tr><td class="b">结论</td><td colspan="2" class="%s">
-      小丑 <b>%d</b> 只：炸前死亡 <b>%d</b> 只（其中冰冻后被打死 %d 只 = 早冰控丑）、
-      炸空 <b>%d</b> 只、<b>炸到植物 %d</b> 只 → <b>%s</b>%s
+      小丑 <b>%d</b> 只：被打死 <b>%d</b> 只、炸空 <b>%d</b> 只、
+      <b>炸到植物 %d</b> 只 → <b>%s</b>%s
       <br><span class="dim">口径：每只小丑要么炸前死亡、要么炸空 = <b>严谨</b>；
       只炸到垫材也算炸空（垫材是消耗品）。炸到任何植物 = 有限。
       早爆/晚爆的权重按"这一路最靠前的植物在第几列"取：7~9 列重点模拟早爆、
       2~4 列重点模拟晚爆。</span></td></tr>
-  </table>""" % (''.join(rows), cls, len(units), n_died, n_frozen, n_blank, n_boom, lvl, pad_note)
+  </table>""" % (''.join(rows), cls, len(units), n_died, n_blank, n_boom, lvl, pad_note)
 
 
 def catapult_table(r):

@@ -1,0 +1,9 @@
+fix(0.2.27): 炮允许等一两秒再打；保护伞对蹦极生效；控丑措辞简化
+
+- _fire_cob：所有炮都在装填时等 100cs 重排（最多 2.4s）再打，不再直接判轨道断裂
+  （修 classic8 w10/w20 一刷新就报两条断裂；实测 20 种子 0 断裂、20/20）
+- _bungee_plan：把 BUNGEE_SAFE_PLANTS（保护伞 / 玉米炮）显式排除，
+  伞在 3x3 内除防篮球也防蹦极
+- 控丑栏取消"冰冻后被 IO 打死 = 早冰控丑"的说法，只分 被打死 / 炸空 / 炸到植物
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>

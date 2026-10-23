@@ -1345,12 +1345,23 @@ class Sim:
             return
         ready = [c for c in cobs if c.cob_cd <= self.t]
         if not ready:
+            # ★ 2026-10-23（用户报的 bug）：**不要因为"一时没装填好"就判轨道断裂**。
+            #   真实玩家写的是"9s 一对炮"，如果这一拍恰好赶上 4 门炮都在装填，
+            #   他会**等一两秒**再打，而不是把这一发作废。
+            #   （之前的表现：经典八炮 w20 一刷新就报两条"所有炮都在装填"）
+            n = getattr(self, '_cob_cd_wait', 0)
+            if n < 24:                        # 最多等 2.4s
+                self._cob_cd_wait = n + 1
+                self._schedule(self.t + 100, '玉米炮', aim, ev.get('wave'))
+                return
+            self._cob_cd_wait = 0
             self.broken.append(dict(t=self.t, wave=ev['wave'], what='玉米炮',
                                     why='所有炮都在装填（最早 %d cs 后）'
                                         % (min(c.cob_cd for c in cobs) - self.t)))
             self.actions.append(dict(t=self.t, wave=ev.get('wave') or 1,
                                      name='玉米炮', ok=False))
             return
+        self._cob_cd_wait = 0
         if isinstance(aim, (tuple, list)) and len(aim) == 2:
             row = float(aim[0])
             # ★ 滑列落点：`[行, "front"]` → 由这一路最靠前的僵尸反解出列；
@@ -2188,7 +2199,9 @@ class Sim:
             if not (cell.plant or cell.tail):
                 continue
             name = cell.plant or '玉米炮'
-            if name == '玉米炮' or cell.tail:
+            # ★ 2026-10-23 用户：「保护伞在 3×3 内除了防篮球**也可以防蹦极**」
+            #   → 保护伞自身、玉米炮、垫材都不进候选。
+            if name == '玉米炮' or cell.tail or name in D.BUNGEE_SAFE_PLANTS:
                 n_cob_exempt += 1
                 continue
             if name in D.PAD_PLANT.values():
