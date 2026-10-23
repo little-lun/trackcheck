@@ -917,8 +917,7 @@ def joker_table(r):
             return '<span class="dim">无</span>'
         parts.append('共 <b>%d</b> 只' % len(u))
         if died:
-            # ★ 2026-10-23 用户：「『冰冻后被 IO 打死 → 早冰控丑』这种说法取缔，
-            #   只说是被打死了」—— 报告不再区分"早冰控丑"，统一说"被打死"。
+            # ★ 2026-10-23 用户：报告不再按"被打死的原因"细分，统一只说"被打死"。
             parts.append('炸前死亡 <b class="ok">%d</b>' % len(died))
         if blank:
             parts.append('炸空 <b>%d</b>' % len(blank))
