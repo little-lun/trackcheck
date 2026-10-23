@@ -256,7 +256,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({'error': 'bad json'}, 400)
             try:
                 p, n = PL.quick_layout(d.get('plan') or {}, d.get('track') or '',
-                                       d.get('pair'), d.get('gaps'))
+                                       d.get('pair'), d.get('gaps'),
+                                   d.get('start'))
                 return self._json({'ok': True, 'plan': p, 'filled': n})
             except Exception as e:                           # noqa: BLE001
                 return self._json({'error': str(e)}, 500)

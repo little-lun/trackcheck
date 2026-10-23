@@ -212,6 +212,26 @@ WALK_CS = {
 }
 V_WALK = {k: CELL_W / float(v) for k, v in WALK_CS.items()}
 
+# ★ 2026-10-23 用户口径：巨人的「最早/最晚举锤」两列反推 420~590cs/列 ——
+#   这不是噪声，**就是巨人的正常速度随机区间**。按表如实做：每只巨人独立抽。
+WALK_CS_RANGE = {'白眼': (420, 590), '红眼': (420, 590)}
+
+# ---- 投篮车（Catapult）：就绪 473 → 投掷 74 → 之后每 300cs 再投一次
+CATAPULT_WALK_CS = 216        # 表：投篮 216cs/列（匀速）
+CATAPULT_READY = 473          # 表：投篮就绪（从生成起）
+CATAPULT_THROW_DELAY = 74     # 表：投篮就绪到投篮
+CATAPULT_INTERVAL = 300       # 《精确数值》投篮攻击间隔
+# 篮球滞空：投出 → 砸到底线植物。取 199cs 是为了和社区的硬波长对上：
+#   473 + 74 + 199 = **746cs** = 《节奏体系全谱》「投篮（无伤）加速波上限 7.46s」。
+BASKET_FLIGHT = 199
+BASKET_DMG = 75               # 篮球单发伤害（社区常用值）
+
+# ---- 舞王（Dancer）：表给的召唤节奏
+DANCER_SUMMON_CS = 342        # 表：舞王最早自然召唤（从生成起）
+DANCER_TOUCH_CS = 43          # 表：舞王触碰到召唤
+DANCER_BACKUP_EAT_CS = 151    # 表：召唤到伴舞啃食
+DANCER_SELF_EAT_CS = 200      # 表：召唤到舞王啃食
+
 # ---- 僵尸特殊动作（同一张表右下角；单位 cs）
 ACT_CS = {
     '撑杆起跳到落地': 181,
@@ -352,6 +372,11 @@ def avg_speed(name, v=None):
     hp, vmin, vmax, uniform, n = ZOMB[name][:5]
     if v is None:
         v = (vmin + vmax) / 2
+    rng_cs = WALK_CS_RANGE.get(name)
+    if rng_cs:
+        # 巨人类：速度随机区间由表直接给出（420~590cs/列）
+        cs = (rng_cs[0] + rng_cs[1]) / 2.0
+        return CELL_W / cs
     eff = V_WALK.get(name)
     if eff is not None:
         mid = (vmin + vmax) / 2.0
@@ -872,7 +897,10 @@ FRONT_EXCLUDE = {'海豚', '矿工', '小鬼', '气球', '跳跳', '蹦极', '�
 #   仍留在 SKIP 的是那些"有专门解法、1D 步行模型表达不了"的：
 #     蹦极（天上下来抓植物）、投篮（抛投不落地）、气球（飞越一切）、潜水（潜行）、
 #     雪橇 / 雪人（数据里没有实际出场逻辑）。
-SKIP_KINDS = {'蹦极', '投篮', '气球', '潜水', '雪橇', '雪人'}
+# ★★ 2026-10-23 用户：「投篮就绪、舞王召唤都必须如实制作模型」
+#   → **投篮**不再走"进场 N cs 后按 dps 自动清掉"的假模型，改成真实体：
+#     走 216cs/列、473cs 就绪、+74cs 投出发篮球、之后每 300cs 一发（表 + 精确数值）。
+SKIP_KINDS = {'蹦极', '气球', '潜水', '雪橇', '雪人'}
 SKIP_LIFE = 1500        # 旧参数，已不用（保留避免引用报错）
 # 该路对单只僵尸的实际自然输出 dps（= io_map.py 实测值，红眼口径）
 # 全路平均 dps（打红眼的口径，用于 io_map 式的"能不能拦住"判断）

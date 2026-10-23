@@ -133,6 +133,8 @@ MARKUP = r"""
         placeholder="P|P|P|P">
       <label class="hint">波长串</label><input type="text" id="pl-gaps" style="width:150px"
         placeholder="(9,9,9,9)">
+      <label class="hint" title="固定波长的阵，起手从连续节奏最快的点开始">起手拍</label>
+      <input type="number" id="pl-start" min="0" style="width:56px" value="0">
       <span class="hint" id="pl-gaps-tip"></span>
       <button class="primary mini2" data-act="quick">⚡ 快捷布置阵解</button>
       <button class="ghost mini2" data-act="validate">✓ 校验</button>
@@ -411,6 +413,13 @@ function plCond(c, path, kinds) {
     extra = plSel(path, 'cmp', c.cmp || '>=', PL_CMP) + plNum(path, 'value', c.value || 0, 52);
   } else if (k === 'time' || k === 'after') {
     extra = plNum(path, 'at', c.at || 0, 62) + '<span class="hint">cs</span>';
+  } else if (k === 'after_block') {
+    // ★ 2026-10-23：定时 —— 距"某一块具体积木"（w3-1-1）生效后 N cs
+    extra = '<span class="hint">距</span>'
+      + '<input type="text" style="width:96px" value="' + plEsc(c.id || '') + '"'
+      + ' data-act="setpath" data-path="' + path + '.id">'
+      + '<span class="hint">生效后</span>' + plNum(path, 'delay', c.delay || 0, 62)
+      + '<span class="hint">cs</span>';
   } else if (k === 'since') {
     // ★ 2026-10-22：跨波锚点 —— 距上次某个积木生效 N cs 之后
     extra = plSel(path, 'op', c.op || '玉米炮', (PLAN.cat.ops || []).map(function (o) { return [o.name, o.name]; }))
@@ -478,6 +487,7 @@ function plTrigLabel(t) {
   if (t.kind === 'after') return '接上块+' + (t.at || 0) + 'cs';
   if (t.kind === 'card') return '等' + (t.name || '') + '好';
   if (t.kind === 'since') return '距' + (t.op || '上次') + '生效+' + (t.at || 0) + 'cs';
+  if (t.kind === 'after_block') return '距 ' + (t.id || '?') + ' +' + (t.delay || 0) + 'cs';
   if (t.kind === 'dist') return '等到' + (t.zombie || '任意') + '距 ' + (t.row || '') + '-' + (t.col || '') + (t.cmp || '') + (t.value || '');
   if (t.kind === 'state') {
     const nm = { cobs_ready: '炮已装填门数', front_x: '本路最靠前 x',
@@ -893,6 +903,8 @@ function plRender() {
   document.getElementById('pl-beats').value = (p.rhythm.beats || []).join(' | ');
   const gEl = document.getElementById('pl-gaps');
   if (gEl && document.activeElement !== gEl) gEl.value = plGapsText(p.rhythm.gaps);
+  const stEl = document.getElementById('pl-start');
+  if (stEl && document.activeElement !== stEl) stEl.value = (p.rhythm.start || 0);
   const gTip = document.getElementById('pl-gaps-tip');
   if (gTip) {
     const gg = p.rhythm.gaps || [];
@@ -1284,14 +1296,20 @@ async function plValidate() {
 async function plQuick() {
   const track = document.getElementById('pl-beats').value;
   const gaps = document.getElementById('pl-gaps').value;
+  const startEl = document.getElementById('pl-start');
+  const start = startEl ? (+startEl.value || 0) : 0;
   if (!track.trim()) { alert('先填轨道，比如 P|P|P|P 或 N|AA\'|I|I'); return; }
-  if (!confirm('会把 w2~w20（跳过旗波）的候选整组替换成轨道的动作，落点留空。继续？')) return;
+  if (!confirm('会把 20 波（含旗波）的候选整组替换成轨道的动作。'
+    + (gaps.trim() ? '填了波长串 → 具备运算量的操作会按「距上一波 +波长」**定时**。'
+                   : '没填波长串 → 时机留空。')
+    + '继续？')) return;
   plSnap();
   const d = await plPost('/api/plan/quick', { plan: plP(), track: track,
-    pair: plPairMode(), gaps: gaps });
+    pair: plPairMode(), gaps: gaps, start: start });
   if (d.error) { alert('失败：' + d.error); return; }
   PLAN.bank[PLAN.active].plan = d.plan;
-  alert('已布置 ' + d.filled + ' 个常规波 —— 落点/时机/兜底还空着，接着填吧');
+  alert('已布置 ' + d.filled + ' 波（起手第 ' + start + ' 拍）'
+    + (gaps.trim() ? '，并按波长定时' : '') + ' —— 落点还空着，接着填吧');
   plRender();
   plSpectrumSoon();
 }

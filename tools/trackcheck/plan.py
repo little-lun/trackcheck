@@ -215,6 +215,10 @@ TRIGGERS = [
     dict(kind='state', label='场况', params=['what', 'cmp', 'value', 'row']),
     # ★ 2026-10-22：跨波锚点 —— "距上次某个积木生效 N cs 之后"
     dict(kind='since', label='距上次某积木生效后', params=['op', 'at']),
+    # ★★ 2026-10-23（用户）：**定时**。距**某一块具体积木**（`w3-1-1`）生效后 N cs。
+    #   固定波长的阵，具备运算量的操作（N/P/A/A′…）必须用它定时。
+    dict(kind='after_block', label='距某积木生效后（可定位到块）',
+         params=['id', 'delay']),
     dict(kind='all', label='全部满足', params=['of']),
     dict(kind='any', label='任一满足', params=['of']),
     dict(kind='not', label='取反', params=['of']),
@@ -399,7 +403,14 @@ def _blocks_acts(blocks, ctx):
         trig = dict(b.get('trig') or {'kind': 'spawn'})
         at = int(b.get('at') or 0)
         kind = trig.get('kind')
-        if kind == 'time':
+        if kind == 'after_block':
+            # ★ 2026-10-23：**定时**。编译期不折算 —— 由引擎在运行时查
+            #   "那一块积木是什么时候生效的"，再加 `at`。
+            #   `at` 也可以写成 `delay`（读起来更像"若干时长"）。
+            trig = dict(trig, kind='after_block',
+                        at=int(trig.get('at') or trig.get('delay') or 0),
+                        anchor=(trig.get('id') or trig.get('anchor')))
+        elif kind == 'time':
             at += int(trig.get('at') or 0)
             trig = None
         elif kind == 'after':
@@ -419,6 +430,11 @@ def _blocks_acts(blocks, ctx):
         if b.get('repeat'):
             trig = dict(trig or {'kind': 'spawn'})
             trig['repeat'] = b['repeat']
+        # ★ 2026-10-23：每块积木都带自己的 id（`w3-1-2`）——
+        #   引擎记下它的生效时刻，`after_block` 才能定时。
+        if b.get('id'):
+            trig = dict(trig or {})
+            trig['anchor'] = b['id']
         out.append(dict(op=op, at=at, aim=b.get('aim'), trig=(trig or None)))
         prev_at = at
     return out
@@ -1079,10 +1095,21 @@ def check_spectrum(beats, gaps, n_cob=None, deck=None):
             out.append(dict(level='ok',
                             msg='循环首操作「P」在下一循环开始时已有炮转好'))
     elif _is_long_card(first):
+        base0 = first.split(':', 1)[1] if first.startswith('模仿者:') else first
+        has_mimic = bool(deck and ('模仿者:' + base0) in deck)
         if L < LONG_CARD_CD:
-            out.append(dict(level='bad',
-                            msg='循环首操作「%s」的卡 CD 是 50s，波长和只有 %.2fs '
-                                '—— 下一循环开头还没转好' % (first, L / 100.0)))
+            # ★ 2026-10-23：带了两张同名卡（原卡 + 模仿者）就相当于 CD 减半，
+            #   这时 36s 的循环用一张冰是**合法**的（S3 就是这种）。
+            if has_mimic and L >= LONG_CARD_CD / 2.0:
+                out.append(dict(
+                    level='ok',
+                    msg='循环首操作「%s」本身 CD 50s > 循环 %.2fs，但选了模仿者 '
+                        '→ 两张轮换（实际间隔 %.2fs）' % (first, L / 100.0,
+                                                    L * 2 / 100.0)))
+            else:
+                out.append(dict(level='bad',
+                                msg='循环首操作「%s」的卡 CD 是 50s，波长和只有 %.2fs '
+                                    '—— 下一循环开头还没转好' % (first, L / 100.0)))
         else:
             out.append(dict(level='ok',
                             msg='循环首操作「%s」在下一循环开始时已转好' % first))
@@ -1112,18 +1139,29 @@ def spectrum_report(plan=None, track=None, gaps=None, n_cob=None):
                 items=items, unknown=d['unknown'], pair=d.get('pair'))
 
 
-def quick_layout(plan, track_text=None, pair=None, gaps_text=None):
-    """
-    把简式轨道铺进**常规波**（w2~w20，跳过旗波 w10/w20）。
+# ★ 2026-10-23：「没有运算量」的操作 —— 起手那一拍不打它们
+#   （冰 / 咖啡豆 / 垫材 / 南瓜这类都不是"运算量"，起手打出去等于白打）
+_NO_COUNT_OPS = {'寒冰菇', '模仿寒冰菇', '冰', '模仿冰', '咖啡豆', '存冰',
+                 '小喷菇', '花盆', '阳光菇', '胆小菇', '南瓜',
+                 '垫材', '垫材2', '垫材3', '垫材4', '荷叶', '花盆'}
 
-    ★ 只填"做什么"：落点、时机、兜底一律留空，由用户补 ——
-      这就是"快捷布置阵解"的全部职责。
+
+def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None):
+    """
+    把简式轨道铺进**常规波**（默认 20 波全填）。
+
+    ★ 只填"做什么"：落点留给用户补 —— 这一版开始**时机也不再留空**：
+      填了波长串（= 固定波长的阵）就按「距上一波段生效后 +波长」定时。
 
     分隔符的处置（用户 2026-10-22）：
       · `|` → 下一波
       · `-` → 同一波里再排一组积木，触发器用「上一块之后」并把时间**留空**
       · `/` → 两组操作放进同一时机，落点全部留空（分场上/下半场自己填）
       · `~` → 两套轨道**逐循环交替**铺进去
+
+    `start`（用户 2026-10-23）：**起手拍**。固定波长的阵"起手必然从连续节奏最快的点
+      开始"，所以允许从轨道里任意一拍起铺。例 N6s = `I-PP|I-PP|N|PP`，
+      起手取第 2 拍 → 铺出来是 `PP|N|PP|I-PP|…`（第 1 拍的 I 开局没有运算量，不打）。
     """
     p = norm(plan or {})
     rh = p.get('rhythm') or {}
@@ -1147,18 +1185,24 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None):
         except ValueError:
             rh[GAPS_KEY] = []
     rh['pair'] = mode
+    if start is not None:
+        rh['start'] = int(start)
     p['rhythm'] = rh
+    gaps = [float(x) for x in (rh.get(GAPS_KEY) or [])]
+    start_i = int(rh.get('start') or 0)
 
     targets = [w for w in range(1, WAVES + 1) if is_regular(w)]
     rows = {int(r['w']): r for r in (p.get('waves') or [])}
     filled = 0
     cycle_i = 0          # 第几轮循环（用于 `~` 交替）
     beats = variants[0]
+    prev_id = None       # 上一波的"锚点积木" id（定时链用）
     for i, w in enumerate(targets):
-        if i and i % len(beats) == 0:
-            cycle_i += 1
+        j = i + start_i                  # ★ 起手拍：从第 start_i 拍开始铺
+        if j and j % len(beats) == 0:
+            cycle_i = j // len(beats)
             beats = variants[cycle_i % len(variants)]
-        beat = beats[i % len(beats)]
+        beat = beats[j % len(beats)]
         row = rows.get(w)
         if row is None:
             row = dict(w=w, role=role_of(w), sets=[])
@@ -1172,13 +1216,34 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None):
                 # `-` 之后的时机：留空给用户填（默认"上一块之后 + 0"）
                 blocks.append(dict(op=op, aim=None,
                                    trig={'kind': 'after', 'at': 0}))
+        # ★ 2026-10-23 用户：起手那一拍里**没有运算量的操作开局不打**
+        #   （N6s 从第 2 拍的炮起手时，第 2 拍的 I 不打 —— 开局还没怪可冻）
+        if start_i and i == 0:
+            kept = [b for b in blocks if b['op'] not in _NO_COUNT_OPS]
+            if kept:
+                blocks = kept
+        # ★★ 2026-10-23：**固定波长阵的定时**
+        #   第一块积木挂「距上一波第一块生效后 +波长」，波长取上一拍的距离。
+        #   这样"具备运算量的操作"就是真正定时的，不再依赖刷波时刻。
+        if gaps and prev_id and blocks:
+            g = gaps[(j - 1) % len(gaps)]
+            blocks[0]['trig'] = {'kind': 'after_block', 'id': prev_id,
+                                 'delay': int(round(g * 100))}
+            # 同一拍的其余积木跟着第一块走（`after` + 0 = 同时生效）
+            for b in blocks[1:]:
+                if b['trig'].get('kind') == 'spawn':
+                    b['trig'] = {'kind': 'after', 'at': 0}
         row['sets'] = [dict(when={'kind': 'always'}, ops=blocks)]
+        # 记下"这一波的第一块"给下一拍当锚点（必须和 norm() 里的命名规则一致）
+        prev_id = 'w%d-1-1' % w
         label = ' + '.join(b.get('op') for b in blocks) or '（空）'
         row['note'] = '快捷布置：' + label
         if beat.get('split'):
             row['note'] += '　· 分场（`/`）：上下半场的落点自己填'
         if len(variants) > 1:
             row['note'] += '　· 波动（`~`）第 %d 套' % (cycle_i % len(variants) + 1)
+        if gaps:
+            row['note'] += '　· 定时（波距 %gs）' % gaps[(i) % len(gaps)]
         filled += 1
     p['waves'].sort(key=lambda r: int(r['w']))
     return p, filled
@@ -1313,6 +1378,15 @@ def validate(plan):
         if not isinstance(g, dict):
             return
         k = g.get('kind')
+        if k == 'after_block':
+            # ★ 2026-10-23：定时锚点必须指向**真实存在的积木**
+            ref = g.get('id') or g.get('anchor')
+            if not ref:
+                bad(where, 'after_block 没指定是"距哪一块"（id 例句：w3-1-1）')
+            elif ref not in ids:
+                bad(where, 'after_block 指向的积木 %r 不存在' % ref)
+            elif int(g.get('at') or g.get('delay') or 0) <= 0:
+                warn(where, 'after_block 的时长是 0 —— 会和那一块同时生效')
         if k == 'prev':
             back = int(g.get('back') or 1)
             if back < 1:
@@ -1336,6 +1410,13 @@ def validate(plan):
                 walk_gate(where, sub, w)
 
     rows = plan.get('waves') or []
+    # 全部积木的 id（`after_block` 校验用）
+    ids = set()
+    for row in rows:
+        for st in row.get('sets') or []:
+            for b in st.get('ops') or []:
+                if b.get('id'):
+                    ids.add(b['id'])
     if len(rows) != WAVES:
         warn('整体', '波数是 %d（一轮按 %d 波算；缺的行不会跑任何积木）'
              % (len(rows), WAVES))
@@ -1474,12 +1555,15 @@ def norm(plan):
         row['w'] = int(row.get('w') or 0)
         row['role'] = role_of(row['w'])
         row.setdefault('sets', [])
-        for st in row['sets']:
+        for si, st in enumerate(row['sets']):
             st.setdefault('when', {'kind': 'always'})
             st['when'] = _mig_gate(st.get('when'))
             st['ops'] = [_mig_block(b) for b in (st.get('ops') or [])]
-            for b in st['ops']:
+            for bi, b in enumerate(st['ops']):
                 b.setdefault('trig', {'kind': 'spawn'})
+                # ★★ 2026-10-23 用户：「每一个积木都有唯一命名：波数-候选-序号」
+                #   例 w1-1-1 = 第 1 波、候选 1、第 1 块。`after_block` 靠它定位。
+                b['id'] = 'w%d-%d-%d' % (row['w'], si + 1, bi + 1)
     for g in p['globals']:
         g.setdefault('enabled', True)
         g['when'] = _mig_gate(g.get('when') or {'kind': 'always'})
@@ -1522,6 +1606,11 @@ def norm(plan):
         r['beats'] = list(preset['beats']) if preset else ['N', "AA'", 'I', 'I']
     r.setdefault('system', 'C')
     r.setdefault('name', r['id'])
+    # ★ 2026-10-23：起手拍（固定波长的阵从"最快的一拍"起手）
+    try:
+        r['start'] = max(0, int(r.get('start') or 0))
+    except (TypeError, ValueError):
+        r['start'] = 0
     # ★ 2026-10-22：波长串 / 简写复写
     g = r.get('gaps')
     if isinstance(g, str):
@@ -1839,16 +1928,20 @@ _FE4_DECK = ['寒冰菇', '模仿寒冰菇', '毁灭菇', '模仿毁灭菇',
 
 _FE4_PLANS = {
     'N6s': dict(system='N', beats=['I-PP', 'I-PP', 'N', 'PP'],
-                gaps=[18, 18, 9, 9],
+                gaps=[18, 18, 9, 9], start=1, opening=['PP', 'N', 'PP'],
                 note='N6s（wiki 的 c6u）：I-PP|I-PP|N|PP(18,18,9,9)，54s 循环、'
-                     '双冰单核、4 炮够用。★ 别和 N6（20,20,7.5×2）搞混，差 2 秒。'),
+                     '双冰单核、4 炮够用。★ 别和 N6（20,20,7.5×2）搞混，差 2 秒。'
+                     '★ 起手 PP|N|PP（从第 2 拍的炮起手，第 1 拍的 I 开局不打）。'),
     'P3n': dict(system='P', beats=['PP', 'PP', 'N'], gaps=[12, 12, 12],
+                start=0, opening=['PP', 'PP', 'N'],
                 note='P3n（= P3-n）：PP|PP|N(12,12,12)，36s 循环，'
                      '**P3 的第二对炮换成核弹**。核 CD 50s > 36s，所以必须带模仿核。'),
     'S3': dict(system='S', beats=['I-PP', 'PP'], gaps=[24, 12],
+               start=1, opening=['PP', 'I-PP', 'PP'],
                note='S3：I-PP|PP(24,12)，36s 循环、单冰。慢波（24s）里冰要**晚放**，'
                     '先把海豚冻进 6 列曾的射程（拆 3-5/4-5 曾的阵改尤其如此）。'),
     'C4io': dict(system='C', beats=['N', 'PP', 'PP', 'I'], gaps=[12.5] * 4,
+                 start=1, opening=['PP', 'PP', 'N'],
                  note='C4io：N|PP|PP|I(50s 均分)，4 波一循环、双冰单核 —— '
                       '原帖 2010 的解法，"不用把小丑冰在特定位置，一出来就冰"。'),
 }
@@ -1992,14 +2085,19 @@ def example_fe4(rid='N6s'):
                        gaps=list(rp.get('gaps') or conf['gaps']),
                        pair='full')
     # 把节奏型铺进常规波（轨道串 / 波长串一起进 rhythm）
+    #   ★ 2026-10-23 用户：「固定波长的阵，其具备运算量的操作必须是定时的」+
+    #     「起手必然从连续节奏最快的点开始」。FE.雾四炮 的起手 = **PP|N|PP**，
+    #     即 N6s 从第 2 拍起铺，且第 2 拍的 I 开局不打（没有运算量）。
     p['rhythm'][GAPS_KEY] = [float(g) for g in conf['gaps']]
-    p, _n = quick_layout(p, '|'.join(conf['beats']), pair='full')
+    p, _n = quick_layout(p, '|'.join(conf['beats']), pair='full',
+                         start=conf.get('start', 0))
 
-    # ★ 落点：炮按列滑动；冰 / 核种在**陆路空格**（夜场没有存冰位、水路要荷叶）
-    #   冰的格子要**逐波轮换**：冰车压过会留冰道、毁灭菇会留弹坑，
-    #   一直种同一格会被"种不下（冰道/弹坑）"卡死 → 后面的冰全失效。
+    # ★ 落点：炮按列滑动；冰种在**陆路空格**（夜场没有存冰位、水路要荷叶）；
+    #   **毁灭菇要种在水路前排空格** —— 只有水路前排才能同时盖住
+    #   上下两条水路 + 相邻陆路，凑够 **2 个运算量**（用户 2026-10-23 点名）。
+    #   冰/核的格子逐波轮换：冰车压过留冰道、核留弹坑，同一格会被卡死。
     ICE_CELLS = [(2, 9), (1, 9), (5, 9), (6, 9), (2, 8), (1, 8), (5, 8), (6, 8)]
-    NUKE_CELLS = [(5, 8), (2, 8), (6, 8), (1, 8)]
+    NUKE_CELLS = [(3, 7), (4, 7), (3, 8), (4, 8), (3, 9), (4, 9)]
     KEEP = {2: (2, 'threat'), 5: (5, 'threat')}     # 一对炮：仰 2 / 仰 5（滑列）
 
     ice_n = nuke_n = 0          # 冰 / 核各用掉几次（决定用原卡还是模仿者）
@@ -2013,26 +2111,26 @@ def example_fe4(rid='N6s'):
                 if op == '玉米炮':
                     b['aim'] = list(KEEP[2 if k % 2 == 0 else 5])
                     k += 1
-                    # ★ 按「一对炮装好了才打」门控，而不是写死"刷怪后 7s 开炮"：
-                    #   炮的装填是 3475cs，比不少波长还长，写死时间会撞上"所有炮都在装填"。
-                    b['trig'] = {'kind': 'state', 'what': 'cobs_ready',
-                                 'cmp': '>=', 'value': 2, 'ttl': 9000}
+                    # ★ 定时：`after_block`（距上一波第一块生效 +波长）已经在
+                    #   `quick_layout` 里按波长串铺好了 —— **不要**再用
+                    #   「炮装好了才打」这种自适应门控，那会破坏固定波长。
                 elif op in ('寒冰菇', '模仿寒冰菇'):
                     # ★ 冰卡 CD 50s > N6s 的 18s 慢波 → **必须两张冰卡轮流上**，
                     #   否则第二颗冰永远"CD 没好"（实测：整个 20 波只冻了一次）。
                     b['op'] = '寒冰菇' if ice_n % 2 == 0 else '模仿寒冰菇'
                     ice_n += 1
                     b['aim'] = list(ice_rc)
+                    # ★ 用户：「18s 的慢波要在**刷怪时立即冰生效**」——
+                    #   冰不是运算量，按刷怪即刻打，不跟着波长定时。
                     b['trig'] = {'kind': 'spawn'}
                 elif op in ('毁灭菇', '模仿毁灭菇'):
                     # 同理：核 CD 50s > P3n 的 36s 循环
                     b['op'] = '毁灭菇' if nuke_n % 2 == 0 else '模仿毁灭菇'
                     nuke_n += 1
                     b['aim'] = list(nuke_rc)
-                    b['trig'] = {'kind': 'time', 'at': 1200}
-                elif op in ('樱桃', '辣椒', '窝瓜'):
-                    b['trig'] = {'kind': 'time', 'at': 1200}
-    p['waves'][0]['note'] = '起手：冰 + 一对炮（落点按列滑动，炮从水路打出来）'
+                    # 核属于**运算量**：保留 after_block 的定时，只补落点
+    p['waves'][0]['note'] = '起手：' + '|'.join(
+        conf.get('opening') or ['PP', 'N', 'PP']) + '（最快起手，第 1 拍的 I 不打）'
     for w in (10, 20):
         next(x for x in p['waves'] if int(x['w']) == w)['note'] = '旗波：同常规'
 

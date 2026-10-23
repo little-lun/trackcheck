@@ -80,7 +80,8 @@ def handle(path, query='', body=''):
             except Exception:
                 return _json(400, {'error': 'bad json'})
             p, n = PL.quick_layout(d.get('plan') or {}, d.get('track') or '',
-                                   d.get('pair'), d.get('gaps'))
+                                   d.get('pair'), d.get('gaps'),
+                                  d.get('start'))
             return _json(200, {'ok': True, 'plan': p, 'filled': n})
         if path == '/api/plan/spectrum':
             try:

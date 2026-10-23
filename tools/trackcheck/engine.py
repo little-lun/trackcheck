@@ -182,7 +182,8 @@ class Zombie:
                  'stall_until', 'rescued', 'summoned', 'no_eat_x', 'smash_at', 'stall_n',
                  'min_x', 'box_in', 'fuse_in', 'joker_early',
                  'phase', 'vaulted', 'slid', 'armor', 'spd_alt', 'never_eat',
-                 'hold_until', 'vault_until', 'vault_to_x')
+                 'hold_until', 'vault_until', 'vault_to_x',
+                 'born_t', 'cat_at', 'eat_ready')
 
     def __init__(self, kind, row, x, wave, rng):
         self.kind = kind
@@ -193,8 +194,15 @@ class Zombie:
         self.giant = D.ZOMB[kind][5]
         v = rng.uniform(D.ZOMB[kind][1], D.ZOMB[kind][2])
         self.spd = D.avg_speed(kind, v)
+        _rng = D.WALK_CS_RANGE.get(kind)
+        if _rng:
+            # ★ 2026-10-23：巨人（白眼/红眼）每只独立抽 420~590cs/列（表的正常随机区间）
+            self.spd = D.CELL_W / rng.uniform(_rng[0], _rng[1])
         if kind == '冰车':
             self.spd = D.ice_car_speed(x)
+        # 投篮车：匀速（表 216cs/列），就绪/投掷节奏见 `_tick_catapult`
+        if kind == '投篮':
+            self.spd = D.CELL_W / float(D.CATAPULT_WALK_CS)
         self.dmg = D.EAT_DPS
         self.frozen_until = -1
         self.slowed_until = -1
@@ -220,6 +228,11 @@ class Zombie:
         #   负值 = 一出场就已经在场内走了一段（跳跳 / 扶梯），改成把出生点左移。
         adj = D.SPAWN_ADJ_CS.get(kind, 0)
         self.hold_until = -1          # 正值那部分由 Sim 在真正刷出来时补（它知道 t）
+        self.born_t = -1              # 真正刷出来的时刻（Sim 填）
+        # 投篮车：cat_at = 下一次"投掷"的时刻（-1 = 还没就绪）
+        self.cat_at = -1
+        # 舞王/伴舞：eat_ready = 这个时刻之前不啃（表的"召唤到啃食"）
+        self.eat_ready = -1
         if adj < 0:
             self.x = x + adj * self.spd
             self.min_x = self.x
@@ -332,6 +345,8 @@ class Sim:
         self.card_ready = {k: 0 for k in D.CARDS}
         self.broken = []                 # 轨道断裂（卡 CD / 阳光）
         self.crush = []                  # 冰车碾压
+        self.catapult = []               # 投篮车投掷（含被伞挡下的）
+        self.cat_pending = []            # 滞空中的篮球（199cs 后落地结算）
         self.log = []                    # 分级事件
         self.lost = {}                   # {(row,col): plant} 已丧失的植物
         self.ice_touched = set()
@@ -576,6 +591,12 @@ class Sim:
         self.wave_meta = meta
         self.cur_wave = w
 
+        # ★ 2026-10-23 用户：「空降落地和珊瑚一样，在简化模型下**忽略时延**，
+        #   视为在特定区域突然出现」→ 每 20 波的收尾（w20）直接把三人组放进场，
+        #   不走"落地/开啃"的时序（表里 珊瑚开啃 252 / 空降落地 575~594 都不计）。
+        if w % 20 == 0:
+            self._endgame_spawn(w)
+
         self._nuke_retry = 0
         self._wogua_retry = 0
         self.relaxed = bool(self.skip_hp and total_hp < self.skip_hp)
@@ -638,6 +659,35 @@ class Sim:
         )
         return meta
 
+    def _endgame_spawn(self, w):
+        """w20 收尾三人组：珊瑚（后院）/ 空降（天台），**忽略时延**直接出现在场上。
+
+        ★ 用户 2026-10-23：「空降落地和珊瑚一样，在简化模型下忽略时延，
+          视为在特定区域突然出现。」→ 不模拟 252cs 开啃 / 575~594cs 落地。
+        """
+        eg = getattr(self.fld, 'endgame', None)
+        if eg == 'coral':
+            spots = [(3, 6), (4, 6), (3, 6)]      # 水池中段
+        elif eg == 'airdrop':
+            spots = [(2, 5), (3, 5), (4, 5)]      # 天台空降区
+        else:
+            return
+        for (r, c) in spots:
+            if r not in self.by_row:
+                continue
+            z = Zombie('普通', r, D.cell_x(c), w, self.rng)
+            z.born_t = self.t
+            self.zombies.append(z)
+            self.by_row[r].append(z)
+            if self.wave_meta is not None:
+                self.wave_meta['zs'].append(z)
+                self.wave_meta['total_hp'] += z.hp0
+                self.wave_meta['remain'] = self.wave_meta.get('remain', 0) + z.hp0
+        self._log('INFO', 'w%d 收尾三人组（%s）直接出现在 %s'
+                  % (w, '珊瑚' if eg == 'coral' else '空降',
+                     '、'.join('%d-%d' % s for s in spots)),
+                  detail='用户口径：简化模型忽略落地/开啃时延')
+
     def _schedule(self, t, name, aim, w, kind='act', trig=None):
         """
         ★ v0.2：`trig` 是"触发器"（阵解栏里的积木可以挂条件）。
@@ -651,7 +701,7 @@ class Sim:
             #   等待时间本身就是用户给的 at，所以 TTL 至少要覆盖它。
             ttl = trig.get('ttl')
             if ttl is None:
-                ttl = (_TRIG_TTL if trig.get('kind') != 'since'
+                ttl = (_TRIG_TTL if trig.get('kind') not in ('since', 'after_block')
                        else int(trig.get('at') or 0) + _TRIG_TTL)
             ev['ttl'] = ttl
             if trig.get('repeat'):
@@ -688,6 +738,16 @@ class Sim:
             if v is None:
                 return 'wait'
             return 'fire' if _CMP[trig.get('cmp', '>=')](v, trig.get('value', 0)) else 'wait'
+        if k == 'after_block':
+            # ★★ 2026-10-23 用户：「具备运算量的操作（N/P/A/A′…）必须是定时的，
+            #   使用触发器『距某积木生效后若干时长』；每个积木唯一命名 波数-候选-序号」。
+            #   → `id` 指到具体那一块（不是"任一同名操作"），这才是"定时"。
+            fired = self.__dict__.setdefault('_block_fired', {})
+            t0 = fired.get(trig.get('id'))
+            if t0 is None:
+                return 'wait'
+            return ('fire' if self.t - t0 >= int(trig.get('at') or 0)
+                    else 'wait')
         if k == 'since':
             # ★ 2026-10-22 用户口径：**距离上次某个积木生效 N cs 之后**
             #   —— 跨波锚点。例：上一波的「玉米炮」生效后 8800cs 再开炮，
@@ -785,6 +845,7 @@ class Sim:
         self.queue = [q for q in self.queue if q[0] > self.t]
         for _, kind, row, x, w in due:
             z = Zombie(kind, row, x, w, self.rng)
+            z.born_t = self.t
             _adj = D.SPAWN_ADJ_CS.get(kind, 0)
             if _adj > 0:
                 # 起步加速：《僵尸时间表》反解的常数偏差（橄榄 92 / 投篮 105 / 撑杆 136 …）
@@ -1635,6 +1696,8 @@ class Sim:
             self._tick_spawn()
             self._tick_move()
             self._tick_icecar()
+            self._tick_catapult()
+            self._tick_basket()
             self._tick_spike_crush()
             self._tick_joker()
             self._tick_wogua()
@@ -1915,10 +1978,94 @@ class Sim:
             if z.hp < z.hp0 * D.DYING_RATIO:
                 z.alive = False
 
+    def _tick_catapult(self):
+        """
+        投篮车（Catapult）：**如实按《僵尸时间表》**（用户 2026-10-23）。
+
+          · 生成后 **473cs** 就绪（表：投篮就绪）
+          · 再加 **74cs** 投出第一个篮球（表：投篮就绪到投篮）
+          · 之后每 **300cs** 再投一发（《精确数值》：投篮攻击间隔）
+
+        对策判定（用户口径）：**陆路底线被伞覆盖**，或**在投掷前把它击杀** → 对策有效。
+        目标 = 它**本路**最靠后的植物（底线）；被伞罩住就算挡下。
+        """
+        for z in self.zombies:
+            if not z.alive or z.kind != '投篮':
+                continue
+            if z.frozen_until > self.t:
+                continue                      # 冻住 = 动不了也投不出（简化口径）
+            if z.born_t < 0:
+                continue
+            if z.cat_at < 0:
+                z.cat_at = z.born_t + D.CATAPULT_READY + D.CATAPULT_THROW_DELAY
+                continue
+            if self.t < z.cat_at:
+                continue
+            z.cat_at = self.t + D.CATAPULT_INTERVAL
+            self._catapult_throw(z)
+
+    def _catapult_throw(self, z):
+        """投一发篮球：打本路**底线**（最靠左）的植物，199cs 后落地。
+
+        对策判定（用户 2026-10-23）：**投掷前把它击杀**，或**底线有伞** → 对策有效。
+        所以落地那一刻才检查伞（这期间补伞也来得及）。
+        """
+        target = None
+        for col in range(1, 10):
+            c = self.cells.get((z.row, col))
+            if c is not None and c.has_content():
+                target = c
+                break
+        if target is None:
+            return
+        self.cat_pending.append(dict(t=self.t + D.BASKET_FLIGHT,
+                                     rc=(target.row, target.col),
+                                     wave=z.wave, row=z.row))
+
+    def _tick_basket(self):
+        """篮球落地结算：伞挡下 / 命中。"""
+        if not self.cat_pending:
+            return
+        keep = []
+        for b in self.cat_pending:
+            if b['t'] > self.t:
+                keep.append(b)
+                continue
+            rc = b['rc']
+            cell = self.cells.get(rc)
+            if cell is None or not cell.has_content():
+                self.catapult.append(dict(t=self.t, wave=b['wave'], rc=rc,
+                                          plant=None, verdict='目标已经没了'))
+                continue
+            if self._umbrella_covers(rc):
+                self.catapult.append(dict(t=self.t, wave=b['wave'], rc=rc,
+                                          plant=cell.plant, verdict='伞挡下'))
+                self._log('INFO', '投篮的篮球被保护伞挡下 %d-%d' % rc,
+                          row=rc[0], col=rc[1],
+                          detail='用户口径：陆路底线被伞覆盖 → 对策有效')
+                continue
+            had, had_ladder = cell.plant, cell.ladder
+            broke = cell.take_damage(D.BASKET_DMG)
+            self.catapult.append(dict(t=self.t, wave=b['wave'], rc=rc,
+                                      plant=had, verdict='命中 %d' % D.BASKET_DMG))
+            self._log('WARN', '%d-%d 的%s被篮球砸中（%d）'
+                      % (rc[0], rc[1], had or '南瓜', D.BASKET_DMG),
+                      row=rc[0], col=rc[1],
+                      detail='投篮车投掷前没被击杀 · 底线又没伞')
+            if broke == 'plant':
+                self._plant_lost(cell, had, None)
+            elif broke == 'pumpkin':
+                self._log('WARN', '南瓜被篮球砸穿 %d-%d' % rc,
+                          row=rc[0], col=rc[1])
+        self.cat_pending = keep
+
     def _summon(self, dancer):
         for i in range(D.DANCER_SUMMON_N):
             b = Zombie('伴舞', dancer.row, min(780, dancer.x + 8 - i * 6),
                        dancer.wave, self.rng)
+            # ★ 表：召唤到伴舞啃食 151cs —— 召出来的这批要等这么久才能啃
+            b.born_t = self.t
+            b.eat_ready = self.t + D.DANCER_BACKUP_EAT_CS
             self.zombies.append(b)
             self.by_row[dancer.row].append(b)
             # ★ 伴舞必须计入本波血量，否则刷新判定看不见它们（波会被算短）
@@ -2319,13 +2466,14 @@ class Sim:
                 self._log('INFO', '舞王滑步 %d 路：后退一格起舞' % z.row,
                           row=z.row, detail='滑步档 0.79~0.81（与带梯扶梯同档）'
                                            ' · 80px ≈ 100cs')
-            # 舞王召伴舞：走到 7 列后**每 8s 召一批**（不是只召一次）
-            if z.kind == '舞王' and z.x <= D.DANCER_SUMMON_X:
+            # 舞王召伴舞：★ 2026-10-23 《僵尸时间表》—— **生成后 342cs** 最早自然召唤，
+            #   之后按 `DANCER_CD` 循环；召出来后自己还要等 200cs 才能啃（表：召唤到舞王啃食）。
+            if z.kind == '舞王':
                 if z.summoned == 0:
+                    z.summoned = z.born_t + D.DANCER_SUMMON_CS
+                if self.t >= z.summoned:
                     z.summoned = self.t + D.DANCER_CD
-                    self._summon(z)
-                elif self.t >= z.summoned:
-                    z.summoned = self.t + D.DANCER_CD
+                    z.eat_ready = self.t + D.DANCER_SELF_EAT_CS
                     self._summon(z)
             target = None
             for col in range(9, 0, -1):
@@ -2367,6 +2515,9 @@ class Sim:
                 self._garlic(z, target)
                 continue
             if target is not None:
+                # ★ 表：召唤到啃食（舞王 200cs / 伴舞 151cs）—— 这段时间内不啃
+                if z.eat_ready > self.t:
+                    continue
                 z.eating = target
                 # ★ 巨人：举锤砸（周期 330cs、单次 1800），不是"啃 100dps"
                 if z.giant:
@@ -2400,10 +2551,13 @@ class Sim:
                 z.eating = None
                 z.x -= self._speed_of(z) * D.TICK
 
-    def _plant_lost(self, c, name, z):
+    def _plant_lost(self, c, name, z, by=None):
+        """`z` = 造成损失的僵尸；`by` 可以顶替它的名字/位置（篮球这类没有实体时用）"""
+        _kind = (by or (z.kind if z is not None else '僵尸'))
+        _x = (z.x if z is not None else c.x)
         if name in D.CORE_PLANTS:
-            self._fatal('%d-%d 的%s被%s啃掉' % (c.row, c.col, name, z.kind),
-                        'CORE 植物 · 阵线已被突破到 %d 列（x=%d）' % (c.col, z.x),
+            self._fatal('%d-%d 的%s被%s啃掉' % (c.row, c.col, name, _kind),
+                        'CORE 植物 · 阵线已被突破到 %d 列（x=%d）' % (c.col, _x),
                         row=c.row, col=c.col)
         else:
             if name in D.PAD_PLANT.values():
@@ -2411,9 +2565,9 @@ class Sim:
                 #   —— 垫材就是拿来换僵尸一顿咬的消耗品，吃掉就吃掉，
                 #     不进 plants_lost、也不升级成 L2。
                 self._log('INFO', '垫材 %d-%d %s 被%s吃掉（消耗品，不计损失）'
-                          % (c.row, c.col, name, z.kind), row=c.row, col=c.col)
+                          % (c.row, c.col, name, _kind), row=c.row, col=c.col)
             else:
-                self._log('WARN', '%d-%d %s被%s啃掉' % (c.row, c.col, name, z.kind),
+                self._log('WARN', '%d-%d %s被%s啃掉' % (c.row, c.col, name, _kind),
                           row=c.row, col=c.col, detail='非 CORE · 可补种')
         # ★ 快速/极速的"死了就补"：连非 CORE（大喷/荷叶/伞/花）也进重建队列。
         #   否则快速关没有救场，5-7 补种的大喷一被冰车碾就永远没了。
@@ -2423,7 +2577,7 @@ class Sim:
                     r['row'] == c.row and r['col'] == c.col and not r['done']
                     for r in self.rebuilds):
                 self.rebuilds.append(dict(t=self.t, wave=self.cur_wave,
-                                          why='%d-%d %s被%s啃掉' % (c.row, c.col, name, z.kind),
+                                          why='%d-%d %s被%s啃掉' % (c.row, c.col, name, _kind),
                                           row=c.row, col=c.col, done=False, plant=name))
 
     def _garlic(self, z, cell):
@@ -3096,6 +3250,10 @@ class Sim:
                 self._freeze()
             else:
                 self.do_action(e)
+            # ★ 2026-10-23：记下"这一块积木生效的时刻"，供 `after_block` 触发
+            bid = e.get('bid') or (e.get('trig') or {}).get('anchor')
+            if bid:
+                self.__dict__.setdefault('_block_fired', {})[bid] = self.t
             self._repeat(e)
 
     def _repeat(self, e):
@@ -3531,6 +3689,7 @@ class Sim:
                 rebuilds=self.rebuilds,
             ),
             car_audit=self.car_audit,
+            catapult=self.catapult,
             kernel_log=self.kernel_log,
             joker=dict(
                 spawned=getattr(self, '_joker_n', 0),

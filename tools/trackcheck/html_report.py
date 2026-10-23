@@ -942,6 +942,39 @@ def joker_table(r):
   </table>''' % (''.join(rows), lvl_cls, lvl, span, pad_note)
 
 
+def catapult_table(r):
+    """投篮台账（用户 2026-10-23 口径）：**底线有伞** 或 **投掷前击杀** = 对策有效。"""
+    rec = r.get('catapult') or []
+    if not rec:
+        return ('<div class="ok small">本档的投篮车<b>全部在第一次投掷前被击杀</b>'
+                '（生成 → 就绪 473cs → 投掷 74cs，也就是 547cs 内）'
+                '→ <b>投篮对策有效</b>。</div>')
+    blocked = [x for x in rec if x.get('verdict') == '伞挡下']
+    hits = [x for x in rec if str(x.get('verdict', '')).startswith('命中')]
+    gone = [x for x in rec if x.get('verdict') == '目标已经没了']
+    lost = [x for x in hits if x.get('plant')]
+    rows = []
+    seen = {}
+    for x in hits:
+        k = (x['rc'][0], x['rc'][1], x.get('plant'))
+        seen[k] = seen.get(k, 0) + 1
+    for (rr, cc, pl), n in sorted(seen.items(), key=lambda kv: -kv[1])[:12]:
+        rows.append('<tr><td>%d-%d</td><td>%s</td><td class="bad">%d</td></tr>'
+                    % (rr, cc, pl or '—', n))
+    tail = ''
+    if rows:
+        tail = ('<table class="mini"><tr><th>被打的底线植物</th><th>植物</th>'
+                '<th>命中次数</th></tr>%s</table>' % ''.join(rows))
+    lvl = 'ok' if not hits else 'bad'
+    return '''
+  <div class="%s small">投篮投出 <b>%d</b> 发：<b>%d</b> 发被保护伞挡下，'
+  <b>%d</b> 发命中，<b>%d</b> 发目标已经没了。<br>
+  <span class="dim">口径（用户 2026-10-23）：陆路底线被伞覆盖，或**在投掷前把它击杀**
+  → 对策有效。投掷节奏按《僵尸时间表》：就绪 473cs + 74cs，之后每 300cs 一发；
+  篮球滞空 199cs（473+74+199 = 746cs，正好是社区"加速波无伤上限 7.46s"）。</span></div>%s
+''' % (lvl, len(rec), len(blocked), len(hits), len(gone), tail)
+
+
 def bungee_table(r):
     """蹦极台账：**按实际判定**列出"谁被偷 / 谁被伞·炮·冰救下"（用户 2026-10-22 口径）"""
     es = r.get('end_state', {}) or {}
@@ -1101,6 +1134,7 @@ def card_html(r, dev=None):
   __GARLIC__
   __FOG__
   <div class="grid3">__KT__ __JT__ __BT__</div>
+  __CT__
   <div class="dim small">损失清单：__LOST__</div>
   <script type="application/json" class="wvjson">__JSON__</script>
 </div>'''
@@ -1134,6 +1168,7 @@ def card_html(r, dev=None):
         ('__KT__', kernel_table(r)),
         ('__JT__', joker_table(r)),
         ('__BT__', bungee_table(r)),
+        ('__CT__', catapult_table(r)),
         ('__GARLIC__', garlic_html(r)),
         ('__FOG__', fog_html(r)),
         ('__LOST__', lost_html),
