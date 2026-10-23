@@ -1335,12 +1335,22 @@ class Sim:
         if name == '樱桃':
             # ★ 2026-10-22：`[行, "front"]` = 滑列落点（**连同相邻行一起判**，
             #   因为樱桃 R=115 纵向也盖 3 行）；圆心口径 [精 六] = (x+40, y+40)
+            # ★★ 2026-10-23：同样走 `lookahead.best_aim()` 的"预演-回溯"搜索
+            #   （灰烬的落点是用户**没有定死**的灵活操作之一）。
             slide = (isinstance(aim, (list, tuple)) and len(aim) == 2
                      and isinstance(aim[1], str))
             if isinstance(aim, (list, tuple)) and len(aim) == 2:
                 r = int(round(float(aim[0])))
-                c = (self._slide_col(r, D.CHERRY_R, 40, -40, integer=True)
-                     if slide else int(round(float(aim[1]))))
+                if slide:
+                    from tools.trackcheck import lookahead as LA
+                    tabs = {rr: LA.dps_by_cell(self, rr)
+                            for rr in self._boom_rows(r, D.CHERRY_R, 40)}
+                    got = LA.best_aim(self, r, D.CHERRY_R, 40, D.ASH_DMG,
+                                      integer=True, tables=tabs)
+                    c = int(got) if got is not None else \
+                        int(self._slide_col(r, D.CHERRY_R, 40, -40, integer=True))
+                else:
+                    c = int(round(float(aim[1])))
             else:
                 r = self.slots.get('cherry_row') or self._pick_row()
                 cols = list(getattr(self, 'cherry_cols', None) or [8, 9, 7, 6])
@@ -1576,12 +1586,18 @@ class Sim:
         self._cob_cd_wait = 0
         if isinstance(aim, (tuple, list)) and len(aim) == 2:
             row = float(aim[0])
-            # ★ 滑列落点：`[行, "front"]` → 由这一路最靠前的僵尸反解出列；
-            #   `[行, "threat"]` → 先挑冰车/投篮车/巨人（漏一次就碾掉一格植物）
+            # ★ 滑列落点：`[行, "front"]` / `[行, "threat"]`
+            #   ★★ 2026-10-23 用户：**必须带"预演-回溯"**——
+            #   "如果可以估算最靠前的怪是否在破坏 core 之前被 io 打死，则可以不管，
+            #     否则必须炸到"。所以这里不再用固定公式反解列，而是
+            #     `lookahead.best_aim()`：枚举候选爆心 → 每个候选做一次推演 → 取最优。
             if isinstance(aim[1], str):
-                col = self._slide_col(int(round(row)),
-                                      threat=(aim[1].lower().startswith('threat')),
-                                      allow_none=True)
+                from tools.trackcheck import lookahead as LA
+                spec0 = D.PLANTS['玉米炮']['cob']
+                tabs = {r: LA.dps_by_cell(self, r)
+                        for r in self._boom_rows(row, spec0['radius'], spec0['dy'])}
+                col = LA.best_aim(self, row, spec0['radius'], spec0['dy'],
+                                  spec0['dmg'], tables=tabs)
                 # ★ 场上还没有"可伤"的僵尸 → **等**（玩家不会对着空气开炮）。
                 #   刚刷出来的僵尸在 800 以外，`dbox` 还没进可伤区；
                 #   这时开炮这一发就是白的，而且白搭 3475cs 装填。
@@ -3910,6 +3926,8 @@ class Sim:
             deaths=self.deaths,
             field_snap=(self.collapse_snap or self._field_snapshot()),
             replant_n=getattr(self, 'replant_n', 0),
+            # ★ 2026-10-23：预演-回溯的"省下的救场次数"（推演说会被 IO 收掉 → 不出手）
+            la_skip_n=getattr(self, 'la_skip_n', 0),
             replant=list(sorted(self.replant)),
             ice_cells=sum(1 for c in self.cells.values() if c.iced),
             ice_touched=len(self.ice_touched),
@@ -4000,6 +4018,7 @@ class Sim:
                 plants_end=self._plant_status(),
                 wave_ctrl={str(k): v for k, v in self.wave_ctrl.items()},
                 rebuilds=self.rebuilds,
+                la_skip_n=getattr(self, 'la_skip_n', 0),
             ),
             car_audit=self.car_audit,
             catapult=self.catapult,

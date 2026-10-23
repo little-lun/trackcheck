@@ -512,6 +512,28 @@ def probe_target(sim, target):
     if not zs:
         return None
     z = min(zs, key=lambda x: x.x)
+    # ★★ 2026-10-23 用户：**"预演-回溯"首先用在救场上** ——
+    #   "如果可以估算最靠前的怪是否在破坏 core 之前被 io（冰瓜、曾哥）打死，
+    #     则可以不管，否则必须炸到"。
+    #   ★ 但这条只在"还有余量"时成立：僵尸**已经贴上来**（≤1.5 格）时，
+    #     推演说"再等 400cs 会死"也没用 —— 它这 400cs 里就把植物吃了。
+    if z.x - c.x > 120:
+        from tools.trackcheck import data as _D
+        from tools.trackcheck import lookahead as _LA
+        try:
+            will_die, need_cs, _rc = _LA.io_eta(sim, z)
+        except Exception:
+            will_die, need_cs = False, None
+        if will_die and need_cs is not None:
+            # ★ 关键在于"植物还撑得住多久"，不是"僵尸什么时候死"：
+            #   受保护的那格血 = 南瓜 + 植物，啃食按 1hp/cs 算。
+            gap_px = max(0.0, z.x - (c.x + _D.EAT_OFFSET))
+            t_reach = gap_px / max(1e-6, sim._speed_of(z))
+            t_eat = (c.pumpkin_hp if c.pumpkin else 0) + c.plant_hp
+            if need_cs < t_reach + t_eat * _LA.LA_EAT_TRUST:
+                # ★ 推演结论：这只不用管 —— 记一笔，报告里能看到"省了多少张卡"
+                sim.__dict__['la_skip_n'] = sim.__dict__.get('la_skip_n', 0) + 1
+                return None
     return (z.x - c.x, z, rc)
 
 

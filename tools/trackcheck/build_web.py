@@ -35,13 +35,13 @@ if ROOT not in sys.path:
 from tools.trackcheck import ui   # noqa: E402
 
 VERSION = '0.2'
-APP_VER = '0.2.29'        # 内部版本（0.x.n = 同一发布里的第 n 处改动）
+APP_VER = '0.2.30'        # 内部版本（0.x.n = 同一发布里的第 n 处改动）
 PYODIDE = '0.29.5'
 DIST_DIR = os.path.join(ROOT, 'tools', 'trackcheck', 'dist')
 
 # 要打进包里的模块（顺序无关，import 会自己解决依赖）
 SOURCES = ['__init__.py', 'data.py', 'fields.py', 'layout.py', 'spawn.py',
-           'config_dianbozhong.py', 'engine.py',
+           'config_dianbozhong.py', 'engine.py', 'lookahead.py',
            'html_report.py', 'run.py', 'metainfo.py', 'plan.py', 'planui.py',
            'ui.py', 'jobs.py', 'webbridge.py']
 
