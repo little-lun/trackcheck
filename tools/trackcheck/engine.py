@@ -183,13 +183,22 @@ class Zombie:
                  'min_x', 'box_in', 'fuse_in', 'joker_early',
                  'phase', 'vaulted', 'slid', 'armor', 'spd_alt', 'never_eat',
                  'hold_until', 'vault_until', 'vault_to_x',
-                 'born_t', 'cat_at', 'eat_ready', 'joker_res')
+                 'born_t', 'cat_at', 'eat_ready', 'joker_res',
+                 'shield', 'shield0', 'total_hp0', 'daze_until')
 
     def __init__(self, kind, row, x, wave, rng):
         self.kind = kind
         self.row = row
         self.x = x
-        self.hp = self.hp0 = D.ZOMB[kind][0]
+        # ★ 2026-10-23 用户：二类防具（扶梯/报纸/铁门）只挡平射。
+        #   `ZOMB` 里的血量是「本体 + 二类防具」，这里拆开：
+        #     hp / hp0 = **本体**血（濒死、血量阈值都按本体算 —— 这才是原版语义）
+        #     shield   = 二类防具剩余（只有 `pierce=False` 的伤害才扣它）
+        sh = D.SHIELD2.get(kind, 0)
+        self.shield = self.shield0 = sh
+        self.hp = self.hp0 = D.ZOMB[kind][0] - sh
+        self.total_hp0 = D.ZOMB[kind][0]
+        self.daze_until = -1
         self.uniform = D.ZOMB[kind][3]
         self.giant = D.ZOMB[kind][5]
         v = rng.uniform(D.ZOMB[kind][1], D.ZOMB[kind][2])
@@ -237,19 +246,29 @@ class Zombie:
         if adj < 0:
             self.x = x + adj * self.spd
             self.min_x = self.x
-        self.phase = 'run' if kind == '撑杆' else 'walk'
+        self.phase = 'run' if kind in ('撑杆', '海豚') else 'walk'
         self.vaulted = False
         self.vault_until = -1
         self.vault_to_x = 0.0
         self.slid = False
-        self.armor = D.ARMOR.get(kind, 0)
+        # 磁力菇只吸得动**一类**金属护具；二类防具（铁门/扶梯）走 `shield`
+        self.armor = 0 if kind in D.SHIELD2 else D.ARMOR.get(kind, 0)
         # 撑杆跳完改成"慢速"档（只有这一只有第二速度）
         if kind == '撑杆':
             n = D.ZOMB[kind][4]
             v2 = rng.uniform(*D.SPEED_TIER['慢速'])
             self.spd_alt = v2 * D.SPEED_K * (n + 1) / n
+        elif kind == '海豚':
+            # ★ 2026-10-23 图鉴：骑海豚 0.8s/格（`spd`），跳过后水豚消失 → 4.7s/格
+            self.spd = D.CELL_W / 80.0            # 0.8s = 80cs
+            self.spd_alt = D.CELL_W / 470.0       # 4.7s = 470cs
         else:
             self.spd_alt = 0.0
+
+    @property
+    def total_hp(self):
+        """本体 + 二类防具（波血量、剩余血量统计都用这个）"""
+        return self.hp + self.shield
 
 
 # ------------------------------------------------------------------ 模拟器
@@ -540,7 +559,8 @@ class Sim:
                 cob_cd=(round(max(0, cell.cob_cd - self.t))
                         if cell.plant == '玉米炮' else None),
                 core=bool(spec.get('core'))))
-        zs = [dict(kind=z.kind, row=z.row, x=round(z.x), hp=round(z.hp),
+        # ★ 2026-10-23：血量显示用「本体 + 二类防具」，否则铁门会显示成 270
+        zs = [dict(kind=z.kind, row=z.row, x=round(z.x), hp=round(z.total_hp),
                    giant=bool(z.giant))
               for z in self.zombies if z.alive]
         acts = [dict(t=a['t'], name=a.get('name'), wave=a.get('wave'),
@@ -847,8 +867,8 @@ class Sim:
             self.by_row[r].append(z)
             if self.wave_meta is not None:
                 self.wave_meta['zs'].append(z)
-                self.wave_meta['total_hp'] += z.hp0
-                self.wave_meta['remain'] = self.wave_meta.get('remain', 0) + z.hp0
+                self.wave_meta['total_hp'] += z.total_hp0
+                self.wave_meta['remain'] = self.wave_meta.get('remain', 0) + z.total_hp0
             self._log('INFO', 'w%d %s：%d-%d 出现 %s'
                       % (w, '珊瑚' if eg == 'coral' else '空降', r, c, kind),
                       row=r, col=c,
@@ -1691,7 +1711,7 @@ class Sim:
         pool = {}
         for z in self.zombies:
             if z.alive:
-                pool[z.row] = pool.get(z.row, 0) + z.hp
+                pool[z.row] = pool.get(z.row, 0) + z.total_hp
         return max(pool, key=pool.get) if pool else self.rng.choice(list(self._rows()))
 
     def _boom(self, row, col, radius, dmg, delay=None, center=None):
@@ -1743,7 +1763,7 @@ class Sim:
                             cc.ash_pending = False
                     for z in self.zombies:
                         if z.alive and z.row == r:
-                            z.hp -= D.ASH_DMG
+                            self._hurt(z, D.ASH_DMG, True)
                             self.dmg_dealt += D.ASH_DMG
                     self._clear_ice_trail(row=r)
                     # ★ 用户："如果因 5-3 辣椒复用导致当时没能正常补存冰，
@@ -1774,7 +1794,7 @@ class Sim:
             zl, zr = self._dbox(z)
             if zr < lo or zl > hi:
                 continue
-            z.hp -= dmg
+            self._hurt(z, dmg, True)
             self.dmg_dealt += dmg
             n += 1
             if z.giant:
@@ -1831,7 +1851,7 @@ class Sim:
             ny = zy if cy < zy else (zy + D.DEF_HEIGHT if cy > zy + D.DEF_HEIGHT else cy)
             dx, dy = nx - cx, ny - cy
             if dx * dx + dy * dy <= r2:
-                z.hp -= dmg
+                self._hurt(z, dmg, True)
                 self.dmg_dealt += dmg
 
     def _doom(self, aim):
@@ -2703,6 +2723,8 @@ class Sim:
                 continue
             if z.frozen_until > self.t or z.stall_until > self.t:
                 continue
+            if z.daze_until > self.t:
+                continue          # ★ 读报：报纸刚被打掉，发愣 1~2s（不前进也不啃）
             # ★ 起步偏差（《僵尸时间表》）：还没"起步完"就原地不动
             if z.hold_until > self.t:
                 continue
@@ -2775,6 +2797,21 @@ class Sim:
                           row=target.row, col=target.col,
                           detail='滞空 %dcs（表）→ 落地 x=%d（目标 x−70）· 之后按慢速档走'
                                  % (D.ACT_CS['撑杆起跳到落地'], int(z.vault_to_x)))
+                continue
+            # ★ 2026-10-23 海豚骑海豚跳：与撑杆同构（飞跃第一个植物），
+            #   但滞空 = 表的「海豚跳跃植物」232cs，落点沿用撑杆口径（目标 x−70）。
+            #   跳过后水豚消失 → 速度回落到 4.7s/格（`spd_alt`），见 `_speed_of`。
+            if (z.kind == '海豚' and not z.vaulted and target is not None
+                    and not self._is_tall(target)):
+                z.vaulted = True
+                z.vault_until = self.t + D.ACT_CS['海豚跳跃植物']
+                z.vault_to_x = target.x - 70
+                z.phase = 'walk'
+                self._log('INFO', '海豚跃过 %d-%d %s'
+                          % (target.row, target.col, target.plant or '南瓜'),
+                          row=target.row, col=target.col,
+                          detail='滞空 %dcs → 落地 x=%d · 之后按 4.7s/格 走'
+                                 % (D.ACT_CS['海豚跳跃植物'], int(z.vault_to_x)))
                 continue
             if target is not None and target.plant == '大蒜':
                 # ★★ 2026-10-20：大蒜不是"被啃的墙"，它**啃一口就换行**。
@@ -3220,7 +3257,7 @@ class Sim:
             return False
         row = hit.row
         hp0 = hit.hp
-        hit.hp -= D.ASH_DMG
+        self._hurt(hit, D.ASH_DMG, True)
         hit.rescued = True
         self.tomato_used_at = self.t
         self._log('RESCUE', '窝瓜强杀 %d 路的%s' % (row, hit.kind), row=row,
@@ -3370,7 +3407,7 @@ class Sim:
         r_norm, r_eat = rng_pair
         best = None
         for z in self.by_row[c.row]:
-            if not z.alive or not z.armor or z.kind in D.MAGNET_SKIP:
+            if not z.alive or (not z.armor and not z.shield) or z.kind in D.MAGNET_SKIP:
                 continue
             r = r_eat if z.eating is not None else r_norm
             d = abs(z.x - c.x)
@@ -3379,8 +3416,16 @@ class Sim:
         if best is None:
             return
         z = best[1]
+        if z.kind in D.SHIELD2:
+            # ★ 2026-10-23：二类防具（铁门/扶梯）走 `shield`，吸走 = 盾清零，
+            #   本体血不动（原来会把 hp0 也一起扣，等于凭空虚增伤害）
+            drop = z.shield
+            z.shield = 0
+            self._log('REPAIR', '磁力菇吸走 %d 路 %s 的二类防具（−%d 护具血）'
+                      % (z.row, z.kind, drop), row=c.row, col=c.col,
+                      detail='R=%d · 剩下的只有本体血 %d' % (r_norm, z.hp))
+            return
         drop = z.armor
-        z.hp -= 0                       # 护具是被"摘掉"而不是受伤
         z.armor = 0
         z.hp0 = max(1, z.hp0 - drop)
         z.hp = min(z.hp, z.hp0)
@@ -3402,9 +3447,37 @@ class Sim:
             dmg *= torch['mult']
         for d in sh.get('delays', (25,)):
             for _ in range(sh.get('front', 1)):
-                self.pending.append((self.t + d, c.row, 1, c.x + 60, 9000, dmg))
+                self.pending.append((self.t + d, c.row, 1, c.x + 60, 9000, dmg, False))
             for _ in range(sh.get('back', 0)):
-                self.pending.append((self.t + d, c.row, 1, 0, c.x - 20, dmg))
+                self.pending.append((self.t + d, c.row, 1, 0, c.x - 20, dmg, False))
+
+    def _hurt(self, z, dmg, pierce=False):
+        """对一只僵尸造成伤害。
+
+        ★ 2026-10-23 用户给出的防具口径：
+          二类防具（扶梯 / 报纸 / 铁门）**只挡平射** ——
+          AoE、投掷子弹、喷雾(`pierce=True`) 直接打本体。
+          一类防具折在总血量里（对非灰烬伤害等价），灰烬/炮/窝瓜 1800 直接击杀。
+
+        `pierce=True` 的调用点：冰瓜(抛射) / 大喷菇·忧郁菇(喷雾穿透) / 溅射 /
+        灰烬 / 玉米炮 / 窝瓜 / 篮球 / 小丑爆炸。
+        """
+        if dmg <= 0:
+            return
+        if z.shield > 0 and not pierce:
+            absorb = min(z.shield, dmg)
+            z.shield -= absorb
+            if z.shield <= 0 and z.kind == '读报':
+                # 报纸被打破 → 发愣 1~2s，然后按 1.8s/格 暴走（图鉴）
+                z.daze_until = self.t + self.rng.randint(*D.NEWS_DAZE)
+                z.spd_alt = D.CELL_W / float(D.NEWS_RUSH_CS)
+                z.phase = 'walk'
+                self._log('INFO', '读报 %d 路的报纸被打掉 → 发愣 %dcs 后暴走（1.8s/格）'
+                          % (z.row, int(z.daze_until - self.t)), row=z.row)
+            dmg -= absorb
+            if dmg <= 0:
+                return
+        z.hp -= dmg
 
     def _torch_ahead(self, c):
         """同一行里 c 右侧最近的活着的火炬树桩（豌豆会穿过它）"""
@@ -3431,7 +3504,7 @@ class Sim:
             if not cand:
                 return
             t = min(cand, key=lambda z: z.x)
-            t.hp -= spec['dmg']
+            self._hurt(t, spec['dmg'], spec.get('pierce'))
             self.dmg_dealt += spec['dmg']
             if spec.get('splash'):
                 # ★ 溅射：与僵尸**受击框**相交即算（不是比中心点）——
@@ -3455,7 +3528,7 @@ class Sim:
                     deal = max(1, min(spec['splash'],
                                       int(spec['splash_div'] / len(near))))
                 for z in near:
-                    z.hp -= deal
+                    self._hurt(z, deal, True)
                     self.dmg_dealt += deal
                     if spec.get('slow'):
                         z.slowed_until = max(z.slowed_until, self.t + D.CHILL_CS)
@@ -3472,7 +3545,7 @@ class Sim:
             #   完全体现不出来 —— 死亡时刻、溢出、后续僵尸进射程全都不准。
             for d in delays:
                 self.pending.append((self.t + d, c.row, spec['rows'], lo_x, hi_x,
-                                     spec['dmg']))
+                                     spec['dmg'], spec.get('pierce')))
             return
         # 大喷菇：一轮 1 次 20，立刻结算
         half = spec['rows'] // 2
@@ -3485,7 +3558,7 @@ class Sim:
                 # ★ 用各自的防御框求相交（巨人的框宽得多，能多吃到左边一格）
                 zl, zr = self._dbox(z)
                 if ok(z) and zr >= lo_x and zl <= hi_x:
-                    z.hp -= deal
+                    self._hurt(z, deal, spec.get('pierce'))
                     self.dmg_dealt += deal
 
     def _tick_events(self):
@@ -3574,7 +3647,7 @@ class Sim:
         if not due:
             return
         self.pending = [p for p in self.pending if p[0] > self.t]
-        for _, row, rows, lo_x, hi_x, dmg in due:
+        for _t, row, rows, lo_x, hi_x, dmg, _pie in due:
             half = rows // 2
             for rr in range(row - half, row + half + 1):
                 for z in self.by_row.get(rr, ()):
@@ -3584,7 +3657,7 @@ class Sim:
                     if zl > D.DMG_LINE:
                         continue
                     if zr >= lo_x and zl <= hi_x:
-                        z.hp -= dmg
+                        self._hurt(z, dmg, _pie)
                         self.dmg_dealt += dmg
 
     def _tick_slow_stat(self):
@@ -3701,7 +3774,7 @@ class Sim:
         remain = m['skip_hp']
         for z in m['zs']:
             if z.alive:
-                remain += z.hp
+                remain += z.total_hp
         m['remain'] = remain
 
         w = m['wave']

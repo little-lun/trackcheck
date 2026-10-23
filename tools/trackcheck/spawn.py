@@ -142,9 +142,10 @@ def make_wave(w, round_, allowed, rng, flag=None, red_used=0, cap=None,
     red_n = 0
     # 原版是"填到级别上限为止"；饱和后上限足够大 → 填满 50 个位置。
     # 上限已经放不下任何一只时（低轮数早期）就停，不硬凑。
-    # ★ 2026-10-23：**每波至多 50 只**（[维 09 §三]）—— 旗帜占其中一格，
-    #   所以旗帜波只填 49 个随机位，再把旗帜插到最前面，总数仍是 50。
-    target = 49 if is_flag else 50
+    # ★ 2026-10-23 用户口径：**旗帜是额外的一只**，不占出怪列表的 50 个位置
+    #   （[维 09 §三]「每波至多生成 50 只」说的是列表；[§四] 旗帜权重 0、
+    #     「每旗帜波有且仅一只」= 由游戏单独插入）→ 旗帜波共 **51 只**。
+    target = 50
     min_lv = min(Z[k][0] for k, _w in pool)
     tries = 0
     while len(out) < target and used_lv + min_lv <= cap and tries < 2000:
