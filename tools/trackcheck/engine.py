@@ -184,7 +184,7 @@ class Zombie:
                  'phase', 'vaulted', 'slid', 'armor', 'spd_alt', 'never_eat',
                  'hold_until', 'vault_until', 'vault_to_x',
                  'born_t', 'cat_at', 'eat_ready', 'joker_res',
-                 'shield', 'shield0', 'total_hp0', 'daze_until')
+                 'shield', 'shield0', 'total_hp0', 'daze_until', 'defused')
 
     def __init__(self, kind, row, x, wave, rng):
         self.kind = kind
@@ -232,6 +232,7 @@ class Zombie:
         self.fuse_in = -1
         self.joker_early = False
         self.joker_res = None         # 小丑结局：'died' / 'boom' / 'blank'（炸空）
+        self.defused = False          # ★ 磁力菇吸走盒子 → 永久无法爆炸
         # ★ 2026-10-22：分阶段速度 / 撑杆跳 / 舞王滑步 / 金属护具
         # ★ 2026-10-23（《僵尸时间表》）：**起步偏差**
         #   正值 = 生成后先停顿（足球/投篮车/撑杆的起步加速）；
@@ -2252,6 +2253,7 @@ class Sim:
                     self.joker_units.append(dict(
                         wave=z.wave, row=z.row, early=bool(z.joker_early),
                         res='died', killed=[], pads=[],
+                        defused=bool(z.defused),
                         frozen=(z.frozen_until > self.t)))
 
     def _tick_catapult(self):
@@ -2539,7 +2541,7 @@ class Sim:
           冰把开盒时刻推到"它已经走进曾的射程、且身上带着减速"之后。
         """
         for z in self.zombies:
-            if not z.alive or z.kind != '小丑':
+            if not z.alive or z.kind != '小丑' or z.defused:
                 continue
             if z.frozen_until > self.t:
                 continue                      # 冻住 → 计时停
@@ -2595,7 +2597,7 @@ class Sim:
         z.joker_res = 'boom' if killed else 'blank'
         self.joker_units.append(dict(wave=self.cur_wave, row=z.row,
                                      early=bool(z.joker_early),
-                                     res=z.joker_res,
+                                     res=z.joker_res, defused=False,
                                      killed=list(killed), pads=list(pads),
                                      frozen=(z.frozen_until > self.t)))
         if killed:
@@ -3402,12 +3404,32 @@ class Sim:
             c.atk_t = 0
             self._attack(c, spec)
 
+    def _magnet_has(self, z):
+        """磁力菇还能从这只身上吸走东西吗（**只吸金属**，用户 2026-10-23）"""
+        k = z.kind
+        if k not in D.MAGNET_METAL or k in D.MAGNET_SKIP:
+            return False
+        if k in D.SHIELD2:
+            return z.shield > 0
+        if k in D.ARMOR:
+            return z.armor > 0
+        if k == '小丑':
+            return not z.defused
+        if k == '跳跳':
+            return z.never_eat          # 还骑着跳跳杆
+        return False
+
     def _magnet(self, c, rng_pair):
-        """磁力菇：吸走金属护具（[精 六] R=270；对啃食者 R=320）+ 吸走扶梯的梯子"""
+        """磁力菇：吸走**金属物件**（[精 六] R=270；对啃食者 R=320）。
+
+        ★ 2026-10-23 用户更正：能吸的只有 7 种 ——
+          铁桶 / 铁门 / 橄榄头盔 / 梯子 / 小丑的盒子 / 矿工的镐子 / 跳跳的跳跳杆。
+          **报纸是纸、路障锥是塑料，吸不动**（上一版把报纸当"二类防具"一起吸掉了）。
+        """
         r_norm, r_eat = rng_pair
         best = None
         for z in self.by_row[c.row]:
-            if not z.alive or (not z.armor and not z.shield) or z.kind in D.MAGNET_SKIP:
+            if not z.alive or not self._magnet_has(z):
                 continue
             r = r_eat if z.eating is not None else r_norm
             d = abs(z.x - c.x)
@@ -3417,21 +3439,43 @@ class Sim:
             return
         z = best[1]
         if z.kind in D.SHIELD2:
-            # ★ 2026-10-23：二类防具（铁门/扶梯）走 `shield`，吸走 = 盾清零，
-            #   本体血不动（原来会把 hp0 也一起扣，等于凭空虚增伤害）
+            # 二类防具（铁门 / 梯子）走 `shield`，吸走 = 盾清零，本体血不动
             drop = z.shield
             z.shield = 0
-            self._log('REPAIR', '磁力菇吸走 %d 路 %s 的二类防具（−%d 护具血）'
-                      % (z.row, z.kind, drop), row=c.row, col=c.col,
+            self._log('REPAIR', '磁力菇吸走 %d 路 %s 的%s（−%d 二类防具血）'
+                      % (z.row, z.kind,
+                         '铁门' if z.kind == '铁门' else '梯子', drop),
+                      row=c.row, col=c.col,
                       detail='R=%d · 剩下的只有本体血 %d' % (r_norm, z.hp))
             return
-        drop = z.armor
-        z.armor = 0
-        z.hp0 = max(1, z.hp0 - drop)
-        z.hp = min(z.hp, z.hp0)
-        self._log('REPAIR', '磁力菇吸走 %d 路 %s 的金属护具（−%d 护甲血）'
-                  % (z.row, z.kind, drop), row=c.row, col=c.col,
-                  detail='R=%d · 剩下的只有本体血' % r_norm)
+        if z.kind in D.ARMOR:
+            drop = z.armor
+            z.armor = 0
+            z.hp0 = max(1, z.hp0 - drop)
+            z.hp = min(z.hp, z.hp0)
+            self._log('REPAIR', '磁力菇吸走 %d 路 %s 的金属护具（−%d 护甲血）'
+                      % (z.row, z.kind, drop), row=c.row, col=c.col,
+                      detail='R=%d · 剩下的只有本体血' % r_norm)
+            return
+        if z.kind == '小丑':
+            # 盒子被吸走 → **永久无法爆炸**（正在开盒也一样，直接掐掉引信）
+            z.defused = True
+            z.fuse_in = -1
+            z.box_in = 10 ** 9
+            self._log('REPAIR', '磁力菇吸走 %d 路 小丑的盒子 → 它再也不会爆炸'
+                      % z.row, row=c.row, col=c.col,
+                      detail='盒子是金属；本体血 %d 照旧' % z.hp)
+            return
+        if z.kind == '跳跳':
+            # 跳跳杆被吸走 → 变普通步行僵尸，正常啃食、不再翻越
+            z.never_eat = False
+            z.spd = D.CELL_W / float(D.POGO_WALK_CS)
+            z.spd_alt = 0.0
+            z.phase = 'walk'
+            self._log('REPAIR', '磁力菇吸走 %d 路 跳跳的跳跳杆 → 改为步行啃食'
+                      % z.row, row=c.row, col=c.col,
+                      detail='R=%d · 之后按 %.1fs/格 走' % (r_norm,
+                                                          D.POGO_WALK_CS / 100.0))
 
     def _shoot(self, c, spec):
         """直线射手（双向射手 / 机枪射手 …）。
@@ -3841,6 +3885,7 @@ class Sim:
                     self.joker_units.append(dict(
                         wave=z.wave, row=z.row, early=bool(z.joker_early),
                         res='died', killed=[], pads=[],
+                        defused=bool(z.defused),
                         frozen=(z.frozen_until > self.t)))
                 if z.kind == '冰车':
                     self.car_audit.append(dict(wave=z.wave, row=z.row,
