@@ -44,7 +44,7 @@ for tier in ('慢速', '变速', '快速', '极速'):
     fails = []
     wave_gaps = []
     for s in range(N):
-        C._RED['plan'] = None
+        C.reset_spawn_state()
         r = R.run_once(s)
         ts = [x['t'] for x in r['waves']]
         if len(ts) >= 20:

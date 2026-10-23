@@ -216,15 +216,34 @@ def svg_for(r, W=1180):
         _, y, hgt = LANES[lane]
         x = X(a['t'])
         col = ABBR_COLOR.get(ab, '#64748b')
+        # ★ 2026-10-23 用户：「泳道中的小色块表示操作，以后每个小色块都要
+        #   标记生效点坐标。」→ 每个块下面写目标格（行-列）。
+        rc = a.get('rc')
+        if not rc:
+            aim = a.get('aim')
+            if (isinstance(aim, (list, tuple)) and len(aim) == 2
+                    and not isinstance(aim[1], str)):
+                rc = aim
+        rc_txt = ''
+        if rc:
+            rc_txt = ('%.0f-%.0f' % (float(rc[0]), float(rc[1]))
+                      if float(rc[1]).is_integer() else
+                      '%.0f-%.1f' % (float(rc[0]), float(rc[1])))
         if ab == '·':
             # 维护性动作（补存冰 / 补大蒜）：只画一个小点，不占字母空间（不算轨迹）
             # 大蒜用棕色、半径略大，跟补存冰区分开
             r0 = 2.2 if nm == '大蒜' else 1.3
             add('<circle cx="%.1f" cy="%d" r="%.1f" fill="%s"/>'
                 % (x, y + hgt - 3, r0, '#a16207' if nm == '大蒜' else col))
+            if rc_txt:
+                add('<text class="rc" x="%.1f" y="%d" fill="%s">%s</text>'
+                    % (x + 2.2, y + hgt - 3, '#475569', rc_txt))
             continue
         add('<rect x="%.1f" y="%d" width="3.6" height="%d" fill="%s" rx="1"/>'
             % (x, y + 2, hgt - 4, col))
+        if rc_txt:
+            add('<text class="rc" x="%.1f" y="%d" fill="%s">%s</text>'
+                % (x + 2.2, y + hgt - 1, '#475569', rc_txt))
         slot = (lane, round(x / 9.0))
         if slot in labelled:
             continue
@@ -572,6 +591,24 @@ def _judge_control(r, gaps):
                   '（挪上一波的冰 / 等两秒 / 换点灰烬的顺序）' % why)
 
 
+def _attribution(d):
+    """统一归因口径：**什么僵尸、在哪里、杀死了什么植物**。"""
+    if not d:
+        return None
+    by = d.get('by') or '僵尸'
+    row, col, plant = d.get('row'), d.get('col'), d.get('plant') or '植物'
+    pos = ('%g-%g' % (row, col)) if None not in (row, col) else '场上'
+    if d.get('cause') == '碾压':
+        return '%s 在 %s 碾压了%s' % (by, pos, plant)
+    if d.get('cause') == '小丑爆炸':
+        return '%s 在 %s 炸毁了%s' % (by, pos, plant)
+    if d.get('cause') == '啃食':
+        return '%s 在 %s 吃掉了%s' % (by, pos, plant)
+    if d.get('cause') == '偷走':
+        return '%s 在 %s 偷走了%s' % (by, pos, plant)
+    return '%s 在 %s 杀死了%s' % (by, pos, plant)
+
+
 def classify(r, dev=None):
     """
     把"脱离设计的情况"分级（用户 2026-10-20 定稿的口径）。
@@ -594,6 +631,13 @@ def classify(r, dev=None):
     tier = r.get('_tier', '').split(' / ')[0]
     seen = {}
     out = []
+    # 结构化死亡记录：归因栏统一写成"什么僵尸在哪杀死了什么植物"
+    dmap = {}
+    for d in (r.get('deaths') or []):
+        dmap[(d.get('wave'), d.get('row'), d.get('col'))] = d
+
+    def attr_at(w, row, col):
+        return _attribution(dmap.get((w, row, col)))
 
     def add(lv, what, why, fix, ws=None):
         key = (lv, what)
@@ -617,27 +661,26 @@ def classify(r, dev=None):
     if f:
         why = f['why'] or ''
         head = '僵尸进家' if '进家' in why else '崩阵'
-        add('L0', '%s：%s' % (head, why),
-            'w%d · %.1fs —— %s' % (f['wave'], f['t'] / 100.0,
-                                   '一路走到房子，整局作废' if '进家' in why
-                                   else 'CORE 已经没了，不可逆'),
+        f_attr = attr_at(f['wave'], f.get('row'), f.get('col')) or why
+        add('L0', '%s：%s' % (head, f_attr),
+            '%s（w%d · %.1fs）—— %s'
+            % (f_attr, f['wave'], f['t'] / 100.0,
+               '一路走到房子，整局作废' if '进家' in why
+               else 'CORE 已经没了，不可逆'),
             f.get('detail') or '必须改轨道', ws=[f['wave']])
 
     core = ('忧郁菇', '冰瓜', '香蒲', '玉米炮')
     for e in r.get('log', []):
         if e['sev'] != 'WARN':
             continue
-        nm, row = e['what'], e.get('row')
+        nm = e['what']
+        at = attr_at(e.get('wave'), e.get('row'), e.get('col')) or nm
         if any(k in nm for k in core):
-            add('L0', nm, 'CORE 植物被毁 —— 不可逆', '必须改轨道', ws=[e['wave']])
-        elif row in (1, 6) and '大喷' in nm:
-            add('L2', nm,
-                '边路 5 列大喷 —— <b>不在设计中</b>：这一株是 IO 冗余，'
-                '合理运阵下绝对不会死（红眼走到那儿之前就该被窝瓜/垫材吃掉）',
-                '能补：75 阳光种回。它不属"正常磨损"', ws=[e['wave']])
+            add('L0', nm, at + '（CORE 被毁，不可逆）',
+                '必须改轨道', ws=[e['wave']])
         else:
-            add('L2', nm, '非 CORE 耗材被啃 —— 不在设计中，但阵有冗余', '阳光可补',
-                ws=[e['wave']])
+            add('L2', nm, at + '（非 CORE，不在设计内，但能补种）',
+                '阳光可补 / 选卡带了这个成分就自动补种', ws=[e['wave']])
 
     # ---- 控丑空窗（事件级 L0，看原因能不能被阻止）
     gap_rows = {}
@@ -651,7 +694,9 @@ def classify(r, dev=None):
         tag = '、'.join('w%d（%s 路）' % (g, '、'.join(map(str, gap_rows[g]))) for g in ws[:6])
         lv, why = _judge_control(r, ws)
         add(lv, '控丑空窗：%s' % tag,
-            why + '　<b>后果</b>：小丑在这一波开盒可能炸到岸路 6 列眼曾 → 直接死 CORE',
+            '小丑在 %s 路开盒；本次事件本身没有杀死植物'
+            '（若炸死了植物，会按"小丑在 行-列 炸毁了植物"单列在损失条目里）。'
+            '原因判定：%s' % ('、'.join(str(x) for x in sorted(gap_rows)), why),
             '不用改轨道' if lv == 'L1' else '必须重新排这一波的操作', ws=ws)
 
     # ---- 蹦极无冰（同样：事件级 L0）
@@ -666,13 +711,11 @@ def classify(r, dev=None):
         lv, why = _judge_control(r, [b['wave']])
         need_ice = [t for t in (b.get('targets') or []) if t.get('need') == 'ice']
         add(lv, 'w%d 蹦极没处理干净' % b['wave'],
-            why + ('　<b>暴露目标</b>：%s（冰杀定式，必须点冰）'
-                   % '、'.join('%d-%d %s' % (t['rc'][0], t['rc'][1], t['plant'])
-                              for t in need_ice)
-                   if need_ice else
-                   '　<b>暴露目标</b>：%s（伞与冰杀定式都没覆盖 → 用炮炸）'
-                   % '、'.join('%d-%d %s' % (t['rc'][0], t['rc'][1], t['plant'])
-                              for t in (b.get('targets') or []))),
+            '蹦极锁定了 %s（%s；这一步本身没有杀死植物）。原因判定：%s'
+            % ('、'.join('%d-%d %s' % (t['rc'][0], t['rc'][1], t['plant'])
+                        for t in (need_ice or (b.get('targets') or []))),
+               '冰杀定式，必须点冰' if need_ice else '伞与冰杀定式都没覆盖 → 用炮炸',
+               why),
             '看到蹦极先点冰 / 留一对炮' if lv == 'L1' else '这一波必须腾出冰或炮',
             ws=[b['wave']])
 
@@ -682,8 +725,9 @@ def classify(r, dev=None):
     for b in r.get('broken', []):
         if b['what'] in ('种冰', '种冰2', '种临时冰') or b['what'] in PAD_PLANTS:
             continue
-        add('L2', '断轨：%s' % b['what'], 'w%d · %s' % (b['wave'], b['why']),
-            '卡 CD 撞车；下一波补，不致命', ws=[b['wave']])
+        add('L2', '断轨：%s' % b['what'],
+            '没有植物被僵尸杀死；w%d 卡 CD 撞车（%s）' % (b['wave'], b['why']),
+            '下一波补，不致命', ws=[b['wave']])
 
     for c in r.get('crush', []):
         pl = c['plant'] or '南瓜'
@@ -702,8 +746,8 @@ def classify(r, dev=None):
     plost = r.get('pumpkin_lost', 0)
     if rep or plost:
         add('L3', '南瓜磨损：补了 %d 次%s' % (rep, ('，掉了 %d 个' % plost) if plost else ''),
-            '<b>必然发生</b>：红眼锤、小丑炸、冰车蹭都会掉南瓜。'
-            '设计者就是靠选卡带南瓜（极速关甚至南瓜＋复制南瓜）来吸收这份损耗',
+            '没有植物被僵尸杀死；红眼锤、小丑炸、冰车蹭打掉的是南瓜壳。'
+            '设计者就是靠选卡带南瓜来吸收这份损耗',
             '不用管，算进日常开销')
 
     # ★ 2026-10-22 用户：「对于没有存冰的阵不要进行存冰量警告，不过有存冰的阵也一定要警告」
@@ -713,12 +757,12 @@ def classify(r, dev=None):
         ice_cap = es.get('ice_stock_perm', 0)
     if ice_cap and es.get('ice_stock_perm', 0) == 0 and tier != '极速':
         add('L2', '结束存冰 0（阵上共 %d 个存冰位）' % ice_cap,
-            '下一个循环开局要先现补冰',
+            '没有植物被僵尸杀死；只是卡槽要重新现补',
             '选卡带满存冰 / 收尾少点一次')
 
     if dev is not None and abs(dev) >= 10:
         add('L4', '波长偏差 %+.0f%%' % dev,
-            '模型清血速度与实战不一致（刷怪 / 灰烬对数）',
+            '没有植物被僵尸杀死；模型清血速度与实战不一致（刷怪 / 灰烬对数）',
             '重新标定，与打法无关')
 
     out.sort(key=lambda x: LEVEL_RANK[x['lv']])
@@ -825,37 +869,6 @@ def wave_table(r):
         <th>出怪</th><th>波长</th></tr>
     %s
   </table>''' % ''.join(rows)
-
-
-def kernel_table(r):
-    es = r.get('end_state', {})
-    kl = es.get('kernel_log', [])
-    if not kl:
-        return '<div class="dim small">本档不点核。</div>'
-    rows = []
-    for k in kl:
-        rows.append('<tr><td>w%d</td><td>%.1fs</td><td>%s</td><td>%s</td></tr>'
-                    % (k['wave'], k['t'] / 100.0,
-                       ('%d-%d' % tuple(k['rc'])) if k['rc'] else '无坑可点',
-                       '<span class="ok">指定坑</span>' if k['designated'] else '退坑'))
-    # 坑位峰值占用
-    ev = []
-    for k in kl:
-        if k['rc']:
-            ev.append((k['t'], 1))
-            ev.append((k['t'] + 18000, -1))
-    ev.sort()
-    cur = peak = 0
-    for _, d in ev:
-        cur += d
-        peak = max(peak, cur)
-    return '''
-  <table class="mini">
-    <tr><th>核</th><th>时刻</th><th>坑位</th><th>是否指定</th></tr>
-    %s
-    <tr><td class="b">坑位峰值</td><td class="b">%d 个</td>
-        <td colspan="2">可用坑 9 个（2-7/2-9/5-7/5-8/5-9/1-8/1-9/6-8/6-9）</td></tr>
-  </table>''' % (''.join(rows), peak)
 
 
 def _control_level(r, row=None):
@@ -1089,6 +1102,135 @@ def plant_status_html(r):
                  pump1, pump0)
 
 
+def field_map_html(r):
+    """二维坐标图：崩阵瞬间 / 2F 结束时的场上情况。
+
+    ★ 2026-10-23 用户要求：
+      · 崩阵了就画**崩阵那一刻**：每个植物、南瓜耐久、炮 CD
+      · 标出被破坏的植物、造成破坏的僵尸、本波操作
+      · 没崩阵则画 **2F 结束时**的结果图
+      · 另附崩阵时的卡槽 CD
+    """
+    snap = r.get('field_snap') or {}
+    if not snap:
+        return ''
+    rows = int(snap.get('rows') or 6)
+    water = set(snap.get('water') or ())
+    cells = {(c['row'], c['col']): c for c in (snap.get('cells') or [])}
+    deaths = {}
+    for d in (r.get('deaths') or []):
+        key = (d.get('row'), d.get('col'))
+        c0 = cells.get(key) or {}
+        if c0.get('plant'):
+            continue            # 已经补种回去的格子不再标"被破坏"
+        deaths[key] = d
+    # 本波操作：按生效格归堆
+    ops = {}
+    for a in (snap.get('actions') or []):
+        rc = a.get('rc')
+        if not rc:
+            continue
+        key = (int(round(float(rc[0]))), int(round(float(rc[1]))))
+        ab = ABBR.get(a.get('name'), '·')
+        ops.setdefault(key, []).append(ab)
+    # 僵尸：按"车头所在列"落格；只标造成破坏的 + 每路最靠前的一只
+    zbadge = {}
+    for z in (snap.get('zombies') or []):
+        col = max(1, min(9, int(round((z['x'] - 40) / 80.0)) + 1))
+        zbadge.setdefault((z['row'], col), []).append(z)
+    culprit_cells = {}
+    for (rr, cc), d in deaths.items():
+        x = d.get('x')
+        zc = (max(1, min(9, int(round((x - 40) / 80.0)) + 1))
+              if x is not None else cc)
+        culprit_cells.setdefault((rr, zc), set()).add(d.get('by'))
+
+    def cell_html(rr, cc):
+        c = cells.get((rr, cc)) or {}
+        cls = ['fc']
+        if rr in water:
+            cls.append('water')
+        d = deaths.get((rr, cc))
+        if d:
+            cls.append('dead')
+        nm = c.get('plant') or ''
+        bits = []
+        if nm:
+            bits.append('<b>%s</b>' % PLANT_SHORT.get(nm, nm))
+        if c.get('base') and not nm:
+            bits.append('<span class="dimb">基</span>')
+        if c.get('pumpkin'):
+            bits.append('<span class="pk">🎃%d</span>' % (c.get('pumpkin_hp') or 0))
+        if c.get('cob_cd') is not None:
+            bits.append('<span class="cob">P %.1fs</span>'
+                        % ((c.get('cob_cd') or 0) / 100.0))
+        if c.get('ladder'):
+            bits.append('🪜')
+        if c.get('iced'):
+            bits.append('<span class="ice">冰</span>')
+        if c.get('crater'):
+            bits.append('<span class="crater">坑</span>')
+        if d:
+            bits.append('<span class="kill">✖ %s</span>' % (d.get('plant') or ''))
+        for ab in (ops.get((rr, cc)) or []):
+            bits.append('<span class="op">%s</span>' % ab)
+        zs = zbadge.get((rr, cc)) or []
+        if zs:
+            marks = culprit_cells.get((rr, cc)) or set()
+            kinds = []
+            for z in zs:
+                k = z['kind']
+                if k in marks:
+                    kinds.append('<span class="z culprit">☠%s</span>' % k)
+                else:
+                    kinds.append('<span class="z">%s</span>' % k)
+            bits.append(''.join(kinds[:3]) + ('…' if len(kinds) > 3 else ''))
+        title = ''
+        if d:
+            title = ' title="%s"' % _md(_attribution(d) or '')
+        return '<td class="%s"%s>%s</td>' % (' '.join(cls), title,
+                                             '<br>'.join(bits))
+
+    grid = []
+    for rr in range(1, rows + 1):
+        tds = ''.join(cell_html(rr, cc) for cc in range(1, 10))
+        grid.append('<tr><th>%d</th>%s</tr>' % (rr, tds))
+    head = ''.join('<th>%d</th>' % c for c in range(1, 10))
+    f = r.get('fail')
+    if f:
+        cap = ('崩阵瞬间 → w%d · %.1fs（%s）'
+               % (f['wave'], f['t'] / 100.0, f.get('why') or ''))
+    else:
+        cap = ('2F 结束 → 20 波打完 · %.1fs'
+               % ((snap.get('t') or 0) / 100.0))
+    cards = snap.get('cards') or {}
+    deck = r.get('_deck') or []
+    cd_bits = []
+    if deck:
+        for entry in deck:
+            k = _deck_key(entry)
+            lab = _card_label(entry)
+            v = cards.get(k)
+            if v is None and k == '南瓜2':
+                v = cards.get('南瓜')
+            if v is None:
+                cd_bits.append('%s <span class="dim">—</span>' % lab)
+            elif v > 0:
+                cd_bits.append('%s <b class="warn">%.1fs</b>' % (lab, v / 100.0))
+            else:
+                cd_bits.append('%s <span class="ok">好</span>' % lab)
+    cd_txt = ('　'.join(cd_bits) if cd_bits
+              else ('　'.join('%s <b>%.1fs</b>' % (k, v / 100.0)
+                             for k, v in sorted(cards.items()) if v > 0)
+                    or '<span class="ok">全部亮着</span>'))
+    return '''
+  <div class="fieldmap">
+    <div class="fmcap">%s　<span class="dim">（行 1 在上、列 1 在左；☠ = 造成破坏的僵尸，✖ = 被破坏的植物，字母 = 本波操作）</span></div>
+    <table class="grid9"><tr><th></th>%s</tr>%s</table>
+    <div class="fmcap">卡槽 CD（崩阵 / 结束时）：%s　·　阳光 %d</div>
+  </div>''' % (cap, head, ''.join(grid), cd_txt, snap.get('sun') or 0)
+
+
 def legend_html():
     """时间轴图例：字母为主，颜色为辅"""
     items = [('P', '玉米炮'), ('N', '核弹'), ('A', '樱桃'), ("A'", '辣椒'),
@@ -1144,6 +1286,8 @@ def card_html(r, dev=None):
     <div class="k"><span>植物损失</span><b>__NLOST__</b></div>
     <div class="k"><span>结束卡槽</span><b class="sm">__DARK__</b></div>
   </div>
+  <div class="sec">场上坐标图（崩阵瞬间 / 2F 结束）</div>
+  __FMAP__
   <div class="sec">全场植物状态（结束那一刻 · 按实际阵型逐格列出）</div>
   __PSTATUS__
   <div class="sec">脱离设计清单（分级）</div>
@@ -1155,7 +1299,7 @@ def card_html(r, dev=None):
   __WT__
   __GARLIC__
   __FOG__
-  <div class="grid3">__KT__ __JT__ __BT__</div>
+  <div class="grid3">__JT__ __BT__</div>
   __CT__
   <div class="dim small">损失清单：__LOST__</div>
   <script type="application/json" class="wvjson">__JSON__</script>
@@ -1184,10 +1328,10 @@ def card_html(r, dev=None):
         ('__DARK__', dark_html),
         ('__DIVG__', divergence_html(r, dev)),
         ('__PSTATUS__', plant_status_html(r)),
+        ('__FMAP__', field_map_html(r)),
         ('__SVG__', svg_for(r)),
         ('__LEGEND__', legend_html()),
         ('__WT__', wave_table(r)),
-        ('__KT__', kernel_table(r)),
         ('__JT__', joker_table(r)),
         ('__BT__', bungee_table(r)),
         ('__CT__', catapult_table(r)),
@@ -1219,7 +1363,7 @@ def main():
         card_cnt = Counter()
         best = None
         for s in range(n):
-            C._RED['plan'] = None
+            C.reset_spawn_state()
             r = R.run_once(s)
             r['_tier'] = '%s / seed %d' % (tier, s)
             r['_rescue'] = C.RESCUE_BY_TIER.get(tier, True)
@@ -1322,8 +1466,29 @@ def main():
          .legend.big .lg-t{font-size:11px;color:#64748b;font-weight:700;margin-right:2px}
          .legend.big b{font-family:ui-monospace,Consolas,monospace;font-size:13.5px;
            margin-right:3px}
+         .fieldmap{margin:6px 0 10px}
+         .fmcap{font-size:11.5px;color:#334155;margin:4px 0}
+         table.grid9{border-collapse:collapse;width:100%;table-layout:fixed;
+           font-size:10px;background:#fff}
+         table.grid9 th{font-size:9.5px;color:#64748b;font-weight:600;padding:1px 0;
+           text-align:center}
+         table.grid9 td.fc{border:1px solid #dbe3ee;height:44px;vertical-align:top;
+           padding:1px 2px;background:#f0fdf4;line-height:1.25;word-break:break-all}
+         table.grid9 td.water{background:#e0f2fe}
+         table.grid9 td.dead{background:#fee2e2;box-shadow:inset 0 0 0 2px #ef4444}
+         table.grid9 .pk{color:#b45309;font-size:9px}
+         table.grid9 .cob{color:#7c3aed;font-size:9px;font-weight:700}
+         table.grid9 .ice{color:#1d4ed8;font-size:9px}
+         table.grid9 .crater{color:#7f1d1d;font-size:9px}
+         table.grid9 .kill{color:#b91c1c;font-weight:700;font-size:9px}
+         table.grid9 .op{display:inline-block;background:#e2e8f0;color:#0f172a;
+           border-radius:3px;padding:0 3px;margin:0 1px;font-size:8.5px;font-weight:700}
+         table.grid9 .z{color:#475569;font-size:8.5px;margin-right:2px}
+         table.grid9 .z.culprit{color:#dc2626;font-weight:700}
+         table.grid9 .dimb{color:#94a3b8;font-size:8.5px}
          svg .ab{font-size:6.6px;font-weight:700;
            font-family:ui-monospace,Consolas,monospace}
+         svg .rc{font-size:4.6px;font-family:ui-monospace,Consolas,monospace}
          svg .ab-l{font-weight:700;fill:#334155}
          svg rect.wvhot:hover{fill:#2563eb;fill-opacity:0.07}
          .note{padding:8px 12px;border-radius:6px;font-size:12px;margin:6px 0}
@@ -1456,9 +1621,9 @@ def main():
               将来若把灰烬对数修准，把系数调回 1.0 即可。</td></tr>
       <tr><td><b>1/6 路"不致死"的理由写错了</b></td>
           <td>之前写"CORE 在 3 列，7~8 列炸不到"。结论对，过程错。</td>
-          <td>改为：<b>边路小丑在 6 列就被双大喷打死 / 早爆炸空</b>
-              （1-4/1-5、6-4/6-5 的火力线）。真正受小丑威胁的 CORE 是
-              <b>岸路 6 列眼曾（2-6 / 5-6）</b>，而边路小丑走不到能威胁它的位置。</td></tr>
+          <td>改为：归因一律按**实际死亡记录**生成 ——
+              "什么僵尸、在哪一格、杀死了什么植物"。不再预设某一阵型的固定位置，
+              也不再引用 PE.电波钟的旧结论。</td></tr>
       <tr><td><b>极速关的"不操作"被当成缺陷</b></td>
           <td>空窗统计把极速关 16 个常规波全标红，但那是<b>策略</b>不是漏操作。</td>
           <td>控丑台账改三态：严谨 / 有限（列出空窗波号）/ <b>策略性放弃</b>。</td></tr>

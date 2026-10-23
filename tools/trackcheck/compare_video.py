@@ -25,7 +25,7 @@ for tier in ('慢速', '变速', '快速', '极速'):
     C.MODE = tier
     spans, ok = [], 0
     for s in range(SEEDS):
-        C._RED['plan'] = None
+        C.reset_spawn_state()
         r = R.run_once(s)
         ts = [w['t'] for w in r['waves']]
         if len(ts) >= 20:

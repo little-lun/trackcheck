@@ -41,6 +41,8 @@ STYLE = r"""
 .chip:hover{border-color:#93c5fd}
 .chip.on{border-color:#2563eb;background:#dbeafe}
 .chip small{color:#94a3b8;font-size:10px}
+.chip small.bid{color:#2563eb;font-family:ui-monospace,Consolas,monospace;
+  background:#eff6ff;border-radius:3px;padding:0 2px}
 .chip.no{border-color:#fecaca;background:#fef2f2;color:#b91c1c}
 .arrow{color:#94a3b8;font-size:11px}
 .set{border:1px dashed #cbd5e1;border-radius:8px;padding:6px 8px;margin-bottom:8px;
@@ -515,13 +517,16 @@ function plAimLabel(b) {
   }
   return '';
 }
-function plBlockChip(b, i, si, on) {
+function plAutoBlockId(w, si, i) { return 'w' + w + '-' + (si + 1) + '-' + (i + 1); }
+function plBlockChip(b, i, si, on, wave) {
   const deck = plP().deck || [];
   const key = (PLAN.cat.card_key || {})[b.op];
   const missing = key && deck.indexOf(b.op) < 0;
   const rep = b.repeat ? ' ↻' : '';
+  const bid = b.id || plAutoBlockId(wave || '?', si, i);
   return '<span class="chip ' + (on ? 'on ' : '') + (missing ? 'no' : '') +
     '" data-act="selBlock" data-set="' + si + '" data-block="' + i + '">' +
+    '<small class="bid" title="积木 ID（after_block 触发器靠它定位）">#' + plEsc(bid) + '</small> ' +
     plEsc(b.op) + plEsc(plAimLabel(b)) + rep +
     '<small> ' + plEsc(plTrigLabel(b.trig)) + '</small></span>';
 }
@@ -619,7 +624,7 @@ function plRenderWave() {
     const sp = base + '.sets.' + si;
     let chain = '';
     (st.ops || []).forEach(function (b, bi) {
-      chain += plBlockChip(b, bi, si, PLAN.sel.set === si && PLAN.sel.block === bi)
+      chain += plBlockChip(b, bi, si, PLAN.sel.set === si && PLAN.sel.block === bi, row.w)
         + '<button class="ghost mini2" data-act="delBlock" data-path="' + sp + '.ops.' + bi + '">✕</button>'
         + '<span class="arrow">→</span>';
     });
@@ -676,8 +681,15 @@ function plInspector(st, sp, si) {
   const bp = sp + '.ops.' + PLAN.sel.block;
   const spec = PLAN.cat.ops.find(function (o) { return o.name === b.op; }) || {};
   const rep = b.repeat;
+  const autoBid = plAutoBlockId(PLAN.sel.wave,
+                                PLAN.sel.set, PLAN.sel.block);
   return '<div class="insp"><div class="row"><b>积木：' + plEsc(b.op) + '</b>'
-    + '<span class="hint">（' + plEsc(spec.note || '') + '）</span></div>'
+    + '<span class="hint">（' + plEsc(spec.note || '') + '）</span>'
+    + '<label style="margin-left:12px">ID</label>'
+    + '<input type="text" data-path="' + bp + '" data-key="id" value="'
+    + plEsc(b.id || '') + '" placeholder="' + plEsc(autoBid)
+    + '" style="width:96px;font-size:11.5px" '
+    + 'title="唯一命名：波数-候选-序号；after_block 用它定位"></div>'
     + '<div class="row"><label>动作</label>'
     + plSel(bp, 'op', b.op, plOps().map(function (o) { return [o.name, o.name]; }))
     + '<label style="margin-left:10px">落点</label>' + plAimEditor(bp, b) + '</div>'
@@ -1007,7 +1019,10 @@ PL_ROOT.addEventListener('click', async function (e) {
       plSnap();
       const deck = p.deck || [];
       const first = deck.find(function (c) { return PLAN.cat.card_key[c]; }) || '寒冰菇';
-      plPath(p, path).push({ op: first, aim: null, trig: { kind: 'spawn' } });
+      const arr = plPath(p, path);
+      const si = +(path.split('.')[3]) || 0;
+      arr.push({ op: first, aim: null, trig: { kind: 'spawn' },
+                 id: plAutoBlockId(PLAN.sel.wave, si, arr.length) });
     },
     delBlock: function () {
       plSnap();

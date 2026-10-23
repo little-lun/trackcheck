@@ -258,7 +258,8 @@ class Sim:
                  total_waves=20, sun0=None, max_t=400000, skip_hp=0, slots=None,
                  rescue=True, repair=True, allow_ash=True, stall_waves=True,
                  cherry_cols=None, rebuild=False, wogua_flag=True,
-                 rescue_tick=None, globals_tick=None, field='PE'):
+                 rescue_tick=None, globals_tick=None, field='PE',
+                 replant=None):
         self.slots = slots or {}
         self.rng = random.Random(seed)
         self.skip_hp = skip_hp
@@ -323,6 +324,10 @@ class Sim:
         self.rescue = rescue
         self.repair = repair
         self.rebuild = rebuild          # 快速/极速："死了就补"，CORE 被毁不判崩
+        # ★ 2026-10-23 运阵模型：**选卡里带了阵型成分**（如 FE.雾四炮带大喷菇）
+        #   → 这些植物死了以后持续判定补种，而不是只算一次损失。
+        self.replant = set(replant or ())
+        self.replant_q = []
         self.wogua_flag = wogua_flag    # w10 要不要窝瓜压冰车
         self.tomato_busy_until = -1
         self.tomato_used_at = -99999
@@ -346,6 +351,10 @@ class Sim:
         self.card_ready = {k: 0 for k in D.CARDS}
         self.broken = []                 # 轨道断裂（卡 CD / 阳光）
         self.crush = []                  # 冰车碾压
+        # ★ 2026-10-23：**每一次植物死亡**都记一条（谁、在哪、杀了什么）。
+        #   报告里的"归因栏"和崩阵场地图都靠它；没有它就只能从日志文本里猜。
+        self.deaths = []
+        self.collapse_snap = None        # 崩阵那一刻的场上快照
         self.catapult = []               # 投篮车投掷（含被伞挡下的）
         self.joker_units = []            # 每只小丑的结局（早/晚 × 死/炸空/炸掉什么）
         self.cat_pending = []            # 滞空中的篮球（199cs 后落地结算）
@@ -497,6 +506,59 @@ class Sim:
         self.log.append(dict(t=self.t, wave=self.cur_wave, sev=sev, what=what,
                              row=row, col=col, detail=detail))
 
+    def _record_death(self, row, col, plant, by, x=None, cause=''):
+        """记一次植物死亡：**什么僵尸在哪个格子杀死了什么植物**。"""
+        self.deaths.append(dict(t=self.t, wave=self.cur_wave, row=row, col=col,
+                                plant=plant or '南瓜',
+                                by=getattr(by, 'kind', by) or '僵尸',
+                                x=round(getattr(by, 'x', x if x is not None else 0)),
+                                cause=cause))
+        if plant and plant in self.replant:
+            if not any(q['row'] == row and q['col'] == col
+                       for q in self.replant_q):
+                self.replant_q.append(dict(row=row, col=col, plant=plant,
+                                           died=self.t))
+
+    def _field_snapshot(self):
+        """场上一张"二维坐标图"需要的全部数据（崩阵瞬间 / 2F 结束）。"""
+        cells = []
+        for (r, c) in sorted(self.cells):
+            cell = self.cells[(r, c)]
+            spec = self.array.get((r, c)) or {}
+            if not (cell.plant or cell.pumpkin or cell.base or cell.grave
+                    or cell.iced or cell.crater_until > self.t):
+                continue
+            cells.append(dict(
+                row=r, col=c, init=spec.get('plant') or '',
+                plant=cell.plant or '',
+                plant_hp=round(cell.plant_hp) if cell.plant else 0,
+                pumpkin=bool(cell.pumpkin),
+                pumpkin_hp=round(cell.pumpkin_hp) if cell.pumpkin else 0,
+                ladder=bool(cell.ladder), base=bool(cell.base),
+                grave=bool(cell.grave), iced=bool(cell.iced),
+                crater=bool(cell.crater_until > self.t),
+                cob_cd=(round(max(0, cell.cob_cd - self.t))
+                        if cell.plant == '玉米炮' else None),
+                core=bool(spec.get('core'))))
+        zs = [dict(kind=z.kind, row=z.row, x=round(z.x), hp=round(z.hp),
+                   giant=bool(z.giant))
+              for z in self.zombies if z.alive]
+        acts = [dict(t=a['t'], name=a.get('name'), wave=a.get('wave'),
+                     rc=(a.get('rc') or (tuple(a['aim'])
+                                        if isinstance(a.get('aim'), (list, tuple))
+                                        and len(a['aim']) == 2
+                                        and not isinstance(a['aim'][1], str)
+                                        else None)),
+                     aid=a.get('aid') or a.get('id'))
+                for a in self.actions
+                if a.get('ok') and a.get('wave') == self.cur_wave]
+        return dict(t=self.t, wave=self.cur_wave, rows=self.rows,
+                    water=list(self.fld.water), cells=cells, zombies=zs,
+                    actions=acts,
+                    cards={k: max(0, round(v - self.t))
+                           for k, v in self.card_ready.items()},
+                    sun=round(self.sun), fail=(self.fail or None))
+
     def _fatal(self, why, detail='', row=None, col=None):
         """
         CORE 植物被毁 → 崩阵。
@@ -514,10 +576,103 @@ class Sim:
         if self.fail is None:
             self.fail = dict(why=why, detail=detail, wave=self.cur_wave,
                              t=self.t, row=row, col=col)
+            # ★ 2026-10-23：把**崩阵那一瞬间**的场上情况定格下来（之后不再变）
+            self.collapse_snap = self._field_snapshot()
         self.done = True
+
+    # ------------------------------------------------ 出怪选行 / 出生点
+    def _legal_rows(self, kind, w):
+        """[维 09 §九.3] 这一只可以走哪几行。
+
+        · 水路只允许 普/旗帜/路障/铁桶/潜水/海豚/气球（鸭子是普/路/桶自动转换）
+        · 波数 < 5 的水路只允许海豚、潜水
+        · 场地禁出（NE 无冰车、RE 无舞王/矿工/潜水/海豚）
+        · 舞王只在中三路（五行前院）—— 由 `fld.allows` 处理
+        """
+        rows = []
+        water_only = kind in D.WATER_ONLY
+        land_only = kind in D.LAND_ONLY
+        for r in self.fld.all_rows():
+            if not self.fld.allows(kind, r):
+                continue
+            if water_only and r not in self.fld.water:
+                continue
+            if land_only and r not in self.fld.land:
+                continue
+            if w < 5 and r in self.fld.water and kind not in D.WATER_ONLY:
+                continue
+            rows.append(r)
+        return rows or list(self.fld.all_rows())
+
+    def _spawn_lane(self, kind, w):
+        """按 [维 09 §九.1] 的三状态量（Weight / LastPicked / SecondLastPicked）
+        给一只僵尸选行。
+
+        `Weight_i` 在生存无尽里默认 1（刚丢过推车的行 0.5 / 0.01），
+        所以平滑权重的差异完全来自 LastPicked / SecondLastPicked ——
+        效果是"刚被选过的行权重变低、长期没出怪的行权重变高"，
+        不会出现旧模型那种"同一路连刷一整波"的假聚集。
+        """
+        rows = self._legal_rows(kind, w)
+        hist = self.__dict__.setdefault('_lane_hist', {})
+        for r in self._rows():
+            hist.setdefault(r, [0, 0])
+        weight = {r: 1.0 for r in rows}
+        # 推车惩罚：某行刚丢车 → 接下来 1~2 波压力大幅下降
+        lost = self.__dict__.setdefault('_mower_lost_at', {})
+        for r in rows:
+            d = w - lost.get(r, -99)
+            if d <= 1:
+                weight[r] = 0.01
+            elif d <= 2:
+                weight[r] = 0.50
+        total_w = sum(weight.values()) or 1.0
+        smooth = {}
+        for r in rows:
+            wp = weight[r] / total_w
+            last, second = hist[r]
+            p_last = 6.0 * last * wp + 6.0 * wp - 0.75
+            p_second = second * wp + wp - 0.25
+            smooth[r] = wp * max(0.01, min(100.0, p_last + p_second))
+        tot = sum(smooth.values())
+        if tot <= 0:
+            # [维 09 §九.2 推论 1] 所有行权重 0 → 必定第 6 行（或最后一行）
+            pick = rows[-1]
+        else:
+            x = self.rng.random() * tot
+            acc = 0.0
+            pick = rows[-1]
+            for r in rows:
+                acc += smooth[r]
+                if x <= acc:
+                    pick = r
+                    break
+        # 插入事件：所有合法行 +1，被选中的行清零
+        legal = set(self._legal_rows(kind, w))
+        for r in self._rows():
+            if r in legal:
+                hist[r][0] += 1
+                hist[r][1] += 1
+        hist[pick][1] = hist[pick][0]
+        hist[pick][0] = 0
+        return pick
+
+    def _spawn_x(self, kind, is_flag):
+        """[维 09 §一] 按僵尸类型的出生点；旗帜波整体右移 40px。"""
+        lo, hi = D.SPAWN_X_BY_TYPE.get(kind, D.SPAWN_X)
+        if is_flag and kind != '旗帜':
+            lo += D.SPAWN_X_FLAG_OFFSET
+            hi += D.SPAWN_X_FLAG_OFFSET
+        return float(self.rng.uniform(lo, hi))
 
     # ------------------------------------------------ 生成
     def spawn_wave(self, w):
+        if w == 1:
+            self.__dict__['_lane_hist'] = {}
+            self.__dict__['_mower_lost_at'] = {}
+        # ★ 2026-10-23：上一波没执行完的**循环**事件直接放弃（普通定时事件不受影响）
+        self.events = [e for e in self.events
+                       if e.get('rep_n') is None or e.get('wave') == w]
         # [你] 每 5 波补一次临时存冰（w1 种 2-7/5-7 两个，w7 补一次）
         # ★ 2026-10-19：删掉"每 5 波自动 +2"——
         #   用户的口径是「存冰位没满、卡槽的冰一好就拿它补存冰」，
@@ -545,10 +700,17 @@ class Sim:
         script = self.wave_script(w)
         is_flag = (w % 10 == 0)
 
-        kinds = []
-        for kind, n in script.items():
-            kinds.extend([kind] * n)
-        self.rng.shuffle(kinds)          # 出怪列表本身是加权随机的
+        # ★★ 2026-10-23：**严格按原版出怪列表的顺序生成**。
+        #   旧版把种类展开后 `shuffle` 一遍，等于把列表顺序彻底打乱 ——
+        #   而原版"每波刷新时严格按列表预先设定的顺序依次生成"，
+        #   顺序会通过 9.1 的 LastPicked / SecondLastPicked 影响选行。
+        order = getattr(script, 'order', None)
+        if order is None:
+            kinds = []
+            for kind, n in script.items():
+                kinds.extend([kind] * n)
+        else:
+            kinds = list(order)
 
         total_hp = 0
         skip_hp = 0
@@ -557,30 +719,26 @@ class Sim:
         for kind in kinds:
             if kind not in D.ZOMB:
                 continue
+            # ★ 2026-10-23：**场地禁出的僵尸不能计进本波血量**（NE 无冰车等）；
+            #   否则 total_hp 虚高、刷波阈值被抬高，等于白送强度。
+            if not self.fld.allows(kind):
+                continue
             total_hp += D.ZOMB[kind][0]
+            # ★ 分路（[维 09 §九]）：合法行 + 平滑权重（LastPicked / SecondLastPicked）
+            row = self._spawn_lane(kind, w)
             if kind in D.SKIP_KINDS:
                 hp0 = D.ZOMB[kind][0]
                 skip_hp += hp0
-                row = self.fld.spawn_rows(kind, self.rng,
-                                          D.WATER_ONLY, D.LAND_ONLY)
                 # ★ 不再用固定 15s 衰减：改成"按该路的实际 dps 被清掉"，
                 #   否则四档出怪的波长会被这个常数抹平成一样的值。
                 skips.append([float(hp0), D.SKIP_DPS.get(row, 150.0)])
                 idx += 1
                 continue
-            # ★★ 2026-10-20 用户纠正：
-            #   「pvz 每一波出怪，**所有的怪都是同一时刻内刷出来的**，
-            #     具体刷怪地点在第 10 列哪个点有微小差异。这个差异在简化模型中忽略。」
-            #   → 所有僵尸 due = self.t（同一时刻），x 取固定的第 10 列出生点。
-            #   这意味着 SPAWN_GAP（逐只错开 6~16cs）**不再使用** ——
-            #   它之前既让波长被人为拉长，又制造了"第二辆冰车晚出生"的假问题。
-            x = D.SPAWN_X[0]
-            # ★ 分路（v0.2.1 起由场地决定）：陆生僵尸不能进水路、潜水/海豚只能在水路、
-            #   场地禁出的僵尸直接跳过（NE 无冰车、RE 无舞王/矿工/潜水/海豚）、
-            #   五行前院的舞王只在中三路。
-            if not self.fld.allows(kind):
-                continue
-            row = self.fld.spawn_rows(kind, self.rng, D.WATER_ONLY, D.LAND_ONLY)
+            # ★★ 2026-10-20 用户：「pvz 每一波出怪，所有的怪都是同一时刻内刷出来的，
+            #   具体刷怪地点在第 10 列哪个点有微小差异。」
+            #   → 同一时刻生成（没有僵尸间碰撞箱，允许重合），
+            #     x 按 [维 09 §一] 的类型出生点 + 旗帜波整体右移 40。
+            x = self._spawn_x(kind, is_flag)
             self.queue.append((self.t, kind, row, x, w))
             idx += 1
 
@@ -959,7 +1117,8 @@ class Sim:
 
         self.sun -= D.CARDS[card]['cost']
         self.card_ready[card] = self.t + D.CARDS[card]['cd']
-        self.actions.append(dict(t=self.t, wave=ev['wave'], name=name, ok=True))
+        self.actions.append(dict(t=self.t, wave=ev['wave'], name=name, ok=True,
+                                 rc=pos))
         if is_stock:
             self.ice_slots[pos] = True
             self.ice_refill_n += 1
@@ -1092,6 +1251,8 @@ class Sim:
             #   车头（碾压判定）一进这个区间，车尾（冰道前沿，+80）还在 720~800，
             #   **9 列还没被铺** → 5-9 干净，w11 的核一定落得下去。
             self.wogua_pending = dict(row=5, col=9, until=self.t + D.WOGUA_HOLD)
+            if self.actions:
+                self.actions[-1]['rc'] = (5, 9)
             self._log('RESCUE', 'w10 窝瓜种在 5-9，等车头进格',
                       row=5, col=9,
                       detail='判定域 [640,720] · 车尾还差一格没铺 9 列')
@@ -1201,6 +1362,8 @@ class Sim:
                                         why='落点 %d-%d 有冰道，种不下' % (r, c)))
                 return
             self._boom(r, c, D.CHERRY_R, D.ASH_DMG)
+            if self.actions:
+                self.actions[-1]['rc'] = (r, c)
             return
         if name == '辣椒':
             r = (self.slots.get('chili_slot') or (self._pick_row(), 0))[0]
@@ -1220,11 +1383,15 @@ class Sim:
                 cc = self.cells.get((r, col))
                 if cc is not None:
                     cc.ash_pending = True
+            if self.actions:
+                self.actions[-1]['rc'] = (r, 5)
             return
         if name == '窝瓜':
             # ★ v0.3：给了落点就种在那格（"窝瓜压车"就退化成"在 5-9 种窝瓜"）
             if isinstance(aim, (tuple, list)) and len(aim) == 2:
                 self._ash_cell(int(aim[0]), int(aim[1]), D.ASH_DMG)
+                if self.actions:
+                    self.actions[-1]['rc'] = (int(aim[0]), int(aim[1]))
                 return
             r = self._pick_row()
             cand = [z for z in self.zombies if z.alive and z.row == r]
@@ -1234,6 +1401,8 @@ class Sim:
                 t = min(cand, key=lambda z: z.x)
                 col = max(1, min(9, int(round((t.x - 40) / 80.0)) + 1))
                 self._ash_cell(r, col, D.ASH_DMG)
+                if self.actions:
+                    self.actions[-1]['rc'] = (r, col)
             return
 
         # ══════════════════════════════════════════════════════════════
@@ -1309,40 +1478,59 @@ class Sim:
             #   → 滑列落点算不出列。`allow_none=True` 时返回 None，让调用方**等一等**
             #   （别对着空气开炮：这一炮会打空，而且白进 3475cs 装填）。
             return None if allow_none else 8.0
+        def _covers(z, cx0, cy0):
+            zl, zr = self._dbox(z)
+            zy = self.zy(z.row)
+            nx = zl if cx0 < zl else (zr if cx0 > zr else cx0)
+            ny = zy if cy0 < zy else (
+                zy + D.DEF_HEIGHT if cy0 > zy + D.DEF_HEIGHT else cy0)
+            return (nx - cx0) ** 2 + (ny - cy0) ** 2 <= r_ * r_
+
+        def _score(cx0, cy0):
+            n_threat = 0
+            sc = 0.0
+            for z in zs:
+                if not _covers(z, cx0, cy0):
+                    continue
+                if z.kind in ('冰车', '投篮') or z.giant:
+                    n_threat += 1
+                    sc += 3.0
+                else:
+                    sc += 1.0
+            return n_threat, sc
+
         if threat:
             # ★★ 2026-10-23 用户：「P、N 的范围足够；巨人、冰车受击判定域大，一定炸的到」
-            #   → 以前这里只按"最靠前的那只"反解列，结果**队尾的冰车**常落在半径外
-            #     （实测：6 路冰车从 780 走到 268 一次都没被炸到，因为每一炮都瞄在
-            #      它前面 100~150px 的那只身上）。
-            #   现在遍历候选爆心（每只僵尸反解一个），选**覆盖收益最大**的那个：
-            #   硬目标（冰车/投篮车/巨人）权重 3，其它 1。
-            best, best_score = None, -1.0
-            for z0 in zs:
-                _l0, r0 = self._dbox(z0)
-                col0 = ((r0 + r_ - 1.0) - base) / float(D.CELL_W) + 1.0
-                col0 = max(1.0, min(9.0, col0))
+            #   → 以前这里只按"最靠前的那只"反解列，而且公式用 R 而不是
+            #     `sqrt(R² − dy²)`，跨行时**差 5~10px 就漏掉一整辆冰车**。
+            #   现在直接枚举候选列，用真实的圆-受击框距离算覆盖：
+            #   先比"覆盖到的硬目标数"，再比总收益。
+            step = 1.0 if integer else 0.1
+            best, best_key = None, None
+            n = int(round((9.0 - 1.0) / step))
+            for i in range(n + 1):
+                col0 = 1.0 + i * step
                 cx0 = base + (col0 - 1.0) * D.CELL_W
                 cy0 = self._aim_py(row, col0) + dy_
-                sc = 0.0
-                for z in zs:
-                    zl, zr = self._dbox(z)
-                    zy = self.zy(z.row)
-                    nx = zl if cx0 < zl else (zr if cx0 > zr else cx0)
-                    ny = zy if cy0 < zy else (
-                        zy + D.DEF_HEIGHT if cy0 > zy + D.DEF_HEIGHT else cy0)
-                    if (nx - cx0) ** 2 + (ny - cy0) ** 2 <= r_ * r_:
-                        sc += 3.0 if (z.kind in ('冰车', '投篮') or z.giant) else 1.0
-                if sc > best_score:
-                    best, best_score = col0, sc
+                nt, sc = _score(cx0, cy0)
+                key = (nt, sc)
+                # 覆盖相同时取更靠右（爆炸中心更靠近阵内 → 更安全）
+                if best_key is None or key > best_key or (
+                        key == best_key and col0 > best):
+                    best, best_key = col0, key
             if best is not None:
-                return (float(round(best)) if integer
-                        else round(best * 10) / 10.0)
+                return float(round(best)) if integer else round(best, 1)
         front = min(zs, key=lambda z: z.x)
         _zl, zr = self._dbox(front)
-        cx = zr + r_ - 1.0                          # −1：别卡在浮点边界上
+        # 跨行时圆心到受击框有纵向距离 dy，水平可用半径只有 sqrt(R² − dy²)
+        cy = self._aim_py(row, 1) + dy_
+        zy = self.zy(front.row)
+        ny = zy if cy < zy else (zy + D.DEF_HEIGHT if cy > zy + D.DEF_HEIGHT else cy)
+        reach = (max(0.0, r_ * r_ - (ny - cy) ** 2)) ** 0.5
+        cx = zr + reach - 1.0                      # −1：别卡在浮点边界上
         col = (cx - base) / float(D.CELL_W) + 1.0
         col = max(1.0, min(9.0, col))
-        return float(round(col)) if integer else round(col * 10) / 10.0
+        return float(round(col)) if integer else round(col, 1)
 
     def _fire_cob(self, ev, aim):
         """玉米炮开炮。`aim=(row, col)` 是**准星落点**（可以在任意行，可带小数）。
@@ -1432,7 +1620,7 @@ class Sim:
         self.boom_q.append((self.t + fuse, row, col, spec['radius'], spec['dmg'],
                             spec['dy'], (cx, cy)))
         self.actions.append(dict(t=self.t, wave=ev.get('wave') or 1,
-                                 name='玉米炮', ok=True))
+                                 name='玉米炮', ok=True, rc=(row, col)))
         # ★ 2026-10-22：炮阵的蹦极靠"炮炸"救 —— 爆炸判定域盖到目标格就算救下
         self._bungee_mark('cob', center=(cx, cy))
         self._log('ASH', '玉米炮开炮 → %s-%s（%s）'
@@ -1716,6 +1904,8 @@ class Sim:
         self._boom(row, col, D.DOOM_R, D.ASH_DMG, D.DOOM_DELAY)
         c = self.cells[(row, col)]
         c.crater_until = self.t + D.CRATER_CS
+        if self.actions:
+            self.actions[-1]['rc'] = (row, col)
         self.kernel_log.append(dict(t=self.t, wave=self.cur_wave, rc=(row, col),
                                     ok=True, designated=designated))
 
@@ -2103,7 +2293,7 @@ class Sim:
                       row=rc[0], col=rc[1],
                       detail='投篮车投掷前没被击杀 · 底线又没伞')
             if broke == 'plant':
-                self._plant_lost(cell, had, None)
+                self._plant_lost(cell, had, None, by='投篮')
             elif broke == 'pumpkin':
                 self._log('WARN', '南瓜被篮球砸穿 %d-%d' % rc,
                           row=rc[0], col=rc[1])
@@ -2288,17 +2478,14 @@ class Sim:
             cell.pumpkin, cell.pumpkin_hp = False, 0
             cell.ladder = False
             b['stolen'].append(dict(rc=(r, c), plant=name))
+            self._record_death(r, c, name, '蹦极', x=D.cell_x(c), cause='偷走')
             self._log('BUNGEE', '蹦极偷走 %d-%d 的%s' % (r, c, name),
                       row=r, col=c,
                       detail='既不在保护伞 3×3 内，也不在冰杀定式下 → 只能靠炮炸，'
                              '这一波没炸到')
-        self.bungee_log.append(b)
-        if b['stolen']:
-            self._log('WARN', '本波蹦极偷走 %d 株（%s）'
-                      % (len(b['stolen']),
-                         '、'.join('%d-%d %s' % (x['rc'][0], x['rc'][1], x['plant'])
-                                  for x in b['stolen'])),
+            self._log('WARN', '%d-%d %s被蹦极偷走' % (r, c, name), row=r, col=c,
                       detail='w%d 蹦极 %d 只' % (b['wave'], b['n']))
+        self.bungee_log.append(b)
 
     def _tick_joker(self):
         """
@@ -2359,9 +2546,13 @@ class Sim:
                 pads.append('%d-%d %s' % (z.row, col, nm))
                 continue
             killed.append('%d-%d %s' % (z.row, col, nm))
+            self._record_death(z.row, col, nm, z, cause='小丑爆炸')
             if plant in D.CORE_PLANTS or self._is_core_cell((z.row, col)):
                 self._fatal('小丑炸掉 %d-%d 的%s' % (z.row, col, plant),
                             'CORE 植物 · 控丑失败', row=z.row, col=col)
+            elif plant and plant not in D.PAD_PLANT.values():
+                self._log('WARN', '%d-%d %s被小丑炸毁' % (z.row, col, plant),
+                          row=z.row, col=col, detail='小丑开盒 · 非 CORE · 可补种')
         self.joker_boom.append(dict(t=self.t, wave=self.cur_wave, row=z.row,
                                     x=round(bx), killed=killed, pads=pads,
                                     early=bool(z.joker_early)))
@@ -2463,6 +2654,8 @@ class Sim:
                 if c.ash_pending:
                     continue
                 plant, pump = c.wreck()
+                if plant:
+                    self._record_death(z.row, col, plant, z, cause='碾压')
                 self.crush.append(dict(t=self.t, wave=z.wave, row=z.row,
                                        col=col, plant=plant))
                 self.car_audit.append(dict(wave=z.wave, row=z.row,
@@ -2619,6 +2812,8 @@ class Sim:
         """`z` = 造成损失的僵尸；`by` 可以顶替它的名字/位置（篮球这类没有实体时用）"""
         _kind = (by or (z.kind if z is not None else '僵尸'))
         _x = (z.x if z is not None else c.x)
+        if name not in D.PAD_PLANT.values():
+            self._record_death(c.row, c.col, name, _kind, x=_x, cause='啃食')
         if name in D.CORE_PLANTS or self._is_core_cell((c.row, c.col)):
             self._fatal('%d-%d 的%s被%s啃掉' % (c.row, c.col, name, _kind),
                         'CORE 植物 · 阵线已被突破到 %d 列（x=%d）' % (c.col, _x),
@@ -3310,10 +3505,23 @@ class Sim:
             # expire → 直接丢弃（条件是"再也不可能满足"）
         self.events = keep
         for e in due:
+            n0 = len(self.actions)
             if e['kind'] == 'ice':
                 self._freeze()
             else:
                 self.do_action(e)
+            # ★ 2026-10-23：把"落点"带进动作记录 —— 时间轴每个色块要标生效坐标，
+            #   崩阵场地图也要知道本波每次操作打在哪。
+            aim = e.get('aim')
+            rc = None
+            if (isinstance(aim, (list, tuple)) and len(aim) == 2
+                    and not isinstance(aim[1], str)):
+                rc = (aim[0], aim[1])
+            for a in self.actions[n0:]:
+                a.setdefault('aim', aim)
+                if rc is not None and 'rc' not in a:
+                    a['rc'] = rc
+                a.setdefault('aid', (e.get('trig') or {}).get('anchor'))
             # ★ 2026-10-23：记下"这一块积木生效的时刻"，供 `after_block` 触发
             bid = e.get('bid') or (e.get('trig') or {}).get('anchor')
             if bid:
@@ -3321,9 +3529,15 @@ class Sim:
             self._repeat(e)
 
     def _repeat(self, e):
-        """积木的"循环"：执行完再排下一次，直到次数用完或 while 不成立"""
+        """积木的"循环"：执行完再排下一次，直到次数用完或 while 不成立。
+
+        ★ 2026-10-23 用户：「循环事件设定了次数，但是一旦下一波开始，
+          没有执行的循环应当放弃。」→ 循环只在本波内有效。
+        """
         rp = e.get('repeat')
         if not rp:
+            return
+        if self.cur_wave != e.get('wave'):
             return
         n = e.get('rep_n', 0) + 1
         times = rp.get('times')
@@ -3573,6 +3787,27 @@ class Sim:
             if cell.plant is None and not spec.get('plant'):
                 continue                       # 已经彻底空的格子不用补
             need.append((r, c))
+        # ★★ 2026-10-23 运阵模型：选卡带了的阵型成分 → 死了就持续判定补种。
+        #   注意必须放在"没有南瓜要补就 return"之前，否则南瓜都完好时永远不补。
+        for q in list(self.replant_q):
+            rc = (q['row'], q['col'])
+            cell = self.cells.get(rc)
+            if cell is None or cell.plant is not None:
+                self.replant_q.remove(q)
+                continue
+            if cell.iced or cell.crater_until > self.t or cell.grave or cell.tail:
+                continue
+            name = q['plant']
+            if not self._base_ok(rc, name):
+                continue
+            if not self._try_card(name):
+                continue
+            self._plant_into(cell, name)
+            self.replant_q.remove(q)
+            self.replant_n = getattr(self, 'replant_n', 0) + 1
+            self._log('REPAIR', '补种 %d-%d 的%s' % (rc[0], rc[1], name),
+                      row=rc[0], col=rc[1],
+                      detail='选卡带了这个阵型成分 → 死后持续判定补种')
         if not need:
             return
         need.sort(key=lambda rc: -rc[1])       # 前场优先
@@ -3672,6 +3907,10 @@ class Sim:
             pumpkin_lost=lost_pump,
             pump_dmg=round(init - now),
             crush=self.crush,
+            deaths=self.deaths,
+            field_snap=(self.collapse_snap or self._field_snapshot()),
+            replant_n=getattr(self, 'replant_n', 0),
+            replant=list(sorted(self.replant)),
             ice_cells=sum(1 for c in self.cells.values() if c.iced),
             ice_touched=len(self.ice_touched),
             ice_blocks=sum(1 for b in self.broken if '冰道' in (b.get('why') or '')),
@@ -3735,6 +3974,7 @@ class Sim:
                 pumpkins_init=sum(1 for sp in self.array.values() if sp.get('pumpkin')),
                 plants_lost=[x['what'] for x in self.log if x['sev'] == 'WARN'],
                 repairs=sum(1 for x in self.log if x['sev'] == 'REPAIR'),
+                replant=getattr(self, 'replant_n', 0),
                 kernel_log=self.kernel_log,
                 joker=dict(
                     spawned=getattr(self, '_joker_n', 0),

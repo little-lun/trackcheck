@@ -104,7 +104,7 @@ def step():
         CFG.MODE = job['solve']          # ★ 阵解按 solve 走（中速 → 慢速档）
         CFG.KINDS_OVERRIDE = list(job['kinds'])
         CFG.FIELD = job.get('field') or 'PE'
-        CFG._RED['plan'] = None          # 每组重新抽红眼配额
+        CFG.reset_spawn_state()          # 每组重新开始：红眼累计 / 逐波缓存清空
         from . import layout as LY
         arr = LY.to_engine(job.get('array') or {})
         r = RUN.run_once(s, plan=job.get('plan'), field=CFG.FIELD, array=arr)
@@ -154,6 +154,7 @@ def _finalize(job):
         n=n, ok=ok, avg=avg, dev=dev, ref=ref,
         sun=sum(r['sun_end'] for r in reports) / n,
         ice=sum(r['end_state']['ice_stock_perm'] for r in reports) / n,
+        icecap=sum((r['end_state'].get('ice_cap') or 0) for r in reports) / n,
         rep=sum(r['end_state']['repairs'] for r in reports) / n,
         kn=sum(len(r['end_state']['kernel_log']) for r in reports) / n,
         crush=sum(r['end_state']['cars_crushed'] for r in reports),
@@ -178,12 +179,13 @@ def _finalize(job):
 
 
 def _worst_level(reports, dev):
-    rank = -1
+    """最严重的一级 —— LEVEL_RANK 越小越严重（L0 < L1 < L2 < L3 < L4）。"""
+    rank = 99
     lv = None
     for r in reports:
         for it in H.classify(r, dev):
             k = H.LEVEL_RANK[it['lv']]
-            if k > rank:
+            if k < rank:
                 rank, lv = k, it['lv']
     return lv
 
@@ -227,6 +229,9 @@ def render_job(job, rep, dev):
 
     kinds_txt = '、'.join(job['kinds'])
     card = H.card_html(rep, dev)
+    ice_txt = ('存冰 <b>%.1f</b>/%d' % (s['ice'], round(s.get('icecap') or 0))
+               if s.get('icecap')
+               else '存冰 <b class="dim">—</b><span class="dim">（夜场不存冰）</span>')
 
     struct_txt = ''
     if s.get('fog'):
@@ -269,7 +274,7 @@ def render_job(job, rep, dev):
             '<span>种子 <b>%d</b>　跑完 <b class="%s">%d / %d</b></span>'
             '<span>常规波长 <b>%.2f s</b>　偏差 %s</span>'
             '<span>减速覆盖 <b>%.0f%%</b>　核 <b>%.1f</b> 个/局　碾压 <b class="%s">%d</b></span>'
-            '<span>阳光 <b>%.0f</b>　存冰 <b>%.1f</b>/4　补南瓜 <b>%.1f</b> 次</span>'
+            '<span>阳光 <b>%.0f</b>　%s　补南瓜 <b>%.1f</b> 次</span>'
             '%s'
             '<span>最高等级 %s</span>'
             '</div>'
@@ -286,5 +291,5 @@ def render_job(job, rep, dev):
                job['seeds'], 'ok' if s['ok'] == s['n'] else 'bad', s['ok'], s['n'],
                s['avg'], _fmt_dev(dev),
                s['cov'], s['kn'], 'ok' if s['crush'] == 0 else 'bad', s['crush'],
-               s['sun'], s['ice'], s['rep'], struct_txt,
+               s['sun'], ice_txt, s['rep'], struct_txt,
                badge, s['n'], rows, card))

@@ -15,7 +15,7 @@ from tools.trackcheck import run as R
 
 def show(tier, seed, show_all=False, tail=None):
     C.MODE = tier
-    C._RED['plan'] = None
+    C.reset_spawn_state()
     r = R.run_once(seed)
     f = r.get('fail')
     print('=' * 74)

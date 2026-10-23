@@ -215,6 +215,7 @@ svg .tx{font-size:9px;fill:#94a3b8;text-anchor:middle}
 svg .wl{font-size:8.5px;fill:#64748b;text-anchor:middle}
 svg .wl.flag{fill:#dc2626;font-weight:700;font-size:9.5px}
 svg .ab{font-size:8px;font-weight:700;font-family:ui-monospace,Consolas,monospace}
+svg .rc{font-size:5px;font-family:ui-monospace,Consolas,monospace}
 svg .ab-l{font-weight:700;fill:#334155}
 .sec{font-size:12.5px;font-weight:700;color:#334155;margin:13px 0 6px;
  padding-left:7px;border-left:3px solid #cbd5e1}
@@ -509,6 +510,8 @@ function lyIsMush(name){
   const core = String(name || '').replace(/^模仿者:/, '');
   return LY_MUSH.has(core);
 }
+/* ★ 2026-10-23 用户：夜场（NE / FE）蘑菇**不可能睡眠**，勾选框锁定为"醒着" */
+function lyIsNight(){ return !!lyFieldInfo(LY.field).night; }
 function lyNeedsBase(r){
   const f = lyFieldInfo(LY.field);
   return (f.water || []).indexOf(r) >= 0 || !!f.base_plant;
@@ -676,8 +679,12 @@ function lyRenderEditor(){
          + LYC.mimic + '（模仿）</option></select>'
          + (isMimic ? '<select id="ly-mimic">' + opt(LYC.plants || [], core) + '</select>' : ''))
     + '<label class="hint' + (lyIsMush(cur) ? '' : ' lock') + '">'
-    + '<input type="checkbox" id="ly-awake"' + (cell.awake !== false ? ' checked' : '')
-    + (lyIsMush(cur) ? '' : ' disabled') + '> 醒着（蘑菇才有睡眠）</label>'
+    + '<input type="checkbox" id="ly-awake"'
+    + ((lyIsMush(cur) && lyIsNight()) || cell.awake !== false ? ' checked' : '')
+    + (lyIsMush(cur) ? '' : ' disabled')
+    + (lyIsMush(cur) && lyIsNight() ? ' disabled' : '') + '> 醒着'
+    + (lyIsMush(cur) && lyIsNight() ? '（夜场锁定：蘑菇不会睡）' : '（蘑菇才有睡眠）')
+    + '</label>'
     + '</div>'
     + '<div class="col">'
     + '<div class="hint">附加</div>'
@@ -761,6 +768,7 @@ function lyRenderEditor(){
 function lyOnPlantChanged(r, c, cell){
   const rule = lyBaseRule(r);
   if (rule.water) cell.ladder = false;          // 水路不准搭梯
+  if (lyIsNight() && cell.plant && lyIsMush(cell.plant)) cell.awake = true;
   if (lyCobCore(cell.plant)){
     cell.pumpkin = false; cell.ladder = false;
     if (rule.need) cell.base = rule.name;
@@ -789,6 +797,10 @@ function lyNormalizeRules(){
     const v = LY.array[k];
     if (v.base && v.base !== rule.name) { v.base = null; n++; }
     if (rule.water && v.ladder) { v.ladder = false; n++; }   // 水路不准搭梯
+    // 夜场：蘑菇不会睡 → 一律醒着
+    if (lyIsNight() && v.plant && lyIsMush(v.plant) && v.awake !== true) {
+      v.awake = true; n++;
+    }
     if (lyCobCore(v.plant)) {
       if (v.pumpkin || v.ladder) { v.pumpkin = false; v.ladder = false; n++; }
       if (rule.need && !v.base) { v.base = rule.name; n++; }
@@ -825,6 +837,7 @@ function lyArrayForExport(){
     const rule = lyBaseRule(r);
     if (v.base && v.base !== rule.name) v.base = null;   // 草地上的睡莲
     if (rule.water) v.ladder = false;                    // 水路不准搭梯
+    if (lyIsNight() && v.plant && lyIsMush(v.plant)) v.awake = true;  // 夜场不睡
     if (lyCobCore(v.plant)) { v.pumpkin = false; v.ladder = false; }
     // 有植物 / 南瓜 / 梯子 → 水上、屋顶必须补底座（空地可以没有）
     if (rule.need && (v.plant || v.pumpkin || v.ladder)) v.base = rule.name;
@@ -851,6 +864,7 @@ document.getElementById('ly-field').onchange = ev => {
   localStorage.setItem('tc.field', LY.field);
   LY.sel = null;
   if (typeof plSetField === 'function') plSetField(LY.field);
+  lyNormalizeRules();               // 夜场切换时把蘑菇改成醒着
   lyRender();
   syncKinds();                      // ★ 换场地 → 重新按禁出规则锁定出怪勾选
 };

@@ -1,0 +1,594 @@
+{
+  "app": "trackcheck-spawn",
+  "version": 1,
+  "savedAt": "2026-10-23T09:19:22.502Z",
+  "jobs": [
+    {
+      "name": "全出怪·FE",
+      "kinds": [
+        "普通",
+        "路障",
+        "撑杆",
+        "铁桶",
+        "读报",
+        "铁门",
+        "橄榄",
+        "舞王",
+        "潜水",
+        "冰车",
+        "海豚",
+        "小丑",
+        "气球",
+        "矿工",
+        "跳跳",
+        "蹦极",
+        "扶梯",
+        "投篮",
+        "白眼",
+        "红眼"
+      ],
+      "seeds": 10,
+      "field": "FE",
+      "array": {
+        "1-1": {
+          "plant": "忧郁菇",
+          "pumpkin": true,
+          "ladder": false,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "1-2": {
+          "plant": "保护伞",
+          "pumpkin": true,
+          "ladder": true,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "1-3": {
+          "plant": "冰瓜",
+          "pumpkin": true,
+          "ladder": true,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "1-4": {
+          "plant": "大喷菇",
+          "pumpkin": true,
+          "ladder": false,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "1-5": {
+          "plant": "大喷菇",
+          "pumpkin": false,
+          "ladder": false,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "2-1": {
+          "plant": "双子花",
+          "pumpkin": true,
+          "ladder": false,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "2-2": {
+          "plant": "忧郁菇",
+          "pumpkin": true,
+          "ladder": true,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "2-3": {
+          "plant": "冰瓜",
+          "pumpkin": true,
+          "ladder": true,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "2-4": {
+          "plant": "大喷菇",
+          "pumpkin": true,
+          "ladder": false,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "2-5": {
+          "plant": "大喷菇",
+          "pumpkin": false,
+          "ladder": false,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "3-1": {
+          "plant": "玉米炮",
+          "pumpkin": false,
+          "ladder": false,
+          "awake": true,
+          "base": "睡莲",
+          "grave": false,
+          "core": false
+        },
+        "3-2": {
+          "plant": null,
+          "pumpkin": false,
+          "ladder": false,
+          "awake": true,
+          "base": "睡莲",
+          "grave": false,
+          "core": false
+        },
+        "3-3": {
+          "plant": "玉米炮",
+          "pumpkin": false,
+          "ladder": false,
+          "awake": true,
+          "base": "睡莲",
+          "grave": false,
+          "core": false
+        },
+        "3-4": {
+          "plant": null,
+          "pumpkin": false,
+          "ladder": false,
+          "awake": true,
+          "base": "睡莲",
+          "grave": false,
+          "core": false
+        },
+        "3-5": {
+          "plant": null,
+          "pumpkin": true,
+          "ladder": false,
+          "awake": true,
+          "base": "睡莲",
+          "grave": false,
+          "core": false
+        },
+        "3-6": {
+          "plant": "忧郁菇",
+          "pumpkin": true,
+          "ladder": false,
+          "awake": true,
+          "base": "睡莲",
+          "grave": false,
+          "core": false
+        },
+        "4-1": {
+          "plant": "玉米炮",
+          "pumpkin": false,
+          "ladder": false,
+          "awake": true,
+          "base": "睡莲",
+          "grave": false,
+          "core": false
+        },
+        "4-2": {
+          "plant": null,
+          "pumpkin": false,
+          "ladder": false,
+          "awake": true,
+          "base": "睡莲",
+          "grave": false,
+          "core": false
+        },
+        "4-3": {
+          "plant": "玉米炮",
+          "pumpkin": false,
+          "ladder": false,
+          "awake": true,
+          "base": "睡莲",
+          "grave": false,
+          "core": false
+        },
+        "4-4": {
+          "plant": null,
+          "pumpkin": false,
+          "ladder": false,
+          "awake": true,
+          "base": "睡莲",
+          "grave": false,
+          "core": false
+        },
+        "4-5": {
+          "plant": "双子花",
+          "pumpkin": true,
+          "ladder": false,
+          "awake": true,
+          "base": "睡莲",
+          "grave": false,
+          "core": false
+        },
+        "4-6": {
+          "plant": "忧郁菇",
+          "pumpkin": true,
+          "ladder": false,
+          "awake": true,
+          "base": "睡莲",
+          "grave": false,
+          "core": false
+        },
+        "5-1": {
+          "plant": "双子花",
+          "pumpkin": true,
+          "ladder": false,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "5-2": {
+          "plant": "忧郁菇",
+          "pumpkin": true,
+          "ladder": true,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "5-3": {
+          "plant": "冰瓜",
+          "pumpkin": true,
+          "ladder": true,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "5-4": {
+          "plant": "大喷菇",
+          "pumpkin": true,
+          "ladder": false,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "5-5": {
+          "plant": "大喷菇",
+          "pumpkin": false,
+          "ladder": false,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "6-1": {
+          "plant": "忧郁菇",
+          "pumpkin": true,
+          "ladder": false,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "6-2": {
+          "plant": "保护伞",
+          "pumpkin": true,
+          "ladder": true,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "6-3": {
+          "plant": "冰瓜",
+          "pumpkin": true,
+          "ladder": true,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "6-4": {
+          "plant": "大喷菇",
+          "pumpkin": true,
+          "ladder": false,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "6-5": {
+          "plant": "大喷菇",
+          "pumpkin": false,
+          "ladder": false,
+          "awake": true,
+          "grave": false,
+          "core": false
+        }
+      },
+      "planId": "pmvkopxp51"
+    },
+    {
+      "name": "慢速关",
+      "kinds": [
+        "普通",
+        "路障",
+        "橄榄",
+        "小丑",
+        "冰车",
+        "矿工",
+        "蹦极",
+        "红眼",
+        "白眼",
+        "气球",
+        "海豚"
+      ],
+      "seeds": 10,
+      "field": "FE",
+      "array": {
+        "1-1": {
+          "plant": "忧郁菇",
+          "pumpkin": true,
+          "ladder": false,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "1-2": {
+          "plant": "保护伞",
+          "pumpkin": true,
+          "ladder": true,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "1-3": {
+          "plant": "冰瓜",
+          "pumpkin": true,
+          "ladder": true,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "1-4": {
+          "plant": "大喷菇",
+          "pumpkin": true,
+          "ladder": false,
+          "awake": true,
+          "grave": false,
+          "core": true
+        },
+        "1-5": {
+          "plant": "大喷菇",
+          "pumpkin": false,
+          "ladder": false,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "2-1": {
+          "plant": "双子花",
+          "pumpkin": true,
+          "ladder": false,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "2-2": {
+          "plant": "忧郁菇",
+          "pumpkin": true,
+          "ladder": true,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "2-3": {
+          "plant": "冰瓜",
+          "pumpkin": true,
+          "ladder": true,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "2-4": {
+          "plant": "大喷菇",
+          "pumpkin": true,
+          "ladder": false,
+          "awake": true,
+          "grave": false,
+          "core": true
+        },
+        "2-5": {
+          "plant": "大喷菇",
+          "pumpkin": false,
+          "ladder": false,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "3-1": {
+          "plant": "玉米炮",
+          "pumpkin": false,
+          "ladder": false,
+          "awake": true,
+          "base": "睡莲",
+          "grave": false,
+          "core": false
+        },
+        "3-2": {
+          "plant": null,
+          "pumpkin": false,
+          "ladder": false,
+          "awake": true,
+          "base": "睡莲",
+          "grave": false,
+          "core": false
+        },
+        "3-3": {
+          "plant": "玉米炮",
+          "pumpkin": false,
+          "ladder": false,
+          "awake": true,
+          "base": "睡莲",
+          "grave": false,
+          "core": false
+        },
+        "3-4": {
+          "plant": null,
+          "pumpkin": false,
+          "ladder": false,
+          "awake": true,
+          "base": "睡莲",
+          "grave": false,
+          "core": false
+        },
+        "3-5": {
+          "plant": null,
+          "pumpkin": true,
+          "ladder": false,
+          "awake": true,
+          "base": "睡莲",
+          "grave": false,
+          "core": false
+        },
+        "3-6": {
+          "plant": "忧郁菇",
+          "pumpkin": true,
+          "ladder": false,
+          "awake": true,
+          "base": "睡莲",
+          "grave": false,
+          "core": false
+        },
+        "4-1": {
+          "plant": "玉米炮",
+          "pumpkin": false,
+          "ladder": false,
+          "awake": true,
+          "base": "睡莲",
+          "grave": false,
+          "core": false
+        },
+        "4-2": {
+          "plant": null,
+          "pumpkin": false,
+          "ladder": false,
+          "awake": true,
+          "base": "睡莲",
+          "grave": false,
+          "core": false
+        },
+        "4-3": {
+          "plant": "玉米炮",
+          "pumpkin": false,
+          "ladder": false,
+          "awake": true,
+          "base": "睡莲",
+          "grave": false,
+          "core": false
+        },
+        "4-4": {
+          "plant": null,
+          "pumpkin": false,
+          "ladder": false,
+          "awake": true,
+          "base": "睡莲",
+          "grave": false,
+          "core": false
+        },
+        "4-5": {
+          "plant": "双子花",
+          "pumpkin": true,
+          "ladder": false,
+          "awake": true,
+          "base": "睡莲",
+          "grave": false,
+          "core": false
+        },
+        "4-6": {
+          "plant": "忧郁菇",
+          "pumpkin": true,
+          "ladder": false,
+          "awake": true,
+          "base": "睡莲",
+          "grave": false,
+          "core": false
+        },
+        "5-1": {
+          "plant": "双子花",
+          "pumpkin": true,
+          "ladder": false,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "5-2": {
+          "plant": "忧郁菇",
+          "pumpkin": true,
+          "ladder": true,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "5-3": {
+          "plant": "冰瓜",
+          "pumpkin": true,
+          "ladder": true,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "5-4": {
+          "plant": "大喷菇",
+          "pumpkin": true,
+          "ladder": false,
+          "awake": true,
+          "grave": false,
+          "core": true
+        },
+        "5-5": {
+          "plant": "大喷菇",
+          "pumpkin": false,
+          "ladder": false,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "6-1": {
+          "plant": "忧郁菇",
+          "pumpkin": true,
+          "ladder": false,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "6-2": {
+          "plant": "保护伞",
+          "pumpkin": true,
+          "ladder": true,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "6-3": {
+          "plant": "冰瓜",
+          "pumpkin": true,
+          "ladder": true,
+          "awake": true,
+          "grave": false,
+          "core": false
+        },
+        "6-4": {
+          "plant": "大喷菇",
+          "pumpkin": true,
+          "ladder": false,
+          "awake": true,
+          "grave": false,
+          "core": true
+        },
+        "6-5": {
+          "plant": "大喷菇",
+          "pumpkin": false,
+          "ladder": false,
+          "awake": true,
+          "grave": false,
+          "core": false
+        }
+      },
+      "planId": "pmvkopxp51"
+    }
+  ]
+}

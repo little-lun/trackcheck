@@ -1554,6 +1554,7 @@ def norm(plan):
     p.setdefault('rescue_simple', dict(enabled=True, resources=[], targets=[]))
     p.setdefault('slots', {})
     p.setdefault('params', {})
+    ids = set()
     for row in p['waves']:
         row['w'] = int(row.get('w') or 0)
         row['role'] = role_of(row['w'])
@@ -1566,7 +1567,15 @@ def norm(plan):
                 b.setdefault('trig', {'kind': 'spawn'})
                 # ★★ 2026-10-23 用户：「每一个积木都有唯一命名：波数-候选-序号」
                 #   例 w1-1-1 = 第 1 波、候选 1、第 1 块。`after_block` 靠它定位。
-                b['id'] = 'w%d-%d-%d' % (row['w'], si + 1, bi + 1)
+                #   已有 id 且不重复 → 保留（用户在检查器里改过的名字不能丢）；
+                #   缺失 / 重复 → 按规则补一个。
+                bid = (b.get('id') or '').strip()
+                if not bid or bid in ids:
+                    bid = 'w%d-%d-%d' % (row['w'], si + 1, bi + 1)
+                    while bid in ids:
+                        bid += "'"
+                b['id'] = bid
+                ids.add(bid)
     for g in p['globals']:
         g.setdefault('enabled', True)
         g['when'] = _mig_gate(g.get('when') or {'kind': 'always'})

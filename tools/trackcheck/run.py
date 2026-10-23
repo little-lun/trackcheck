@@ -78,6 +78,23 @@ def run_once(seed, rescue=None, plan=None, field=None, array=None):
         fast_fog=getattr(CFG, 'FAST_LUNGBU_SPOTS', None),
         garlic=CFG.garlic_slots(),
         struct_fog=CFG.struct_fog_slots())
+    # ★ 2026-10-23 运阵模型：选卡里带了**阵型成分**（例：FE.雾四炮带大喷菇）
+    #   → 这种植物死了以后持续判定补种。只算"选卡里有 & 阵型里也有"的主植物；
+    #     南瓜/睡莲这类壳与基座不算（它们各有维护/重建逻辑）。
+    replant = set()
+    if plan:
+        from tools.trackcheck import plan as P
+        deck_core = set()
+        for c in (plan.get('deck') or []):
+            deck_core.add(P.mimic_target(c) or c)
+        arr_plants = set()
+        for spec in (array or {}).values():
+            nm = (spec or {}).get('plant')
+            if nm:
+                arr_plants.add(P.mimic_target(nm) or nm)
+        action_cards = {'寒冰菇', '毁灭菇', '樱桃', '辣椒', '窝瓜', '三叶草',
+                        '咖啡豆', '大蒜'}
+        replant = (deck_core & arr_plants) - action_cards
     sim = Sim(array, track_fn, CFG.wave_script, seed=seed,              total_waves=20, sun0=None, skip_hp=getattr(CFG, 'SKIP_HP', 0),
               slots=slots, cherry_cols=cherry_cols,
               rescue=rescue, repair=getattr(CFG, 'REPAIR', True),
@@ -86,7 +103,7 @@ def run_once(seed, rescue=None, plan=None, field=None, array=None):
               rebuild=getattr(CFG, 'REBUILD_BY_TIER', {}).get(CFG.MODE, False),
               wogua_flag=getattr(CFG, 'WOGUA_FLAG_BY_TIER', {}).get(CFG.MODE, True),
               rescue_tick=rescue_tick, globals_tick=globals_tick,
-              field=field)
+              field=field, replant=replant)
     sim.plan = plan
     r = sim.run()
     # 供报告层决定卡槽显示（极速关有冰车/投篮 → 卡槽里没有大蒜）

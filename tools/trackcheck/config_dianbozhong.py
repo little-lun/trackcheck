@@ -232,48 +232,47 @@ ROUND = 62
 #   设成列表时，make_wave 只从这份清单里抽（还是饱和 50 只/波）。
 KINDS_OVERRIDE = None
 
-_RED = {'used': 0, 'plan': None}
+_RED = {'used': 0, 'cache': {}}
 
 
-def _red_plan(n=20, total=50):
-    """
-    一轮的红眼配额摊到 20 波（旗标波权重 ×2）。
-    [维 09] 红眼上限是**每轮** 50 只（轮数 54 起固定），不是每波。
-    以前按每波独立随机，导致配额在前 10 波就吃光、造出 "w1 七只红眼"。
-    """
-    wts = [2.0 if w % 10 == 0 else 1.0 for w in range(1, n + 1)]
-    tot_w = sum(wts)
-    plan, left, acc = [], total, 0.0
-    for wt in wts:
-        acc += wt
-        want = int(round(total * acc / tot_w))
-        k = max(0, min(want - (total - left), left))
-        plan.append(k)
-        left -= k
-    return plan
+def reset_spawn_state():
+    """每个任务 / 每一局重新开始：红眼累计与逐波缓存都清空。"""
+    _RED['used'] = 0
+    _RED['cache'] = {}
 
 
 def wave_script(w, tier=None):
-    """按四档出怪清单 + 饱和规则生成一波。"""
+    """按出怪清单 + 饱和规则生成一波（**严格按原版出怪列表**）。
+
+    · 列表顺序保留（`spawn.Wave.order`），引擎按这个顺序生成、选行。
+    · 红眼上限是**本轮累计**（[维 09 §七]：达到上限后非旗帜波立刻不再出），
+      不再像旧版那样把 50 只硬摊到每一波。
+    · 同一波会被引擎多次问到（蹦极判定、波角色、控丑统计）→ 必须缓存，
+      否则红眼累计会被重复扣减。
+    """
     from . import spawn
     import random as _r
     tier = tier or MODE
-    if w == 1 or _RED['plan'] is None:
+    allowed = list(KINDS_OVERRIDE if KINDS_OVERRIDE else TIERS[tier])
+    key = (tier, tuple(allowed), ROUND, bool(SATURATED), w)
+    if w == 1:
+        # 新的一轮：红眼累计从 0 开始，逐波缓存清空
         _RED['used'] = 0
-        _RED['plan'] = _red_plan()
+        _RED['cache'] = {}
+    if key in _RED['cache']:
+        return _RED['cache'][key]
     # ★ 不能用内置 hash()：Python 对 str 的 hash 每次进程都随机化，
     #   会导致同一配置每次跑出不同出怪（这也是之前结果乱跳的根源）。
     import zlib
     seed = zlib.crc32(('%s|%d|%d' % (tier, w, ROUND)).encode()) & 0xffffffff
     rng = _r.Random(seed)
-    cap_red = 0 if ROUND < 5 else min(50, ROUND - 4)
-    quota = _RED['plan'][(w - 1) % 20] if _RED['plan'] else None
-    allowed = KINDS_OVERRIDE if KINDS_OVERRIDE else TIERS[tier]
     lst = spawn.make_wave(w, ROUND, allowed, rng,
-                          red_used=_RED['used'], red_cap=cap_red,
-                          saturated=SATURATED, red_quota=quota)
+                          red_used=_RED['used'],
+                          saturated=SATURATED)
     _RED['used'] += lst.count('红眼')
-    return spawn.composition(lst)
+    out = spawn.Wave(lst)
+    _RED['cache'][key] = out
+    return out
 
 
 def track(w, ctx=None):
