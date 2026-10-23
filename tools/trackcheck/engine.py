@@ -1310,9 +1310,33 @@ class Sim:
             #   （别对着空气开炮：这一炮会打空，而且白进 3475cs 装填）。
             return None if allow_none else 8.0
         if threat:
-            hard = [z for z in zs if z.kind in ('冰车', '投篮') or z.giant]
-            if hard:
-                zs = hard
+            # ★★ 2026-10-23 用户：「P、N 的范围足够；巨人、冰车受击判定域大，一定炸的到」
+            #   → 以前这里只按"最靠前的那只"反解列，结果**队尾的冰车**常落在半径外
+            #     （实测：6 路冰车从 780 走到 268 一次都没被炸到，因为每一炮都瞄在
+            #      它前面 100~150px 的那只身上）。
+            #   现在遍历候选爆心（每只僵尸反解一个），选**覆盖收益最大**的那个：
+            #   硬目标（冰车/投篮车/巨人）权重 3，其它 1。
+            best, best_score = None, -1.0
+            for z0 in zs:
+                _l0, r0 = self._dbox(z0)
+                col0 = ((r0 + r_ - 1.0) - base) / float(D.CELL_W) + 1.0
+                col0 = max(1.0, min(9.0, col0))
+                cx0 = base + (col0 - 1.0) * D.CELL_W
+                cy0 = self._aim_py(row, col0) + dy_
+                sc = 0.0
+                for z in zs:
+                    zl, zr = self._dbox(z)
+                    zy = self.zy(z.row)
+                    nx = zl if cx0 < zl else (zr if cx0 > zr else cx0)
+                    ny = zy if cy0 < zy else (
+                        zy + D.DEF_HEIGHT if cy0 > zy + D.DEF_HEIGHT else cy0)
+                    if (nx - cx0) ** 2 + (ny - cy0) ** 2 <= r_ * r_:
+                        sc += 3.0 if (z.kind in ('冰车', '投篮') or z.giant) else 1.0
+                if sc > best_score:
+                    best, best_score = col0, sc
+            if best is not None:
+                return (float(round(best)) if integer
+                        else round(best * 10) / 10.0)
         front = min(zs, key=lambda z: z.x)
         _zl, zr = self._dbox(front)
         cx = zr + r_ - 1.0                          # −1：别卡在浮点边界上
