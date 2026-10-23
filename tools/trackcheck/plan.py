@@ -1196,7 +1196,7 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None):
     filled = 0
     cycle_i = 0          # 第几轮循环（用于 `~` 交替）
     beats = variants[0]
-    prev_id = None       # 上一波的"锚点积木" id（定时链用）
+    prev_anchor = None   # 上一个**运算量积木**的 id（定时链用）
     for i, w in enumerate(targets):
         j = i + start_i                  # ★ 起手拍：从第 start_i 拍开始铺
         if j and j % len(beats) == 0:
@@ -1223,19 +1223,22 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None):
             if kept:
                 blocks = kept
         # ★★ 2026-10-23：**固定波长阵的定时**
-        #   第一块积木挂「距上一波第一块生效后 +波长」，波长取上一拍的距离。
-        #   这样"具备运算量的操作"就是真正定时的，不再依赖刷波时刻。
-        if gaps and prev_id and blocks:
+        #   锚点必须落在**具备运算量的那一块**上（炮 / 核 / 灰烬），
+        #   不能落在"刷怪即刻"的冰上 —— 冰是按刷怪时刻打的（慢波要一出来就冻），
+        #   拿它当锚点等于让整条定时链跟着"运算量刷波"走，那就不是定时了。
+        #   实测后果：FE.雾四炮 的炮在 w4 之后整段空窗 3400cs（4 门炮同时进 CD），
+        #   边路冰车正好从这段真空里碾进来。
+        ops_blocks = [b for b in blocks if b['op'] not in _NO_COUNT_OPS]
+        if gaps and prev_anchor and ops_blocks:
             g = gaps[(j - 1) % len(gaps)]
-            blocks[0]['trig'] = {'kind': 'after_block', 'id': prev_id,
-                                 'delay': int(round(g * 100))}
-            # 同一拍的其余积木跟着第一块走（`after` + 0 = 同时生效）
-            for b in blocks[1:]:
-                if b['trig'].get('kind') == 'spawn':
-                    b['trig'] = {'kind': 'after', 'at': 0}
+            for b in ops_blocks:
+                b['trig'] = {'kind': 'after_block', 'id': prev_anchor,
+                             'delay': int(round(g * 100))}
+        # 本波的新锚点 = 这一波第一块**有运算量**的积木
+        if ops_blocks:
+            k = blocks.index(ops_blocks[0]) + 1
+            prev_anchor = 'w%d-1-%d' % (w, k)
         row['sets'] = [dict(when={'kind': 'always'}, ops=blocks)]
-        # 记下"这一波的第一块"给下一拍当锚点（必须和 norm() 里的命名规则一致）
-        prev_id = 'w%d-1-1' % w
         label = ' + '.join(b.get('op') for b in blocks) or '（空）'
         row['note'] = '快捷布置：' + label
         if beat.get('split'):

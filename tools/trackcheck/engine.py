@@ -183,7 +183,7 @@ class Zombie:
                  'min_x', 'box_in', 'fuse_in', 'joker_early',
                  'phase', 'vaulted', 'slid', 'armor', 'spd_alt', 'never_eat',
                  'hold_until', 'vault_until', 'vault_to_x',
-                 'born_t', 'cat_at', 'eat_ready')
+                 'born_t', 'cat_at', 'eat_ready', 'joker_res')
 
     def __init__(self, kind, row, x, wave, rng):
         self.kind = kind
@@ -222,6 +222,7 @@ class Zombie:
         self.box_in = -1
         self.fuse_in = -1
         self.joker_early = False
+        self.joker_res = None         # 小丑结局：'died' / 'boom' / 'blank'（炸空）
         # ★ 2026-10-22：分阶段速度 / 撑杆跳 / 舞王滑步 / 金属护具
         # ★ 2026-10-23（《僵尸时间表》）：**起步偏差**
         #   正值 = 生成后先停顿（足球/投篮车/撑杆的起步加速）；
@@ -346,6 +347,7 @@ class Sim:
         self.broken = []                 # 轨道断裂（卡 CD / 阳光）
         self.crush = []                  # 冰车碾压
         self.catapult = []               # 投篮车投掷（含被伞挡下的）
+        self.joker_units = []            # 每只小丑的结局（早/晚 × 死/炸空/炸掉什么）
         self.cat_pending = []            # 滞空中的篮球（199cs 后落地结算）
         self.log = []                    # 分级事件
         self.lost = {}                   # {(row,col): plant} 已丧失的植物
@@ -662,20 +664,26 @@ class Sim:
     def _endgame_spawn(self, w):
         """w20 收尾三人组：珊瑚（后院）/ 空降（天台），**忽略时延**直接出现在场上。
 
-        ★ 用户 2026-10-23：「空降落地和珊瑚一样，在简化模型下忽略时延，
-          视为在特定区域突然出现。」→ 不模拟 252cs 开啃 / 575~594cs 落地。
+        ★ 用户 2026-10-23 的完整口径：
+          · RE（天台）空降区 = **所有行、第 5~9 列**
+          · PE / FE 珊瑚刷新区 = **水路（3/4 路）第 6~9 列**
+          · 在区域里**随机挑 3 个格子**，每格随机是 普僵 / 路障 / 铁桶
+          · 忽略"落地 / 开啃"时延（表里 252 / 575~594cs 都不计）
         """
         eg = getattr(self.fld, 'endgame', None)
         if eg == 'coral':
-            spots = [(3, 6), (4, 6), (3, 6)]      # 水池中段
+            rows, cols = list(self.fld.water), list(range(6, 10))
         elif eg == 'airdrop':
-            spots = [(2, 5), (3, 5), (4, 5)]      # 天台空降区
+            rows, cols = list(self.fld.all_rows()), list(range(5, 10))
         else:
             return
-        for (r, c) in spots:
-            if r not in self.by_row:
-                continue
-            z = Zombie('普通', r, D.cell_x(c), w, self.rng)
+        cells = [(r, c) for r in rows for c in cols]
+        if not cells:
+            return
+        pick = self.rng.sample(cells, min(3, len(cells)))
+        for (r, c) in pick:
+            kind = self.rng.choice(('普通', '路障', '铁桶'))
+            z = Zombie(kind, r, D.cell_x(c), w, self.rng)
             z.born_t = self.t
             self.zombies.append(z)
             self.by_row[r].append(z)
@@ -683,10 +691,10 @@ class Sim:
                 self.wave_meta['zs'].append(z)
                 self.wave_meta['total_hp'] += z.hp0
                 self.wave_meta['remain'] = self.wave_meta.get('remain', 0) + z.hp0
-        self._log('INFO', 'w%d 收尾三人组（%s）直接出现在 %s'
-                  % (w, '珊瑚' if eg == 'coral' else '空降',
-                     '、'.join('%d-%d' % s for s in spots)),
-                  detail='用户口径：简化模型忽略落地/开啃时延')
+            self._log('INFO', 'w%d %s：%d-%d 出现 %s'
+                      % (w, '珊瑚' if eg == 'coral' else '空降', r, c, kind),
+                      row=r, col=c,
+                      detail='用户口径：区域内随机 3 格 · 忽略落地时延')
 
     def _schedule(self, t, name, aim, w, kind='act', trig=None):
         """
@@ -1977,6 +1985,13 @@ class Sim:
                 continue
             if z.hp < z.hp0 * D.DYING_RATIO:
                 z.alive = False
+                # ★ 2026-10-23：掉头走掉的小丑也算"炸之前就死了"
+                if z.kind == '小丑' and z.joker_res is None:
+                    z.joker_res = 'died'
+                    self.joker_units.append(dict(
+                        wave=z.wave, row=z.row, early=bool(z.joker_early),
+                        res='died', killed=[], pads=[],
+                        frozen=(z.frozen_until > self.t)))
 
     def _tick_catapult(self):
         """
@@ -2307,11 +2322,18 @@ class Sim:
                 pads.append('%d-%d %s' % (z.row, col, nm))
                 continue
             killed.append('%d-%d %s' % (z.row, col, nm))
-            if plant in D.CORE_PLANTS:
+            if plant in D.CORE_PLANTS or self._is_core_cell((z.row, col)):
                 self._fatal('小丑炸掉 %d-%d 的%s' % (z.row, col, plant),
                             'CORE 植物 · 控丑失败', row=z.row, col=col)
         self.joker_boom.append(dict(t=self.t, wave=self.cur_wave, row=z.row,
-                                    x=round(bx), killed=killed, pads=pads))
+                                    x=round(bx), killed=killed, pads=pads,
+                                    early=bool(z.joker_early)))
+        z.joker_res = 'boom' if killed else 'blank'
+        self.joker_units.append(dict(wave=self.cur_wave, row=z.row,
+                                     early=bool(z.joker_early),
+                                     res=z.joker_res,
+                                     killed=list(killed), pads=list(pads),
+                                     frozen=(z.frozen_until > self.t)))
         if killed:
             msg = '小丑爆炸（%.1f 列）炸掉 %s' % ((bx - 40) / 80.0 + 1,
                                                  '、'.join(killed))
@@ -2415,7 +2437,7 @@ class Sim:
                                               why='%d-%d %s被冰车碾掉' % (z.row, col, plant),
                                               row=z.row, col=col, done=False,
                                               plant=plant))
-                if plant in D.CORE_PLANTS:
+                if plant in D.CORE_PLANTS or self._is_core_cell((z.row, col)):
                     self._fatal('冰车碾压 %d-%d 的%s' % (z.row, col, plant),
                                 '冰车不受减速、不被南瓜阻挡 · 碾压是机制杀',
                                 row=z.row, col=col)
@@ -2551,11 +2573,16 @@ class Sim:
                 z.eating = None
                 z.x -= self._speed_of(z) * D.TICK
 
+    def _is_core_cell(self, rc):
+        """这一格算不算 CORE：植物名命中 `D.CORE_PLANTS` **或** 用户贴了 core 标签"""
+        cell = self.array.get(rc) or {}
+        return bool(cell.get('core'))
+
     def _plant_lost(self, c, name, z, by=None):
         """`z` = 造成损失的僵尸；`by` 可以顶替它的名字/位置（篮球这类没有实体时用）"""
         _kind = (by or (z.kind if z is not None else '僵尸'))
         _x = (z.x if z is not None else c.x)
-        if name in D.CORE_PLANTS:
+        if name in D.CORE_PLANTS or self._is_core_cell((c.row, c.col)):
             self._fatal('%d-%d 的%s被%s啃掉' % (c.row, c.col, name, _kind),
                         'CORE 植物 · 阵线已被突破到 %d 列（x=%d）' % (c.col, _x),
                         row=c.row, col=c.col)
@@ -3468,6 +3495,13 @@ class Sim:
             if z.alive and z.hp <= 0:
                 z.alive = False
                 self.n_kill += 1
+                if z.kind == '小丑':
+                    # ★ 2026-10-23：炸**之前**就死了 = 控丑成功（没炸）
+                    z.joker_res = 'died'
+                    self.joker_units.append(dict(
+                        wave=z.wave, row=z.row, early=bool(z.joker_early),
+                        res='died', killed=[], pads=[],
+                        frozen=(z.frozen_until > self.t)))
                 if z.kind == '冰车':
                     self.car_audit.append(dict(wave=z.wave, row=z.row,
                                                min_x=round(z.min_x),
@@ -3679,6 +3713,8 @@ class Sim:
                                          for k in b['killed'])),
                     kill=[b for b in self.joker_boom if b['killed']],
                     detail=self.joker_boom[:60],
+                    # ★ 2026-10-23：每只小丑的结局（早/晚 × 炸前死/炸空/炸掉什么）
+                    units=self.joker_units,
                 ),
                 # ★ 2026-10-22：蹦极逐波明细（谁被偷 / 谁被伞·炮·冰救下）
                 bungee=self.bungee_risk,
@@ -3700,6 +3736,7 @@ class Sim:
                 boom_hit=sum(1 for b in self.joker_boom if b['killed']),
                 kill=[b for b in self.joker_boom if b['killed']],
                 detail=self.joker_boom[:60],
+                units=self.joker_units,
             ),
             bungee=self.bungee_risk,
             bungee_detail=self.bungee_log,

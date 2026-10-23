@@ -795,40 +795,34 @@ def fog_html(r):
 
 
 def wave_table(r):
-    """20 波的轨道执行表 —— 直接回答"每一波有没有早冰或灰烬控丑"""
-    tier = r.get('_tier', '').split(' / ')[0]
+    """20 波的**轨道执行表** —— 只看"这一波真的做了什么"。
+
+    ★ 2026-10-23 用户：「删除报告中轨道执行表里与小丑、控丑有关的内容」
+      → 控丑单独做成一张按路×早/晚的分析表（见 `joker_table`），这里不再混。
+    """
     ctrl = r.get('end_state', {}).get('wave_ctrl', {})
-    jb = {b['wave']: b for b in r.get('end_state', {}).get('joker', {}).get('detail', [])}
     rows = []
     for w in range(1, 21):
         v = ctrl.get(str(w))
         if not v:
             continue
         acts = [a for a in v['acts'] if a not in ('种冰', '种冰2', '种临时冰')]
-        # 用**实际发生**的动作（track 排的 + 救急/维护补发的），与时间轴一致
         ice = v.get('ice_act', v['ice'])
         ash = v.get('ash_act', v['ash'])
+        mark = []
         if ash is not None:
-            how, cls = '灰烬控丑（%s）' % '、'.join(a for a in acts if a in
-                                           ('核', '模仿核', '樱桃', '辣椒')), 'ok'
-        elif ice is not None:
-            how, cls = '早冰控丑（%+.1fs 生效）' % ((ice + 299) / 100.0), 'ok'
-        elif v['n_joker'] == 0:
-            how, cls = '本波无小丑', 'dim'
-        elif tier == '极速':
-            # ★ 极速关整档"不操作"是策略（靠结构与炸率兜底），不是漏操作
-            how, cls = '策略性放弃（极速关不点火）', 'dim'
-        else:
-            how, cls = '<b>无控制</b>', 'bad'
-        boom = jb.get(w)
-        rows.append('<tr><td>%d</td><td>%s</td><td>%s</td><td class="%s">%s</td>'
+            mark.append('灰烬 %+.1fs' % ((ash or 0) / 100.0))
+        if ice is not None:
+            mark.append('冰 %+.1fs' % ((ice + 299) / 100.0))
+        rows.append('<tr><td>%d</td><td>%s</td><td>%s</td><td class="dim">%s</td>'
                     '<td>%d</td><td>%s</td></tr>'
-                    % (w, v['role'], '、'.join(acts) or '—', cls, how, v['n_joker'],
-                       ('炸了 1 只（x=%d）' % boom['x']) if boom else '—'))
+                    % (w, v['role'], '、'.join(acts) or '—',
+                       '　'.join(mark) or '—', v.get('n', 0),
+                       '%.1fs' % (v.get('gap') or 0) if v.get('gap') else '—'))
     return '''
   <table class="mini wide">
-    <tr><th>波</th><th>角色</th><th>操作（不含补存冰）</th><th>控丑手段</th>
-        <th>小丑</th><th>爆炸</th></tr>
+    <tr><th>波</th><th>角色</th><th>操作（不含补存冰）</th><th>生效时刻</th>
+        <th>出怪</th><th>波长</th></tr>
     %s
   </table>''' % ''.join(rows)
 
@@ -894,52 +888,81 @@ def _control_level(r, row=None):
 
 
 def joker_table(r):
-    """控丑台账：**按实际模拟结果**逐路给数字与具体后果（不再写死任何阵型文本）"""
+    """控丑栏（用户 2026-10-23 重做）：**逐路 × 早爆/晚爆**分别分析。
+
+    结论只有三种，按实际模拟结果统计：
+      · **炸前死亡** → 控丑成功（再看是不是"冰冻后被 IO 打死"= 早冰控丑）
+      · **炸空** → 没炸到任何植物（炸到垫材也算炸空）
+      · **炸到植物** → 列出具体炸掉了哪一格的什么（CORE 就是崩阵）
+    PE / FE 的**水路不出小丑**，那几路直接标出来。
+    """
     es = r.get('end_state', {}) or {}
     j = es.get('joker') or {}
+    units = j.get('units') or []
     n = j.get('spawned', 0)
-    if not n:
+    if not n and not units:
         return '<div class="dim small">本档不出小丑。</div>'
-    sp = j.get('spawned_rows', {}) or {}
-    bo = j.get('boom_rows', {}) or {}
-    # 逐路的"炸到了什么"：从 detail 里按行聚合
-    hits_by_row = {}
-    for b in (j.get('detail') or []):
-        if b.get('killed'):
-            hits_by_row.setdefault(b['row'], []).append(b)
+    field = (r.get('_field') or r.get('field') or 'PE')
+    water = (3, 4) if field in ('PE', 'FE') else ()
+    rows_n = 6 if field in ('PE', 'FE') else 5
+
+    def cell_stats(rr, early):
+        u = [x for x in units if x['row'] == rr and bool(x['early']) == early]
+        died = [x for x in u if x.get('res') == 'died']
+        blank = [x for x in u if x.get('res') == 'blank']
+        boom = [x for x in u if x.get('res') == 'boom']
+        frozen = [x for x in died if x.get('frozen')]
+        parts = []
+        if not u:
+            return '<span class="dim">无</span>'
+        parts.append('共 <b>%d</b> 只' % len(u))
+        if died:
+            extra = '（其中 %d 只是<b>冰冻后被 IO 打死</b> → 早冰控丑）' % len(frozen) \
+                if frozen else ''
+            parts.append('炸前死亡 <b class="ok">%d</b>%s' % (len(died), extra))
+        if blank:
+            parts.append('炸空 <b>%d</b>' % len(blank))
+        if boom:
+            what = []
+            for x in boom[:3]:
+                what.append('w%s 炸 %s' % (x.get('wave'), '、'.join(x.get('killed') or [])))
+            parts.append('<b class="bad">炸到植物 %d</b>（%s%s）'
+                         % (len(boom), '；'.join(what), '…' if len(boom) > 3 else ''))
+        return '　'.join(parts)
+
     rows = []
-    for rr in sorted(int(x) for x in sp):
-        s = sp.get(str(rr), 0)
-        b = bo.get(str(rr), 0) if str(rr) in bo else bo.get(rr, 0)
-        hb = hits_by_row.get(rr, [])
-        dmg = '—'
-        if hb:
-            seen = []
-            for x in hb[:3]:
-                seen.append('w%s 炸 %s' % (x.get('wave'), '、'.join(x['killed'])))
-            dmg = '；'.join(seen) + ('…' if len(hb) > 3 else '')
-        rows.append(
-            '<tr><td><b>%d 路</b></td><td>%d</td><td>%d</td><td>%d</td>'
-            '<td class="%s">%s</td></tr>'
-            % (rr, s, b, len(hb), 'ok' if not hb else 'bad', dmg))
-    lvl, waves = _control_level(r)
-    lvl_cls = 'ok' if lvl == '严谨' else ('warn' if lvl == '有限' else 'bad')
-    span = ('空窗 w' + ',w'.join(str(x) for x in waves[:6])
-            + ('…' if len(waves) > 6 else '')) if waves else '—'
-    n_pad = sum(len(b.get('pads') or []) for b in (j.get('detail') or []))
-    pad_note = ('　另外炸掉垫材 <b>%d</b> 张 —— 垫材是消耗品，'
-                '<b>按炸空算</b>，不计入控丑也不进损失名单。' % n_pad) if n_pad else ''
-    return '''
-  <table class="mini">
-    <tr><th>路</th><th>出现</th><th>爆炸</th><th>炸到植物</th><th>具体炸了什么</th></tr>
+    for rr in range(1, rows_n + 1):
+        if rr in water:
+            rows.append('<tr><td><b>%d 路</b><span class="dim">（水）</span></td>'
+                        '<td colspan="2" class="dim">水路不出小丑</td></tr>' % rr)
+            continue
+        rows.append('<tr><td><b>%d 路</b></td><td>%s</td><td>%s</td></tr>'
+                    % (rr, cell_stats(rr, True), cell_stats(rr, False)))
+
+    n_boom = sum(1 for x in units if x.get('res') == 'boom')
+    n_blank = sum(1 for x in units if x.get('res') == 'blank')
+    n_died = sum(1 for x in units if x.get('res') == 'died')
+    n_frozen = sum(1 for x in units if x.get('res') == 'died' and x.get('frozen'))
+    if n_boom:
+        lvl, cls = '失控', 'bad'
+    elif n_blank:
+        lvl, cls = '有限', 'warn'
+    else:
+        lvl, cls = '严谨', 'ok'
+    pad_n = sum(len(x.get('pads') or []) for x in units)
+    pad_note = ('　另炸掉垫材 <b>%d</b> 张 —— 消耗品，按炸空算。' % pad_n) if pad_n else ''
+    return """
+  <table class="mini wide">
+    <tr><th>路</th><th>早爆丑</th><th>晚爆丑</th></tr>
     %s
-    <tr><td class="b">控丑等级</td><td colspan="4" class="%s">
-        <b>%s</b>　<span class="dim">%s</span>
-        <br><span class="dim">口径：每只小丑要么炸前死亡、要么炸空 = 严谨；
-        炸到植物的概率 &lt; 5%% = 有限。**炸到垫材 = 炸空**（消耗品不算植物）。
-        早爆 / 晚爆的权重按「这一路最靠前的植物在第几列」取
-        （7~9 列重点模拟早爆，2~4 列重点模拟晚爆）。</span>%s</td></tr>
-  </table>''' % (''.join(rows), lvl_cls, lvl, span, pad_note)
+    <tr><td class="b">结论</td><td colspan="2" class="%s">
+      小丑 <b>%d</b> 只：炸前死亡 <b>%d</b> 只（其中冰冻后被打死 %d 只 = 早冰控丑）、
+      炸空 <b>%d</b> 只、<b>炸到植物 %d</b> 只 → <b>%s</b>%s
+      <br><span class="dim">口径：每只小丑要么炸前死亡、要么炸空 = <b>严谨</b>；
+      只炸到垫材也算炸空（垫材是消耗品）。炸到任何植物 = 有限。
+      早爆/晚爆的权重按"这一路最靠前的植物在第几列"取：7~9 列重点模拟早爆、
+      2~4 列重点模拟晚爆。</span></td></tr>
+  </table>""" % (''.join(rows), cls, len(units), n_died, n_frozen, n_blank, n_boom, lvl, pad_note)
 
 
 def catapult_table(r):

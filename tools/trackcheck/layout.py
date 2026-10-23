@@ -163,8 +163,10 @@ def clean(cell):
     out['ladder'] = bool(out.get('ladder')) and out['pumpkin']
     out['awake'] = bool(out.get('awake', True))
     out['grave'] = bool(out.get('grave'))
+    # ★ 2026-10-23：core 标签（丢了就算崩阵）—— 默认 False，不写进旧数据
+    out['core'] = bool(out.get('core'))
     if (out['plant'] is None and not out['pumpkin'] and not out['base']
-            and not out['grave']):
+            and not out['grave'] and not out['core']):
         return None
     return out
 
@@ -540,7 +542,10 @@ def to_engine(array):
             name = '存冰'
         out[rc] = dict(plant=name,
                        pumpkin=bool(cell.get('pumpkin')),
-                       ladder=bool(cell.get('ladder')))
+                       ladder=bool(cell.get('ladder')),
+                       # ★ 2026-10-23 用户：阵容布置可以给格子**贴 core 标签**
+                       #   → 这一格丢了就按"崩阵"处理（不再只看植物名）
+                       core=bool(cell.get('core')))
     return out
 
 

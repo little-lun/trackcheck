@@ -700,6 +700,9 @@ function lyRenderEditor(){
        : (baseRule.need ? '（空地可以先不放）' : '（草地上只能放花盆）')) + '</label>'
     + '<label class="hint"><input type="checkbox" id="ly-grave"'
     + (cell.grave ? ' checked' : '') + '> 墓碑</label>'
+    + '<label class="hint" title="core = 这个格子是阵型的核心植物（丢了就是崩阵）">'
+    + '<input type="checkbox" id="ly-core"'
+    + (cell.core ? ' checked' : '') + '> 贴 core 标签</label>'
     + '</div>'
     + '<div class="col"><div class="hint">说明</div><div class="hint" '
     + 'style="max-width:280px">主植物里没有 南瓜 / 睡莲 / 花盆 —— 它们是壳和基座，'
@@ -750,6 +753,8 @@ function lyRenderEditor(){
                         lySetCell(r, c, cell); lyRenderGrid(); };
   const gv = document.getElementById('ly-grave');
   gv.onchange = () => { cell.grave = gv.checked; lySetCell(r, c, cell); lyRenderGrid(); };
+  const ce = document.getElementById('ly-core');
+  if (ce) ce.onchange = () => { cell.core = ce.checked; lySetCell(r, c, cell); lyRenderGrid(); };
 }
 
 /* 改了主植物后的连锁反应：玉米炮 → 清掉南瓜/梯子、补底座、清空尾格 */
