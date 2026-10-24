@@ -32,6 +32,7 @@ if ROOT not in sys.path:
 
 from tools.trackcheck import config_dianbozhong as CFG   # noqa: E402
 from tools.trackcheck import jobs as JB                  # noqa: E402
+from tools.trackcheck import i18n as I18N   # noqa: E402
 from tools.trackcheck import plan as PL                  # noqa: E402
 from tools.trackcheck import ui                          # noqa: E402
 
@@ -160,13 +161,13 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({'ok': True})
         # ---- 阵解栏
         if path == '/api/plan/catalog':
-            return self._json(PL.catalog())
+            return self._json(I18N.localize_obj(PL.catalog()))
         if path == '/api/plan/default':
-            return self._json(PL.default_dianbozhong())
+            return self._json(I18N.localize_obj(PL.default_dianbozhong()))
         if path == '/api/plan/template':
             q = parse_qs(urlsplit(self.path).query)
             fld = (q.get('field') or ['PE'])[0]
-            return self._json(PL.template(fld))
+            return self._json(I18N.localize_obj(PL.template(fld)))
         if path == '/api/example/array':
             return self._json(dict(ok=True, field='PE',
                                    name='电波钟无炮',
@@ -178,18 +179,18 @@ class Handler(BaseHTTPRequestHandler):
                                           for k, v in CFG.ARRAY.items()}))
         if path == '/api/example/classic8':
             try:
-                return self._json(PL.example_classic8())
+                return self._json(I18N.localize_obj(PL.example_classic8()))
             except Exception as e:                           # noqa: BLE001
                 return self._json({'ok': False, 'error': str(e)}, 500)
         if path.startswith('/api/example/fe4'):
             q = parse_qs(urlsplit(self.path).query)
             rid = (q.get('rid') or ['N6s'])[0]
             try:
-                return self._json(PL.example_fe4(rid))
+                return self._json(I18N.localize_obj(PL.example_fe4(rid)))
             except Exception as e:                           # noqa: BLE001
                 return self._json({'ok': False, 'error': str(e)}, 500)
         if path == '/api/plan/example':
-            return self._json(PL.example_split_aa())
+            return self._json(I18N.localize_obj(PL.example_split_aa()))
         if path == '/api/spec':
             q = parse_qs(urlsplit(self.path).query)
             what = (q.get('what') or ['plan'])[0]

@@ -3,6 +3,47 @@
 本文件记录 **trackcheck** 的对外版本变化。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循「`0.x` 为测试版；同一发布内每处改动记 `0.x.n`」的约定（见文末）。
 
+## [0.3.1] - 2026-10-24  英文全覆盖 + 三处必修
+
+### Fixed — 帮助页空白
+`help_text.py` 的两份正文各自又带了一层 `<div id="tab-help" style="display:none">`，
+与 `PAGE` 里那层叠加成两层 `display:none` → 点「帮助」什么都不显示。
+去掉正文里的外层容器（`tab-help` 只保留 `PAGE` 里那一个）。
+
+### Fixed — 网页版语言切换失效
+- 网页版整页 HTML 原来是**打包时**烘进文件的，切语言后 `location.reload()` 又刷回原语言。
+- 现在改成**启动壳 + 运行时渲染**：`build_web.py` 只写标题 / 启动遮罩 / 引导脚本，
+  引导脚本起好引擎后先 `localStorage['tc-lang']` → `POST /api/setlang`，
+  再取 `/api/index`（新增路由，返回 `ui.page_html()`）用 `document.write` 写进文档。
+- ⚠️ `document.write` **不能重复执行**（第二次会在同一全局作用域里再声明一次
+  `const META` → `SyntaxError`），所以切语言仍是刷新页面，靠 `localStorage` 记住选择。
+- 新增 `webbridge` 路由：`/api/setlang`、`/api/index`。
+
+### Added — 英文界面全覆盖
+| 区域 | 做法 |
+|---|---|
+| 界面静态文案 + JS 里拼的提示 | 新增 `i18n_bulk.py`（约 800 条**整串**词条，最长匹配先命中）+ `JS_LITERALS`（`'距' + x` 这种引号内片段） |
+| 阵解编辑器目录（操作组 / 触发器 / 事件 / 节奏名 / 波次角色 / 选卡简称） | `/api/plan/catalog` 返回值过 `i18n.localize_obj()` |
+| 内置示例阵解（名称 / 备注 / 救场名） | 同上（`/api/plan/default`、`/api/example/*`、`/api/plan/template`） |
+| 报告页 | `localize(..., names=True)` + 数字量词规则（`2路` → `lane 2`）+ 兜底扫尾表 |
+| 「i」按钮里的格式说明 | 新增 `spec_text_en.py`（6 篇英文文档），`plan.spec_text()` 按语言挑 |
+| JS 运行时拼出来的表格/提示 | 前端 `META.enMap` + `MutationObserver`：**文本节点整串精确匹配**替换，`value` 不动 |
+
+### 工程要点（踩过的坑，写下来免得再犯）
+1. **`META` 与 `MODELS` 别搞混**：显示名映射在 `meta_payload()`（`META.enMap`）里，
+   `MODELS` 是模型清单。第一版写成 `MODELS.enMap` → 下拉框全是中文。
+2. **整串优先、碎词兜底**：`i18n_bulk` 里的**整句**必须先命中，否则逐词表会把句子切坏
+   （历史事故：`邻D6` → `邻Adjacent`？→ 现在改成"整串最长优先"）。
+   `_clean_bulk()` 会丢掉"植物/僵尸名的片段"（`炮` ⊂ `玉米炮`）和 1 字词。
+3. **标识符保护**：`names=False`（整页）时先 `_guard_pairs()` 把 `'模仿者'`、`"植物名"`
+   换成 ASCII 占位符再翻译，最后换回来 —— 否则 `mimic: '模仿者'` 被翻成
+   `Imitator者`，选卡/模仿逻辑直接坏。
+4. **`localize_obj()` 只翻"显示字段"**：`_KEEP_KEYS`（`deck`/`cards`/`do`/`op`/`role`/
+   `zombie`/`field`…）不动，名字类再靠 `_is_identifier()` 兜一层；
+   有单测对着"本地化前后结构差异只出现在 note/name/id"。
+5. **短词只给 `tr()` 用**：`炮`/`卡`/`自定义` 这类 1~2 字词条放 `TR_EXTRA`，
+   只允许**整串精确**查表（`WORDS` 会被片段替换用上，危险）。
+
 ## [0.3.0] - 2026-10-24  ★ 正式发布：英文界面
 
 ### Added — 双语界面（中文 / English，设置里切换）
@@ -40,12 +81,9 @@
    否则专有名词会被吃坏：`电波钟无炮` → `电Wave钟无炮`。
 4. 下拉框显示名靠 `MODELS.enNames` + 一个 `MutationObserver`（`value` 保持中文）。
 
-### 覆盖范围（诚实交代）
-- 已英文化：界面骨架（五个页签、面板标题、按钮、设置页、帮助页正文 + 术语表）、
-  报告的结构性标签（分节标题、表头、KPI、结论口径）、全部植物 / 僵尸名（报告与下拉显示）。
-- 仍是中文：③ 阵解编辑器里 JS 动态拼的**部分提示文案**、报告里**自动生成的分析长句**
-  （如"冰车碾压 6-3 的冰瓜"这类逐条日志）、模型清单里的长注释。
-  这些下个版本继续补（都是纯展示，不影响功能）。
+### 覆盖范围（诚实交代，0.3.1 已补齐）
+- 0.3.0 时只有界面骨架 + 报告结构标签是英文；阵解编辑器提示、报告分析长句、
+  模型清单注释、格式说明弹窗仍是中文 —— **0.3.1 全部补完**（见上）。
 
 ### 验证
 - 中英页面都能生成（zh 157 KB / en 166 KB）；`MODELS` 数据在中英两版**逐字节一致**；

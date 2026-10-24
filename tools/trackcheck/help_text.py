@@ -7,8 +7,7 @@ help_text.py —— 帮助页正文（中 / 英两份）
   `__GLOSSARY__` 再由 `i18n.glossary_html()` 填（术语说明，两份各自本地化）。
 """
 
-HELP_ZH = '''<div id="tab-help" style="display:none">
-  <div class="panel">__GLOSSARY__</div>
+HELP_ZH = '''<div class="panel">__GLOSSARY__</div>
   <div class="panel">
     <div class="ptitle">怎么用（四步）</div>
     <div class="helpsec">
@@ -59,11 +58,9 @@ HELP_ZH = '''<div id="tab-help" style="display:none">
       <pre id="help-str">（点「载入示例阵容」后会自动填进 ①）</pre>
     </div>
   </div>
-</div>
 '''
 
-HELP_EN = '''<div id="tab-help" style="display:none">
-  <div class="panel">__GLOSSARY__</div>
+HELP_EN = '''<div class="panel">__GLOSSARY__</div>
   <div class="panel">
     <div class="ptitle">How to use (four steps)</div>
     <div class="helpsec">
@@ -126,5 +123,4 @@ HELP_EN = '''<div id="tab-help" style="display:none">
       <pre id="help-str">(click “Load example formation” and it is filled into ①)</pre>
     </div>
   </div>
-</div>
 '''

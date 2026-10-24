@@ -35,7 +35,7 @@ if ROOT not in sys.path:
 from tools.trackcheck import ui   # noqa: E402
 
 VERSION = '0.3'
-APP_VER = '0.3.0'        # 内部版本（0.x.n = 同一发布里的第 n 处改动）
+APP_VER = '0.3.1'        # 内部版本（0.x.n = 同一发布里的第 n 处改动）
 PYODIDE = '0.29.5'
 DIST_DIR = os.path.join(ROOT, 'tools', 'trackcheck', 'dist')
 
@@ -45,7 +45,7 @@ SOURCES = ['__init__.py', 'data.py', 'fields.py', 'layout.py', 'spawn.py',
            'html_report.py', 'run.py', 'metainfo.py', 'plan.py', 'planui.py',
            'ui.py', 'jobs.py', 'webbridge.py',
            # ★ 2026-10-24：双语（i18n）+ 帮助页正文
-           'i18n.py', 'help_text.py']
+           'i18n.py', 'help_text.py', 'i18n_bulk.py', 'spec_text_en.py']
 
 # 引擎运行时文件：mjs 是入口，asm.js/wasm 是 CPython 本体，zip 是标准库
 DIST_FILES = ['pyodide.mjs', 'pyodide.asm.js', 'pyodide.asm.wasm',
@@ -165,12 +165,24 @@ BOOT_JS = r'''
         return Promise.resolve(new Response(spec.body,
           {status: spec.code, headers: {'Content-Type': spec.ctype}}));
       };
-      if (boot) boot.remove();
+      // ★ 2026-10-24：网页版的整页 HTML 是**运行时**渲染的 —— 烘进文件里那份
+      //   只是这个启动壳（否则语言切换、报告等都要重新打包）。
+      //   先把存下来的语言喂给 Python，再让 Python 渲染真界面写进文档。
+      //   ⚠️ 语言切换走 location.reload()：`document.write` 不能重复执行，
+      //   第二次写会在同一个全局作用域里再声明一次 `const META` → SyntaxError。
+      window.__TC_WEB__ = true;
+      try {
+        const want = localStorage.getItem('tc-lang');
+        if (want) WB.handle('/api/setlang', '', JSON.stringify({lang: want}));
+      } catch (e){ /* file:// 下 localStorage 可能不可用，忽略 */ }
+      const idx = JSON.parse(WB.handle('/api/index', '', ''));
+      if (idx.code === 200) {
+        document.open(); document.write(idx.body); document.close();
+      }
     } catch (e){ die(e); }
   })();
 })();
 '''
-
 LOADER_OFFLINE = r'''
   /* ---- 离线版：引擎就在这个 HTML 里，一个请求都不发 ---- */
   const DIST = __DIST__;
@@ -248,15 +260,23 @@ OVERLAY = '''
 '''
 
 
+SHELL = '''<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8">
+<title>trackcheck v__VERSION__ · PVZ 生存无尽研究工具</title>
+<style>body{margin:0;background:#f6f8fb}</style>
+</head><body>
+__OVERLAY__
+__SCRIPT__
+</body></html>
+'''
+
+
 def _js_json(obj):
     """塞进 <script> 里的 JSON：转义 </ 免得提前闭合标签"""
     return json.dumps(obj, ensure_ascii=False).replace('</', '<\\/')
 
 
 def build(kind, out, deps):
-    page = ui.page_html()
-    page = page.replace('<title>trackcheck · PVZ 生存无尽研究工具</title>',
-                        '<title>trackcheck v%s · PVZ 生存无尽研究工具</title>' % VERSION)
     src = {}
     for name in SOURCES:
         p = os.path.join(ROOT, 'tools', 'trackcheck', name)
@@ -275,8 +295,11 @@ def build(kind, out, deps):
     js = (BOOT_JS.replace('__PY_SRC__', _js_json(src))
                  .replace('__LOADER__', loader)
                  .replace('__HINT__', _js_json(hint)))
-    html = page.replace('</body></html>',
-                        OVERLAY + '<script>' + js + '</script></body></html>')
+    # ★ 2026-10-24：整页 HTML 不再烘进来 —— 启动壳 + 运行时 `/api/index` 渲染，
+    #   这样语言切换 / 以后的界面改动都不用重新打包（也避免 document.write 重复执行）。
+    html = (SHELL.replace('__VERSION__', VERSION)
+                 .replace('__OVERLAY__', OVERLAY)
+                 .replace('__SCRIPT__', '<script>' + js + '</script>'))
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, 'w', encoding='utf-8', newline='\n') as f:
         f.write(html)

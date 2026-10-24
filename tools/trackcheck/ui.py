@@ -52,10 +52,20 @@ def kind_meta():
 def meta_payload():
     from tools.trackcheck import layout as L
     from tools.trackcheck import i18n as I18N
+    kinds = kind_meta()
+    presets = [dict(name=t, kinds=list(CFG.TIERS[t])) for t in PRESET_ORDER]
+    if I18N.is_en():
+        # ★ 2026-10-24：只翻**显示**字段 —— `name`（僵尸名 / 档位名）是回传标识符，
+        #   原样保留；分组名、备注、下拉框标签各补一份英文。
+        kinds = [dict(k, group=I18N.tr(k['group']),
+                      note=I18N.tr(k['note'])) for k in kinds]
+        presets = [dict(p, label=I18N.tr(p['name']),
+                        qname=I18N.tr(p['name']) + ' preset')
+                   for p in presets]
     return dict(
-        kinds=kind_meta(),
-        presets=[dict(name=t, kinds=list(CFG.TIERS[t])) for t in PRESET_ORDER],
-        layout=L.catalog(),
+        kinds=kinds,
+        presets=presets,
+        layout=I18N.localize_obj(L.catalog()),
         # ★ 2026-10-24：界面语言（设置页用）。英文显示名通过 i18n.localize 替换，
         #   这里的 `langs` 只是给单选按钮用的 (id, 显示名)。
         lang=I18N.lang(),
@@ -63,6 +73,9 @@ def meta_payload():
         # ★ 英文界面下，下拉框的**显示文本**用官方英文名替换，
         #   但 `value` 仍然是中文标识符（回传给服务器用）。见 ui.py 的 tcEnNames。
         enNames=(dict(I18N.NAMES) if I18N.is_en() else {}),
+        # ★ JS 拼出来的文本节点按**整串**替换（表格行、提示、下拉文字…）。
+        #   `value` 一律不动，所以不会碰标识符。
+        enMap=(I18N.display_map() if I18N.is_en() else {}),
         # ★ 桌面版（TrackCheck.exe）才显示"退出程序"按钮并按心跳自动退出；
         #   单文件网页版没有可退的进程。
         desktop=bool(os.environ.get('TRACKCHECK_DESKTOP')),
@@ -132,7 +145,7 @@ def page_html():
     from tools.trackcheck import i18n as I18N
     from tools.trackcheck import help_text as HT
     meta = json.dumps(meta_payload(), ensure_ascii=False)
-    models = json.dumps(MI.models(), ensure_ascii=False).replace('</', '<\\/')
+    models = json.dumps(I18N.localize_obj(MI.models()), ensure_ascii=False).replace('</', '<\\/')
     help_body = HT.HELP_EN if I18N.is_en() else HT.HELP_ZH
     # ★★ 2026-10-24（关键）：**先本地化、后注入数据**。
     #   `META` / `MODELS` 里的植物名 / 僵尸名是**回传给服务器的标识符**
@@ -475,23 +488,47 @@ const MODELS = /*__MODELS__*/;
    `value` 保持中文（那是回传给服务器的标识符）。
    用 MutationObserver 一处搞定，不必给每个 render 加钩子。 */
 (function tcEnNames(){
-  const map = MODELS.enNames || {};
+  // ★ 2026-10-24：显示名映射在 `META`（meta_payload）里，不在 `MODELS`（模型清单）里
+  const map = META.enMap || META.enNames || {};
+  // 给 JS 自己拼句子时用：把**标识符**换成显示名（查不到就原样返回）
+  window.tcShow = function (s) { return (map[s] || s); };
   const keys = Object.keys(map);
   if (!keys.length) return;
+  // 这些容器里的文字是**数据**（阵型串 / 阵解 JSON / 脚本），不能动
+  const SKIP = {SCRIPT: 1, STYLE: 1, TEXTAREA: 1, PRE: 1, CODE: 1, OPTION: 1};
+  const skipOf = function (n, root) {
+    let p = n.parentNode;
+    while (p && p !== root) { if (SKIP[p.nodeName]) return true; p = p.parentNode; }
+    return false;
+  };
+  // 只换**整串相等**的文本节点 —— 部分匹配会把 `2路` 之类的数据切坏
+  const fixText = function (root) {
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    const hit = [];
+    for (let n = w.nextNode(); n; n = w.nextNode()) {
+      const t = (n.nodeValue || '').trim();
+      const v = map[t];
+      if (!v || skipOf(n, root)) continue;
+      hit.push([n, n.nodeValue.replace(t, v)]);
+    }
+    hit.forEach(function (a) { a[0].nodeValue = a[1]; });
+  };
   const fix = function () {
     document.querySelectorAll('option').forEach(function (o) {
-      const v = map[o.value];
+      const v = map[o.value] || map[(o.textContent || '').trim()];
       if (v && o.textContent !== v) o.textContent = v;
     });
-    // 阵型格子里的植物名（数据是中文，这里只换显示）
-    document.querySelectorAll('.pn').forEach(function (el) {
-      const t = el.textContent || '';
-      const v = map[t];
-      if (v && el.textContent !== v) el.textContent = v;
-    });
+    fixText(document.body);
   };
   fix();
-  new MutationObserver(fix).observe(document.body, {childList: true, subtree: true});
+  // 只在新节点/文字变动后重扫一次（去抖）；因为没有"再触发"的改动，不会死循环
+  let scheduled = 0;
+  const later = function () {
+    if (scheduled) return;
+    scheduled = setTimeout(function () { scheduled = 0; fix(); }, 0);
+  };
+  new MutationObserver(later).observe(
+    document.body, {childList: true, subtree: true, characterData: true});
 })();
 let queue = [];
 let rendered = new Set();
@@ -1142,7 +1179,9 @@ function setSel(list){
 const presetsEl = document.getElementById('presets');
 META.presets.forEach(p => {
   const b = document.createElement('button');
-  b.textContent = p.name; b.onclick = () => { setSel(p.kinds); document.getElementById('name').value = p.name + '关'; };
+  b.textContent = p.label || p.name;
+  b.onclick = () => { setSel(p.kinds);
+                     document.getElementById('name').value = p.qname || (p.name + '关'); };
   presetsEl.appendChild(b);
 });
 /* ★ 2026-10-22：推荐组合增加「全出怪」—— 勾选这个场地**允许出现的所有僵尸**
@@ -1522,11 +1561,14 @@ function renderSettings() {
     + '解释见「帮助 → 语言说明」。';
   for (const el of document.querySelectorAll('input[name="tc-lang"]')) {
     el.onchange = async function () {
+      try { localStorage.setItem('tc-lang', el.value); } catch (e) {}
       try {
         await fetch('/api/setlang', {method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({lang: el.value})});
       } catch (e) {}
+        // 桌面版 / 本地服务：界面是服务端渲染的，整页刷新即可。
+      // 网页版：静态文件烘的是启动壳，靠 localStorage 记住语言、刷新后由引导脚本重渲染。
       location.reload();
     };
   }
@@ -1591,8 +1633,7 @@ function renderSettings() {
   };
   document.getElementById('set-plants').innerHTML =
     '<div class="hint" style="margin-bottom:6px">选卡里可选 ' + (pl.all || []).length
-    + ' 张（含' + esc(pl.mimic || '模仿者') + '）；其中 '
-    + (pl.modeled || []).length + ' 张参与模拟，其余只当占格/未建模。</div>'
+    + ' 张（含' + esc(tcShow(pl.mimic || '模仿者')) + '）；其中 '    + (pl.modeled || []).length + ' 张参与模拟，其余只当占格/未建模。</div>'
     + '<table class="modeltab"><tr><th style="width:110px">植物</th>'
     + '<th style="width:76px">程度</th><th>简化模型等价于</th></tr>'
     + box(pl.modeled || []) + '</table>'

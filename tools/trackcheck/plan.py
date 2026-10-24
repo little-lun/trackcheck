@@ -2370,17 +2370,30 @@ def example_split_aa():
 
 # ------------------------------------------------------------------ JSON 格式说明
 def spec_text(what='plan'):
-    """给用户/给 AI 看的格式说明（"i" 按钮里显示的就是这段）"""
+    """给用户/给 AI 看的格式说明（"i" 按钮里显示的就是这段）
+
+    ★ 2026-10-24：英文界面下返回 `spec_text_en.SPEC_EN` 里的同结构英文版
+      （植物名换成官方英文名、轨道符号与 JSON 字段原样保留）。
+    """
+    if what not in ('plan', 'spawn', 'spawnmech', 'layout', 'resultonly',
+                    'config'):
+        what = 'config'
+    try:
+        from tools.trackcheck import i18n as _I18N
+        en = _I18N.is_en()
+    except Exception:                                        # noqa: BLE001
+        en = False
+    if en:
+        try:
+            from tools.trackcheck.spec_text_en import SPEC_EN
+            t = SPEC_EN.get(what)
+            if t:
+                # 英文版把示例值直接写进去了，只有真带占位符时才再填一次
+                return _fill_spec(t) if '{fmt}' in t or '%(fmt)s' in t else t
+        except Exception:                                    # noqa: BLE001
+            pass
     if what == 'plan':
-        return _SPEC_PLAN.format(
-            fmt=FORMAT, waves=WAVES,
-            ops='、'.join(OP_NAMES),
-            gates='、'.join(g['kind'] for g in GATES),
-            triggers='、'.join(t['kind'] for t in TRIGGERS),
-            events='、'.join(e['kind'] for e in EVENTS),
-            cards='、'.join(ALL_CARDS),
-            letters='；'.join('%s = %s' % (k, '+'.join(v))
-                              for k, v in LAYOUT_LETTERS.items()))
+        return _fill_spec(_SPEC_PLAN)
     if what == 'spawn':
         return _SPEC_SPAWN
     if what == 'spawnmech':
@@ -2390,6 +2403,19 @@ def spec_text(what='plan'):
     if what == 'resultonly':
         return _SPEC_RESULT_ONLY
     return _SPEC_CONFIG
+
+
+def _fill_spec(tpl):
+    """把 `_SPEC_PLAN` 里的占位符填上（中英模板共用同一组占位符）。"""
+    return tpl.format(
+        fmt=FORMAT, waves=WAVES,
+        ops='、'.join(OP_NAMES),
+        gates='、'.join(g['kind'] for g in GATES),
+        triggers='、'.join(t['kind'] for t in TRIGGERS),
+        events='、'.join(e['kind'] for e in EVENTS),
+        cards='、'.join(ALL_CARDS),
+        letters='；'.join('%s = %s' % (k, '+'.join(v))
+                          for k, v in LAYOUT_LETTERS.items()))
 
 
 _SPEC_RESULT_ONLY = """# TrackCheck · 建模总原则：**结果导向**

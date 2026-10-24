@@ -25,7 +25,7 @@
 - 旧说法"第十七轮/第十八轮"只作时间线称呼，**不当版本号**。
 - ★★ **只有 `0.x` 才对外 release；`0.x.n` 是内部版本，不单独分发**（不建 Release、不打 tag）。
   2026-10-22 用户明确要求。
-- **当前最新产物**：`0.2.8`（文件名仍 `trackcheck-v0.2-*`）；详见 `2026-10-22.md` 第二十二~二十四轮（含 0.2.5~0.2.8）。
+- **当前最新产物**：`0.3.1`（文件名仍 `trackcheck-v0.3-*`）；英文界面 + 英文全覆盖，见本文件 0.3.0 / 0.3.1 两节。
 
 ## ★ 阵型字符串两套格式（2026-10-22 破解，长期结论）
 - **PvZ Tools（旧，明文）**：`钉耙行, ID 行 列 awake f5 f6, …`
@@ -837,6 +837,48 @@ FE.雾四炮 慢速 seed1 修前：26100/27900 各 2 炮 → 6570cs 真空 → 3
    否则 `模仿者:` 前缀被翻掉 → 前端 /^模仿者:/ 失配 → 选卡/模仿坏掉。
 3. 短词（1~2 字）只在标签位置替换（>词< / >词 / "词"），否则 `电波钟无炮`→`电Wave钟无炮`。
 4. 下拉框显示名用 MODELS.enNames + MutationObserver（value 保持中文）。
+
+## 0.3.1（2026-10-24）英文全覆盖 + 三处必修
+
+### 修的三个 bug
+1. **帮助页空白**：help_text.py 的两份正文各自又套了一层 `<div id="tab-help" style="display:none">`，
+   与 PAGE 里那层叠加 → 两层 display:none。正文里那层必须去掉。
+2. **网页版语言切换失效**：整页 HTML 原来是打包时烘进单文件的，reload 又刷回原语言。
+   改成「启动壳 + 运行时渲染」：build_web 只写标题/遮罩/引导脚本；
+   引导脚本先 `localStorage['tc-lang']` → POST /api/setlang → GET /api/index → `document.write`。
+   ⚠️ document.write **不能重复执行**（会再声明一次 const META → SyntaxError），
+   所以切语言仍走 location.reload()，靠 localStorage 记住。
+   webbridge 新增路由：/api/setlang、/api/index。
+3. **英文界面残留大量中文**（选项/勾选/note）—— 见下。
+
+### 英文全覆盖的机制（这套要记住）
+- `i18n_bulk.py`：约 800 条**整串**词条（界面 HTML/JS、模型清单备注、报告页文案、
+  阵解目录、内置示例阵解），`localize()` 里**最长整串最先命中**；
+  `_clean_bulk()` 丢掉"植物/僵尸名的片段"（`炮` ⊂ `玉米炮`）与 1 字词。
+- `JS_LITERALS`：JS 里 `'距' + x + '生效+'` 这种**引号内片段**，按 `'词'` 精确替换；
+  ⚠️ 必须先做它、再做标识符保护，否则 `title="南瓜"` 被保护后整串 HTML 匹配不上。
+- `localize_obj()`：JSON 载荷只翻**显示字段**（`_TEXT_KEYS` = note/label/trad/new/group…），
+  `_KEEP_KEYS`（deck/cards/do/op/role/zombie/field/mimic…）不翻，名字再靠 `_is_identifier()` 兜一层。
+  已用"本地化前后结构差异只允许出现在 note/name/id"单测盯住。
+- `TR_EXTRA`：`炮`/`卡`/`自定义`/`垫材2` 这些 1~2 字词条只给 `tr()`（整串精确查表）用，不进 WORDS。
+- 前端 `META.enMap` + MutationObserver：**文本节点整串精确匹配**替换（value 不动），
+  并暴露 `window.tcShow(s)` 给 JS 自己拼句子时用。
+- `spec_text_en.py`：6 篇「i」按钮格式说明的英文版；`plan.spec_text()` 按语言挑。
+
+### ★ 关键教训
+- **显示名映射在 `META`（meta_payload）里，不在 `MODELS`（模型清单）里** ——
+  0.3.0 写成 `MODELS.enMap`，结果下拉框全中文，白干一轮。
+- 数值量词是**拼出来的**（`2路 116`、`共 15 只`、`7~9 列`）：词典查不到，
+  要加正则规则（`_num_rules`）；报告另有一张兜底扫尾表 `RPT_WORDS`。
+- 拿"已经翻译过的页面"去抽取待翻词条会抽到**被切坏的碎片** —— 必须从**原始中文**抽取。
+
+### 验证（0.3.1）
+- 四个页签 + 设置 + 帮助在真实浏览器里**可见中文 = 0 条**（离线单文件版，Chrome 内核）。
+- 语言切换：点 English → 标题/副标题/按钮/下拉全英文 → 刷新后仍是英文（localStorage）。
+- 桌面服务端：GET / 273905 B（en）/ 159055 B（zh）、`/api/spec` 英文 0 CJK、
+  `/api/plan/catalog` 组名 Ash / 波次角色 Opening-Regular，`cards`/`ops.name` 仍是中文标识符。
+- 模拟结果与语言无关：中英两版 summary 逐字段相同。
+- 产物：trackcheck-v0.3.html 16.61MB / trackcheck-v0.3-web.html 0.99MB / setup 23.56MB。
 
 ### 覆盖
 已英文化：五页签骨架、面板/按钮、设置页、帮助页正文+术语表、报告结构标签（分节/表头/KPI）、

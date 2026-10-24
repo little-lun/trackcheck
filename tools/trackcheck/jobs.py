@@ -202,13 +202,26 @@ def _worst_level(reports, dev):
 
 def payload():
     """给前端轮询用的快照（**只带必要字段**，报告 HTML 已经在里面）"""
-    return [dict(id=j['id'], name=j['name'], kinds=j['kinds'], seeds=j['seeds'],
-                 field=j.get('field') or 'PE',
-                 tier=j['tier'], solve=j.get('solve'), reason=j['reason'],
-                 plan_name=((j.get('plan') or {}).get('name')),
-                 status=j['status'], progress=j['progress'], html=j['html'],
-                 summary=j['summary'], error=j['error'])
-            for j in list(JOBS)]
+    from tools.trackcheck import i18n as I18N
+    en = I18N.is_en()
+    out = []
+    for j in list(JOBS):
+        tier = j['tier']
+        reason = j['reason']
+        solve = j.get('solve')
+        if en:
+            # ★ 2026-10-24：这些字段只用于**显示**（档位名 / 判定理由 / 阵解档），
+            #   英文界面下翻一份；`kinds` 里是回传标识符，不能动。
+            tier, reason = I18N.tr(tier), I18N.localize(reason)
+            solve = I18N.tr(solve) if solve else solve
+        out.append(dict(id=j['id'], name=j['name'], kinds=j['kinds'],
+                        seeds=j['seeds'],
+                        field=j.get('field') or 'PE',
+                        tier=tier, solve=solve, reason=reason,
+                        plan_name=((j.get('plan') or {}).get('name')),
+                        status=j['status'], progress=j['progress'],
+                        html=j['html'], summary=j['summary'], error=j['error']))
+    return out
 
 
 def clear():

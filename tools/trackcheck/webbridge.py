@@ -22,6 +22,7 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 from tools.trackcheck import jobs as JB   # noqa: E402
+from tools.trackcheck import i18n as I18N  # noqa: E402
 from tools.trackcheck import plan as PL   # noqa: E402
 from tools.trackcheck import ui           # noqa: E402
 
@@ -44,12 +45,12 @@ def handle(path, query='', body=''):
             return _json(200, ui.meta_payload())
         # ---- 阵解栏（网页版：能编能校验；存盘请用「导出 JSON」）
         if path == '/api/plan/catalog':
-            return _json(200, PL.catalog())
+            return _json(200, I18N.localize_obj(PL.catalog()))
         if path == '/api/plan/default':
-            return _json(200, PL.default_dianbozhong())
+            return _json(200, I18N.localize_obj(PL.default_dianbozhong()))
         if path == '/api/plan/template':
             q = parse_qs(query or '')
-            return _json(200, PL.template((q.get('field') or ['PE'])[0]))
+            return _json(200, I18N.localize_obj(PL.template((q.get('field') or ['PE'])[0])))
         if path == '/api/example/array':
             from tools.trackcheck import config_dianbozhong as CFG
             return _json(200, dict(
@@ -60,12 +61,12 @@ def handle(path, query='', body=''):
                                          base=('睡莲' if k[0] in (3, 4) else None))
                        for k, v in CFG.ARRAY.items()}))
         if path == '/api/example/classic8':
-            return _json(200, PL.example_classic8())
+            return _json(200, I18N.localize_obj(PL.example_classic8()))
         if path.startswith('/api/example/fe4'):
             rid = (parse_qs(query or '').get('rid') or ['N6s'])[0]
-            return _json(200, PL.example_fe4(rid))
+            return _json(200, I18N.localize_obj(PL.example_fe4(rid)))
         if path == '/api/plan/example':
-            return _json(200, PL.example_split_aa())
+            return _json(200, I18N.localize_obj(PL.example_split_aa()))
         if path == '/api/plan/list':
             return _json(200, {'names': []})
         if path == '/api/plan/load':
@@ -155,6 +156,16 @@ def handle(path, query='', body=''):
             return _json(200, {'jobs': JB.payload()})
         if path == '/api/ping':
             return _json(200, {'ok': True})
+        # ★ 2026-10-24：网页版没有服务端进程，整页 HTML 是**运行时**渲染的
+        #   （build_web 静态烘进去那份只是启动壳）。语言切换靠这两条路由。
+        if path == '/api/setlang':
+            try:
+                d = json.loads(body or '{}')
+            except Exception:
+                return _json(400, {'error': 'bad json'})
+            return _json(200, {'ok': True, 'lang': I18N.set_lang(d.get('lang'))})
+        if path == '/api/index':
+            return _spec(200, 'text/html; charset=utf-8', ui.page_html())
         if path == '/api/clear':
             JB.clear()
             return _json(200, {'ok': True})

@@ -96,6 +96,16 @@ WORDS = {
     # ---- 四档难度（用户 2026-10-24 定：直译）
     '慢速': 'Slow', '变速': 'Variable-speed', '快速': 'Fast', '极速': 'Very-fast',
     '慢速关': 'Slow run', '变速关': 'Variable-speed run',
+    # ---- 出怪分组 / 备注（META 载荷用 `tr()` 精确查）
+    '基础': 'Basic', '中级': 'Mid', '特殊': 'Special', '巨人': 'Giants',
+    '中速': 'Medium',
+    '仅旗帜波': 'Flag wave only', '格式': 'Format',
+    # ---- 节奏表里的短名（`邻D6` = 相邻的 D6；`对/间` = 配对/交错）
+    '邻': 'adjacent ', '对': 'paired ', '间': 'interleaved ',
+    # ---- 波次角色 / 选卡简称（阵解编辑器里的标签）
+    '常规': 'Regular', '起手': 'Opening', '收尾': 'Finisher',
+    '核': 'Nuke', '冰': 'Ice', '模仿核': 'Imitator nuke',
+    '模仿冰': 'Imitator ice', '垫材': 'Padding',
     # ---- 界面通用
     '设置': 'Settings', '帮助': 'Help', '关于': 'About',
     '阵容布置': 'Formation', '阵解编辑': 'Solution editor',
@@ -117,6 +127,59 @@ WORDS = {
 
 # 句式级（整句替换，优先级最高）—— 帮助页 / 设置页这类成段文字
 PHRASES = {
+    # ---- 设置页「阵型字符串格式」两个选项（整句，别拆）
+    'PvZ Tools（旧，明文可读）': 'PvZ Tools (old, plain text)',
+    '明文的「ID 行 列 …」列表，人能直接读懂；不支持模仿者主植物与墓碑':
+        'A plain-text “ID row column …” list that humans can read; '
+        'Imitator main plants and gravestones are not supported',
+    'PvZ Toolkit（新，Base64+zlib）': 'PvZ Toolkit (new, Base64+zlib)',
+    'RFC1437：Base64 → 异或 0x54 → zlib + RS 字节；支持模仿者 / 咖啡豆 / 墓碑等全部信息':
+        'RFC1437: Base64 → XOR 0x54 → zlib + RS bytes; carries everything, '
+        'including Imitator / Coffee Bean / gravestones',
+    # ---- 阵解编辑页那两行长提示（整句，别拆）
+    '电波钟无炮': 'Radio Clock No Cobs',
+    '种咖啡豆': 'Plant a Coffee Bean', '种寒冰菇': 'Plant an Ice-shroom',
+    '种毁灭菇': 'Plant a Doom-shroom', '种樱桃': 'Plant a Cherry Bomb',
+    '种辣椒': 'Plant a Jalapeno', '种窝瓜': 'Plant a Squash',
+    '种小喷菇': 'Plant a Puff-shroom', '种花盆': 'Plant a Flower Pot',
+    '种南瓜': 'Plant a Pumpkin', '种大喷菇': 'Plant a Fume-shroom',
+    '种忧郁菇': 'Plant a Gloom-shroom', '种冰瓜': 'Plant a Winter Melon',
+    '种香蒲': 'Plant a Cattail', '种保护伞': 'Plant an Umbrella Leaf',
+    '种地刺': 'Plant a Spikeweed', '种地刺王': 'Plant a Spikerock',
+    '种大蒜': 'Plant a Garlic', '种火炬树桩': 'Plant a Torchwood',
+    '种三叶草': 'Plant a Blover', '种磁力菇': 'Plant a Magnet-shroom',
+    '快捷布置只把「做什么」铺进常规波（20 波全填），落点 / 时机 / 兜底留给你填。':
+        'Quick layout only fills “what to do” into the regular waves (all 20). '
+        'Landing points, timings and fallbacks are left to you.',
+    '<code>~</code> 两套节奏摆动；波长串写 <code>(9,9,9,9)</code> 或 <code>(9|9|9|9)</code>。':
+        '<code>~</code> alternates two rhythms; the wavelength list takes '
+        '<code>(9,9,9,9)</code> or <code>(9|9|9|9)</code>.',
+    '格式 <code>[场地].名字</code>，<code>[场地].</code> 由 app 自动生成，只填后面的名字':
+        'Format <code>[field].name</code> — the <code>[field].</code> prefix is '
+        'generated automatically, type only the name',
+    # ---- 静态标记里的成段提示（中间夹 <code>/<b>，拆开翻会把语序打乱）
+    '''格式在「设置」里切：**PvZ Tools**（旧版，明文 <code>ID 行 列 …</code>，人能读懂，
+      不支持模仿者/墓碑）与 **PvZ Toolkit**（新版，Base64 → 异或 0x54 → zlib + RS）。
+      导入时会自动认出是哪一种。''':
+        '''Switch the format in Settings: **PvZ Tools** (old format, plain text
+      <code>ID row column …</code>, readable, no Imitator / gravestone) and
+      **PvZ Toolkit** (new format, Base64 → XOR 0x54 → zlib + RS).
+      The importer works out which one it is.''',
+    '''下面所有"种什么"的选项都只从这 10 张里出。唤醒存冰 = 在某格<b>种咖啡豆</b>；
+      补存冰 = 在某格<b>种寒冰菇</b>。''':
+        '''Every “what to plant” option below comes only from these 10 cards. '
+      'Wake an ice bank = plant a <b>Coffee Bean</b> on that cell; '
+      'refill the ice bank = plant an <b>Ice-shroom</b> on that cell.''',
+    '''（持续判一个条件，成立就做。
+        例：冰卡一好就补在空着的永久存冰位）''':
+        '''(evaluates a condition continuously; when it holds, act.
+        E.g. refill the empty permanent ice bank as soon as the ice card is ready)''',
+    '固定波长的阵，起手从连续节奏最快的点开始':
+        'On a fixed-wavelength formation the opening starts at the fastest '
+        'consecutive point of the rhythm',
+    # ---- 拼出来的小片段（`'种' + 卡名`）
+    '唤醒存冰 = 在某格': 'Wake an ice bank = on a cell ',
+    '补存冰 = 在某格': 'Refill the ice bank = on a cell ',
     'PVZ 初代（1.0.0.1051 EN）生存无尽研究工具：布阵 → 出怪 → 阵解 → 跑运阵 → 出报告':
         'A research tool for PvZ 1 (1.0.0.1051 EN) Survival Endless: '
         'build the formation → pick spawns → write the solution → run → report',
@@ -275,6 +338,7 @@ NAMES = {
     '玉米炮': 'Cob Cannon', '大蒜': 'Garlic', '寒冰菇': 'Ice-shroom',
     '毁灭菇': 'Doom-shroom', '墓碑吞噬者': 'Grave Buster', '火炬树桩': 'Torchwood',
     '地刺王': 'Spikerock', '地刺': 'Spikeweed', '高坚果': 'Tall-nut',
+    '坚果': 'Wall-nut', '杨桃': 'Starfruit', '缠绕海草': 'Tangle Kelp',
     '三叶草': 'Blover', '分裂射手': 'Split Pea', '双向射手': 'Split Pea',
     '机枪射手': 'Gatling Pea', '磁力菇': 'Magnet-shroom', '向日葵': 'Sunflower',
     '阳光菇': 'Sun-shroom', '小喷菇': 'Puff-shroom', '花盆': 'Flower Pot',
@@ -432,6 +496,214 @@ def _ctx(s, k, v):
     return s
 
 
+def _keys_desc(d):
+    """按长度降序的键（缓存：这些词典在 import 之后就不再变）"""
+    c = _SORTED.get(id(d))
+    if c is None or c[0] != len(d):
+        c = (len(d), sorted(d, key=len, reverse=True))
+        _SORTED[id(d)] = c
+    return c[1]
+
+
+# ★ 2026-10-24：**JS 里拼出来的显示片段**（`'距' + x + '生效+'` 这种）。
+#   它们在 `<script>` 里以"引号内字面量"的形式出现，逐词表不敢碰（会咬标识符），
+#   所以单列一张表，只在 `names=False`（整页）时按 `'词'` 精确替换。
+#   ⚠️ 只放**纯显示**的片段：`任意`（= 任意僵尸）、`旗波`（role 值）、`炮`/`特技`
+#      （group 值）、`模仿`（模仿者前缀）这些是**数据**，绝不能进来。
+JS_LITERALS = {
+    '上次': 'last ', '候选': 'Candidate', '全场': 'Global', '全程': 'Full',
+    '即刻': 'Instant', '双轨': 'Dual', '取反': 'NOT ', '总是': 'Always',
+    '打了': 'played ', '选了': 'picked ', '提示': 'Hint', '错误': 'Error',
+    '警告': 'Warning', '通过': 'pass', '不可行': 'infeasible',
+    '收起': 'Collapse', '编辑': 'Edit', '未知': 'unknown', '未选': 'none',
+    '水平': 'Horizontal', '竖向': 'Vertical', '距': 'after ', '距 ': 'after ',
+    '波内': 'in-wave ', '等到': 'when ', '等非': 'when not ', '上一波': 'last wave ',
+    '炮尾': 'Cob tail', '目标': 'Target', '规则': 'Rule',
+    '系：': ' family: ', '部分': 'Partial', '仅提示': 'Hint only',
+    '仅数据': 'Data only', '阳光': 'Sun', '墓碑': 'grave', '组': 'set',
+    '等': 'when ', '好': ' is ready', '非': 'NOT', '空': 'empty',
+    '阵解': 'Solution',
+    '<span class="mk tl" title="南瓜">🎃</span>':
+        '<span class="mk tl" title="Pumpkin">🎃</span>',
+    '<span class="mk tr" style="top:auto;bottom:1px" title="模仿者">M</span>':
+        '<span class="mk tr" style="top:auto;bottom:1px" title="Imitator">M</span>',
+    '<span class="mk tr" title="梯子">🪜</span>':
+        '<span class="mk tr" title="Ladder">🪜</span>',
+    '已选 ': 'Selected ', '已导出 ': 'Exported ', '已导入 ': 'Imported ',
+    '全部完成': 'All done', ' 种': ' kinds', ' 组': ' sets', ' 行': ' row',
+    ' 格': ' cells', ' 发': ' shots', ' 处': ' places', ' 波': ' waves',
+    '失败：': 'failed: ', '存冰数': 'Ice bank', '导入 ': 'Import ',
+    '继续？': 'Continue?',
+    # ---- 选卡栏那句拼接提示（`'…张（含' + 名字 + '）；其中 …'`）
+    ' 张（含': ' cards (incl. ', '）；其中 ': '); of which ',
+    ' 张参与模拟，其余只当占格/未建模。</div>':
+        ' cards are simulated; the rest only occupy a cell / are not modelled.</div>',
+    '<option value="">（打开已保存）</option>':
+        '<option value="">(open saved)</option>',
+
+}
+
+
+def _js_literals(s):
+    """把 `<script>` 里 `'显示片段'` 形式的字面量换掉（连同引号一起匹配）。"""
+    for k, v in JS_LITERALS.items():
+        for q in ("'", '"'):
+            a, b = q + k + q, q + v + q
+            if a in s:
+                s = s.replace(a, b)
+    return s
+
+
+# 报告里大量**数字 + 量词**是拼出来的（`2路 116`、`共 15 只`、`7~9 列`），
+# 词典查不到，只能用规则。这些量词在中文语境里只会是"路 / 列 / 只 / 株"。
+_NUM_RULES = [
+    (r'(\d+)\s*[~\-–]\s*(\d+)\s*列', r'col \1-\2'),
+    (r'(\d+)\s*[~\-–]\s*(\d+)\s*路', r'lanes \1-\2'),
+    (r'(\d+)\s*列', r'col \1'),
+    (r'(\d+)\s*路', r'lane \1'),
+    (r'(\d+)\s*只', r'\1 zombies'),
+    (r'(\d+)\s*株', r'\1 plants'),
+]
+
+
+# ★ 2026-10-24：报告页最后的**兜底扫尾**（只在 `names=True`，即报告这类
+#   纯展示文本上用）。报告里没有标识符（植物名已经由 NAMES 换掉、轨道符号是 ASCII），
+#   所以这里可以无条件替换 1~2 字的量词 / 短语；模板拼出来的
+#   `共 <b>15</b> 只`、`lane 1 <b>-0.5</b> 列` 全靠它收尾。
+RPT_WORDS = [
+    ('波次', 'Waves'), ('波', ' wave'),
+    ('共 ', 'total '), ('只、', ' zombies, '), ('株', ' plants'),
+    ('只', ' zombies'), ('列', ' col'), ('路', ' lane'), ('次', ' times'),
+    ('跑完', 'finished'), ('偏差', 'deviation'), ('核弹', 'Nuke'),
+    ('核', 'nukes'), ('波次', 'Waves'), ('通', 'pass'), ('无', 'none'),
+    ('有限', 'limited'), ('被偷', 'stolen'), ('植物', 'plants'),
+    ('半场', ' half'), ('拍', ' beat'), ('层', ' layer'), ('格', ' cell'),
+    ('个', ''), ('和', ' and '), ('与', ' and '), ('在', ' at '),
+]
+
+
+def _rpt_sweep(s):
+    for a, b in RPT_WORDS:
+        if a in s:
+            s = s.replace(a, b)
+    return s
+
+
+def _num_rules(s):
+    import re
+    for a, b in _NUM_RULES:
+        s = re.sub(a, b, s)
+    return s
+
+
+# 节奏表里的复合短名（`邻D6` / `对N6` / `间N7`）—— 前缀一个字 + 节奏码，
+# 只在这类数据里出现，用规则比塞 3×N 条词条干净。
+_LABEL_RULES = [(r'(?<![\u4e00-\u9fff])邻(?=[A-Z])', 'Adjacent '),
+                (r'(?<![\u4e00-\u9fff])对(?=[A-Z])', 'Paired '),
+                (r'(?<![\u4e00-\u9fff])间(?=[A-Z])', 'Interleaved ')]
+
+
+def _label_rules(s):
+    import re
+    m = re.match(r'^垫材(\d*)$', s)
+    if m:
+        return 'Padding' + (' ' + m.group(1) if m.group(1) else '')
+    for a, b in _LABEL_RULES:
+        s = re.sub(a, b, s)
+    return s
+
+
+# ---------------------------------------------------------------- 载荷本地化
+# 这些 key 的**值**是"回传给服务器的标识符 / 用户数据"，永不翻译。
+_KEEP_KEYS = {'code', 'value', 'key', 'lang', 'langs', 'version', 'schema',
+              'enNames', 'enMap', 'field', 'plant', 'mimic', 'mode', 'status',
+              'fmt', 'op', 'do', 'kind', 'system', 'format', 'deck',
+              'layout_letters', 'default_deck', 'engine_cards',
+              'gaps', 'track_seps', 'regular', 'role', 'zombie'}
+# 只有这些 key 的字符串值需要翻译（其余一律原样）
+_TEXT_KEYS = {'note', 'label', 'trad', 'new', 'group', 'reason', 'tier', 'hint',
+              'title', 'text', 'desc', 'summary', 'msg'}
+
+
+def _is_identifier(s):
+    """`s` 是不是"回传给服务器的名字"（植物 / 僵尸 / 模仿者组合 / 卡片简称）。
+
+    和 `_KEEP_KEYS` 互补：有些 key（`ops`）里既有标识符（`name`）又有显示文字
+    （`group` / `note`），只能按**值**判断。
+    """
+    if s in NAMES:
+        return True
+    if s.startswith('模仿'):
+        return True
+    return False
+
+
+def localize_obj(obj, names=True):
+    """递归翻译一个 JSON 结构里**字符串值**（dict 的 key 一律不动）。"""
+    if not is_en():
+        return obj
+    if isinstance(obj, dict):
+        out = {}
+        for k, v in obj.items():
+            if k in _KEEP_KEYS:
+                out[k] = v
+            elif k in _TEXT_KEYS and isinstance(v, str):
+                out[k] = tr(v) if names else localize(v, names=False)
+            else:
+                out[k] = localize_obj(v, names)
+        return out
+    if isinstance(obj, list):
+        return [localize_obj(v, names) for v in obj]
+    if isinstance(obj, tuple):
+        return tuple(localize_obj(v, names) for v in obj)
+    if isinstance(obj, str):
+        if _is_identifier(obj):
+            return obj
+        return tr(obj) if names else localize(obj, names=False)
+    return obj
+
+
+def display_map():
+    """给前端用的「整串 → 英文」表（只用于**文本节点 / option 显示**）。
+
+    ★ 2026-10-24：为什么给前端而不是后端翻 —— 这些串是 JS 在浏览器里拼出来的
+      （`'距' + x + '生效+'`、表格行、下拉选项），服务端根本看不到。前端按
+      **整串精确匹配**替换文本节点，`value` 不动，所以不会碰标识符。
+    """
+    out = {}
+    for d in (NAMES, WORDS, LABELS, PHRASES, BULK):
+        for k, v in d.items():
+            if len(k) >= 2 or k in NAMES:
+                out.setdefault(k, v)
+    return out
+
+
+_SORTED = {}
+_GUARD = '\x02'
+
+
+def _guard_pairs():
+    """`names=False`（整页本地化）时要**保护**的标识符。
+
+    ★ 2026-10-24 事故：`模仿者` 被逐词表替换成 `Imitator`，JS 里的
+      `mimic: '模仿者'` / `replace(/^模仿者:/, '')` 变成 `Imitator者` —— 选卡和
+      模仿逻辑直接坏掉。植物 / 僵尸名同理（它们是 `option value`、阵型串的 key）。
+      所以在做替换之前，先把这些"引号内 / 正则里的"出现换成**纯 ASCII 占位符**，
+      最后再换回来 —— 占位符里不能留中文，否则长尾词条（如 `模仿` → `Imitator`）
+      仍会咬进去。
+    """
+    ks = list(NAMES) + ['模仿者']
+    out, back = [], []
+    for i, k in enumerate(ks):
+        g = '%s%d%s' % (_GUARD, i, '\x03')
+        back.append((g, k))
+        out.append(('"%s"' % k, '"%s"' % g))
+        out.append(("'%s'" % k, "'%s'" % g))
+    out.append(('模仿者:', _GUARD + 'r\x03' + ':'))
+    back.append((_GUARD + 'r\x03', '模仿者'))
+    return out, back
+
+
 def localize(text, names=True):
     """把一段**呈现用**文本里的中文换成英文（LANG=en 时）。
 
@@ -441,31 +713,124 @@ def localize(text, names=True):
     if not is_en() or not text:
         return text
     s = text
-    for k in sorted(PHRASES, key=len, reverse=True):
+    if not names:
+        # 顺序要紧：先换**引号内的显示片段**（含 HTML 小片段），再上标识符保护，
+        # 否则 `"南瓜"` 被保护成占位符，`<span ... title="南瓜">` 这条整串就匹配不上了。
+        s = _js_literals(s)
+    pairs, back = ([], []) if names else _guard_pairs()
+    for a, b in pairs:
+        if a in s:
+            s = s.replace(a, b)
+    for k in _keys_desc(BULK):
+        if k in s:
+            s = s.replace(k, BULK[k])
+    for k in _keys_desc(PHRASES):
         if k in s:
             s = s.replace(k, PHRASES[k])
-    for k in sorted(WORDS, key=len, reverse=True):
+    for k in _keys_desc(WORDS):
         if len(k) <= 2:
             continue                      # 短词只在标签位置替换（见下）
         if k in s:
             s = s.replace(k, WORDS[k])
     if names:
-        for k in sorted(NAMES, key=len, reverse=True):
+        for k in _keys_desc(NAMES):
             if k in s:
                 s = s.replace(k, NAMES[k])
-    for k in sorted(LABELS, key=len, reverse=True):
+        # 模型清单里的植物名走 `tr()` 精确匹配（`坚果` 等在 WORDS 里没有）
+        for k in _keys_desc(NAMES):
+            if len(k) <= 2:
+                s = _ctx(s, k, NAMES[k])
+    for k in _keys_desc(LABELS):
         if len(k) <= 2:
             continue
         if k in s:
             s = s.replace(k, LABELS[k])
     # 短词（1~2 字）走上下文替换，长的优先
-    for k in sorted(list(WORDS) + list(LABELS), key=len, reverse=True):
-        if len(k) > 2:
-            continue
-        v = WORDS.get(k) or LABELS.get(k)
-        if v:
-            s = _ctx(s, k, v)
+    for d in (WORDS, LABELS):
+        for k in _keys_desc(d):
+            if len(k) > 2:
+                continue
+            v = WORDS.get(k) or LABELS.get(k)
+            if v:
+                s = _ctx(s, k, v)
+    if not names:
+        for g, k in back:                # 撤掉标识符占位符
+            s = s.replace(g, k)
+    s = _num_rules(s)
+    if names:
+        s = _rpt_sweep(s)
     return s
+
+
+# ★ 2026-10-24：JSON 载荷（META / MODELS / 任务快照 / 阵解目录）里"只给人看"
+#   的文字也要翻 —— 具体规则见下面 `localize_obj()` 的 `_KEEP_KEYS` / `_TEXT_KEYS`。
+
+
+# ★ 2026-10-24：批量词条（整串界面文案 / 模型清单备注），由 `_tmp_trans_work.json`
+#   经人工翻译后落到 `i18n_bulk.py`。查表优先级最高（最长整串先命中）。
+try:
+    from tools.trackcheck.i18n_bulk import BULK as _BULK
+except Exception:                                            # noqa: BLE001
+    _BULK = {}
+
+
+def _clean_bulk(d):
+    """丢掉会咬坏标识符的碎词条。
+
+    ★ 事故复盘：`炮` → `cob` 把 `玉米炮` 咬成 `玉米cob`；`模仿` 把 `模仿者`
+      咬成 `Imitator者`（选卡逻辑直接坏）。所以 1~2 字的、以及任何植物/僵尸名
+      的**真子串**，一律不进批量表（这些位置本来也不需要翻译：要么是标识符，
+      要么由 JS 的显示名替换负责）。
+    """
+    out = {}
+    for k, v in d.items():
+        if len(k) <= 1:
+            continue
+        # 只是某个植物/僵尸名的**片段**（`炮` ⊂ `玉米炮`）→ 会把名字咬坏
+        #   ⚠️ 反过来（长句**包含**植物名）是允许的：整句替换是原子的。
+        if any(k in n for n in NAMES):
+            continue
+        # 整句优先：如果它只是某条 PHRASES 的一截，就丢掉（否则会把整句切碎）
+        if any(k != p and k in p for p in PHRASES):
+            continue
+        out[k] = v
+    return out
+
+
+BULK = _clean_bulk(_BULK)
+
+
+# ★ 2026-10-24：只给 `tr()`（**整串精确**查表）用的补充词条。
+#   1~2 字的简称放进 `WORDS` 会被 `localize()` 的片段替换误伤（`炮` ⊂ `玉米炮`），
+#   但整串查表是安全的，所以单列一张表。
+TR_EXTRA = {
+    '卡': 'Card', '炮': 'Cob', '自定义': 'Custom',
+    '樱桃': 'Cherry', '辣椒': 'Chili', '窝瓜': 'Squash', '南瓜': 'Pumpkin',
+    '垫材2': 'Padding 2', '垫材3': 'Padding 3', '垫材4': 'Padding 4',
+    '模仿核': 'Imitator nuke', '模仿冰': 'Imitator ice',
+    '补存冰': 'Refill ice bank',
+}
+
+
+def tr(s):
+    """**没有上下文**的单个词/句（JSON 载荷里的值）→ 英文；查不到就原样返回。
+
+    和 `localize()` 的区别：`localize` 为了不误伤专有名词，1~2 字短词只在
+    标签位置替换；而 JSON 的值本身就是完整标签，必须允许精确匹配。
+    """
+    if not is_en() or not s:
+        return s
+    v = TR_EXTRA.get(s)
+    if v:
+        return v
+    for d in (BULK, PHRASES, WORDS, LABELS, NAMES):
+        v = d.get(s)
+        if v:
+            return v
+    v = _label_rules(s)
+    if v != s:
+        return v
+    return localize(s, names=True)
 
 
 # ---------------------------------------------------------------- 术语表
