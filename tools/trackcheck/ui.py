@@ -1633,7 +1633,8 @@ function renderSettings() {
   };
   document.getElementById('set-plants').innerHTML =
     '<div class="hint" style="margin-bottom:6px">选卡里可选 ' + (pl.all || []).length
-    + ' 张（含' + esc(tcShow(pl.mimic || '模仿者')) + '）；其中 '    + (pl.modeled || []).length + ' 张参与模拟，其余只当占格/未建模。</div>'
+    + ' 张（含' + esc(tcShow(pl.mimic || '模仿者')) + '）；下表是**已参与模拟**的 '
+    + (pl.modeled || []).length + ' 项，其余只当占格/未建模。</div>'
     + '<table class="modeltab"><tr><th style="width:110px">植物</th>'
     + '<th style="width:76px">程度</th><th>简化模型等价于</th></tr>'
     + box(pl.modeled || []) + '</table>'

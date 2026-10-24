@@ -115,7 +115,7 @@ HELP_EN = '''<div class="panel">__GLOSSARY__</div>
       <div class="row" style="margin-top:8px">
         <button id="help-load">Load example formation</button>
         <button id="help-plan">Load example solution</button>
-        <button id="help-classic8">Load PE.Classic 8 Cobs (cob-阵 template)</button>
+        <button id="help-classic8">Load PE.Classic 8 Cobs (cob-array template)</button>
  <button id="help-fe4">Load FE.Fog 4 Cobs (few-cob, IO-heavy template)</button>
         <span class="hint" id="help-msg"></span>
       </div>

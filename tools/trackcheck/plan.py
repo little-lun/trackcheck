@@ -1400,7 +1400,7 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None):
             row['note'] += '　· 分场（`/`）：上下半场的落点自己填'
         if len(variants) > 1:
             row['note'] += '　· 波动（`~`）第 %d 套' % (cycle_i % len(variants) + 1)
-        if gap_in is not None:
+        if gap_in is not None and i > 0:
             row['note'] += '　· 定时（距上一波 %gs）' % gap_in
         if w in (10, 20) and gaps and _first_ice_beat(beats) is not None:
             row['note'] += '　· 旗波重置到含 I 的拍（冰杀蹦极）'
