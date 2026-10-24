@@ -504,7 +504,8 @@ def probe_target(sim, target):
     if c is None or not c.plant:
         return None
     zs = [z for z in sim.by_row.get(rc[0], ())
-          if z.alive and z.hp > 0 and z.x >= c.x - 40]
+          if z.alive and z.hp > 0 and z.x >= c.x - 40
+          and sim._targetable(z)]
     # ★ 2026-10-22：冰车默认不当"救场对象"（垫材挡不住它），
     #   但救急卡（樱桃/辣椒/窝瓜）是能直接炸掉它的 → 由 include_icecar 打开。
     if not target.get('include_icecar'):

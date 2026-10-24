@@ -1503,6 +1503,16 @@ class Sim:
                 out.append(r)
         return out
 
+    def _targetable(self, z):
+        """这只现在**能被植物选为目标 / 用作瞄点**吗？
+
+        ★ 2026-10-24：矿工在地下时既打不到也看不见 —— 必须把它排除在
+          "最靠前那只 / 选目标 / 炮的瞄点"之外。否则它挖到 x=20 一蹲，
+          会把所有单目标伤害和炮的落点全吸走（实测经典八炮 15/20 → 4/20，
+          红眼趁机啃掉 1-5 / 6-5 的玉米炮）。
+        """
+        return not (z.kind == '矿工' and getattr(z, 'phase', '') == 'dig')
+
     def _slide_col(self, row, radius=None, dy=None, head_dx=None, integer=False,
                    threat=False, allow_none=False):
         """**滑列落点**（用户 2026-10-22）：不写死第几列，而是让判定域
@@ -1531,7 +1541,8 @@ class Sim:
         base = D.cell_x(1) - hx                     # col=1 时的爆心 x
         rows = self._boom_rows(row, r_, dy_)
         zs = [z for r in rows for z in self.by_row.get(r, ())
-              if z.alive and z.hp > 0 and self._dbox(z)[0] <= D.DMG_LINE]
+              if z.alive and z.hp > 0 and self._dbox(z)[0] <= D.DMG_LINE
+              and self._targetable(z)]
         if not zs:
             # ★ 没有"可伤"的僵尸（新刷的还在 800 以外，`可伤条件 = 防御域左端 ≤ 800`）
             #   → 滑列落点算不出列。`allow_none=True` 时返回 None，让调用方**等一等**
@@ -1651,12 +1662,14 @@ class Sim:
                 # ★ 场上还没有"可伤"的僵尸 → **等**（玩家不会对着空气开炮）。
                 #   刚刷出来的僵尸在 800 以外，`dbox` 还没进可伤区；
                 #   这时开炮这一发就是白的，而且白搭 3475cs 装填。
-                # ★★ 2026-10-24：因为运算量已经排进**绝对时间轴**（`plan._fixed_timeline`），
-                #   在这里多等一会儿**不会**拖散后面的节奏 —— 后面的炮是绝对时刻排好的。
-                #   所以恢复成最多等 2s（24 × 50cs）：既不空放，也不影响定时。
+                # ★★ 2026-10-24：**最多等 0.3s**。
+                #   固定波长的阵"运算量必须定时"，等 2s 等于把这一拍整体推迟 2s
+                #   —— 实测经典八炮的炮间隔被拖成 2845/905/2835/905，
+                #   红眼就从这些空窗里把 1-5 / 6-5 的玉米炮啃了（15/20 → 4/20）。
+                #   0.3s 足够覆盖"僵尸刚出生在 800 之外"的窗口，又不会破坏节奏。
                 if col is None:
                     n = getattr(self, '_cob_wait', 0)
-                    if n < 40:
+                    if n < 6:
                         self._cob_wait = n + 1
                         self._schedule(self.t + 50, '玉米炮', aim, ev.get('wave'),
                                        due=ev.get('due'), bid=ev.get('bid'))
@@ -1744,11 +1757,11 @@ class Sim:
         self._car_hint = None
         pool = {}
         for z in self.zombies:
-            if z.alive:
+            if z.alive and self._targetable(z):
                 pool[z.row] = pool.get(z.row, 0) + z.total_hp
         return max(pool, key=pool.get) if pool else self.rng.choice(list(self._rows()))
 
-    def _boom(self, row, col, radius, dmg, delay=None, center=None):
+    def _boom(self, row, col, radius, dmg, delay=None, center=None, src='ash'):
         """灰烬：排进队列，到点结算。
 
         ★ 种下即 `ash_pending = True` —— 用户："碾压不对已经触发的灰烬生效，
@@ -1765,7 +1778,7 @@ class Sim:
         d = D.ASH_DELAY if delay is None else delay
         if center is None:
             center = (D.cell_x(col) + 40, self.py(row, col) + 40)
-        self.boom_q.append((self.t + d, row, col, radius, dmg, 0, center))
+        self.boom_q.append((self.t + d, row, col, radius, dmg, 0, center, src))
         c = self.cells.get((row, col))
         if c is None:
             c = self.cells[(row, col)] = Cell(row, col)
@@ -1782,10 +1795,11 @@ class Sim:
                     row, col, radius, dmg = b[1], b[2], b[3], b[4]
                     dy = b[5] if len(b) > 5 else 0
                     center = b[6] if len(b) > 6 else None
+                    _src = b[7] if len(b) > 7 else 'ash'
                     c = self.cells.get((int(round(row)), int(round(col))))
                     if c is not None:
                         c.ash_pending = False
-                    self._apply_boom(row, col, radius, dmg, dy, center)
+                    self._apply_boom(row, col, radius, dmg, dy, center, _src)
         if self.chili_q:
             due = [c for c in self.chili_q if c[0] <= self.t]
             if due:
@@ -1797,7 +1811,7 @@ class Sim:
                             cc.ash_pending = False
                     for z in self.zombies:
                         if z.alive and z.row == r:
-                            self._hurt(z, D.ASH_DMG, True)
+                            self._hurt(z, D.ASH_DMG, True, src='ash')
                             self.dmg_dealt += D.ASH_DMG
                     self._clear_ice_trail(row=r)
                     # ★ 用户："如果因 5-3 辣椒复用导致当时没能正常补存冰，
@@ -1828,7 +1842,7 @@ class Sim:
             zl, zr = self._dbox(z)
             if zr < lo or zl > hi:
                 continue
-            self._hurt(z, dmg, True)
+            self._hurt(z, dmg, True, src='wogua')
             self.dmg_dealt += dmg
             n += 1
             if z.giant:
@@ -1851,7 +1865,7 @@ class Sim:
                   % (p['row'], p['col'], n), row=p['row'], col=p['col'],
                   detail='1 格宽判定域 · 即刻生效')
 
-    def _apply_boom(self, row, col, radius, dmg, dy_off=0, center=None):
+    def _apply_boom(self, row, col, radius, dmg, dy_off=0, center=None, src='ash'):
         """
         灰烬爆炸 = **圆形判定**，且用「圆心到僵尸受击框最近点」的距离。
 
@@ -1885,7 +1899,7 @@ class Sim:
             ny = zy if cy < zy else (zy + D.DEF_HEIGHT if cy > zy + D.DEF_HEIGHT else cy)
             dx, dy = nx - cx, ny - cy
             if dx * dx + dy * dy <= r2:
-                self._hurt(z, dmg, True)
+                self._hurt(z, dmg, True, src=src)
                 self.dmg_dealt += dmg
 
     def _doom(self, aim):
@@ -3392,7 +3406,7 @@ class Sim:
             return False
         row = hit.row
         hp0 = hit.hp
-        self._hurt(hit, D.ASH_DMG, True)
+        self._hurt(hit, D.ASH_DMG, True, src='wogua')
         hit.rescued = True
         self.tomato_used_at = self.t
         self._log('RESCUE', '窝瓜强杀 %d 路的%s' % (row, hit.kind), row=row,
@@ -3640,7 +3654,7 @@ class Sim:
             for _ in range(sh.get('back', 0)):
                 self.pending.append((self.t + d, c.row, 1, 0, c.x - 20, dmg, False))
 
-    def _hurt(self, z, dmg, pierce=False):
+    def _hurt(self, z, dmg, pierce=False, src=None):
         """对一只僵尸造成伤害。
 
         ★ 2026-10-23 用户给出的防具口径：
@@ -3648,15 +3662,19 @@ class Sim:
           AoE、投掷子弹、喷雾(`pierce=True`) 直接打本体。
           一类防具折在总血量里（对非灰烬伤害等价），灰烬/炮/窝瓜 1800 直接击杀。
 
+        ★★ 2026-10-24 用户：「矿工挖掘时**仅灰烬（P, A, A', N）**可以造成伤害，
+          窝瓜 / 冰瓜 / 喷雾或别的其他的都不行」
+
+        `src` = 伤害来源（'ash' 灰烬：樱桃 A / 辣椒 A' / 毁灭菇 N / 玉米炮 P；
+                 'wogua' 窝瓜；None = 其它普通伤害）。
         `pierce=True` 的调用点：冰瓜(抛射) / 大喷菇·忧郁菇(喷雾穿透) / 溅射 /
         灰烬 / 玉米炮 / 窝瓜 / 篮球 / 小丑爆炸。
         """
         if dmg <= 0:
             return
-        # ★ 2026-10-24：矿工在地下时只有"打得到地下的"能伤它 ——
-        #   图鉴列的是 忧郁菇(喷雾) / 星果 / 土豆雷 / 双向射手 / 磁力菇，
-        #   本模型对应 `pierce=True`（灰烬 / 炮 / 窝瓜 / 冰瓜 / 喷雾）。
-        if z.kind == '矿工' and getattr(z, 'phase', '') == 'dig' and not pierce:
+        # 矿工在地下：**只有灰烬打得进去**（图鉴 "Vulnerable to ... " 的简化口径）
+        if (z.kind == '矿工' and getattr(z, 'phase', '') == 'dig'
+                and src != 'ash'):
             return
         if z.shield > 0 and not pierce:
             absorb = min(z.shield, dmg)
@@ -3688,7 +3706,9 @@ class Sim:
         #   原来写成 x + 36 ≤ 800（把右端当左端），等于凭空砍掉 36px≈250cs 的可伤时间。
         def ok(z):
             # [精] "防御域左端 ≤ 800"。左界 = x + 横偏（普僵 +36，巨人 +0）
-            return z.alive and self._dbox(z)[0] <= D.DMG_LINE
+            # ★ 2026-10-24：矿工在地下时不可选（见 `_targetable`）
+            return (z.alive and self._targetable(z)
+                    and self._dbox(z)[0] <= D.DMG_LINE)
 
         if spec['rng'] is None:
             if spec['rows'] >= self.rows:

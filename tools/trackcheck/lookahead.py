@@ -209,8 +209,10 @@ def best_aim(sim, row, radius, dy, dmg, cols=None, integer=False, tables=None):
     `integer=True` 返回整列（樱桃 / 辣椒这类要种在格子里）。
     """
     rows = sim._boom_rows(row, radius, dy)
+    # ★ 2026-10-24：地下的矿工既打不到也不该被瞄（`_targetable`）
     zs = [z for r in rows for z in sim.by_row.get(r, ())
-          if z.alive and z.hp > 0 and sim._dbox(z)[0] <= D.DMG_LINE]
+          if z.alive and z.hp > 0 and sim._dbox(z)[0] <= D.DMG_LINE
+          and sim._targetable(z)]
     if not zs:
         return None
     base = D.cell_x(1)
@@ -244,6 +246,8 @@ def best_aim(sim, row, radius, dy, dmg, cols=None, integer=False, tables=None):
             if not z.alive or z.hp <= 0:
                 continue
             if sim._dbox(z)[0] > D.DMG_LINE:
+                continue
+            if not sim._targetable(z):
                 continue
             if f is None or z.x < f.x:
                 f = z
