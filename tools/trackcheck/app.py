@@ -264,10 +264,13 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 return self._json({'error': 'bad json'}, 400)
             try:
-                p, n = PL.quick_layout(d.get('plan') or {}, d.get('track') or '',
-                                       d.get('pair'), d.get('gaps'),
-                                   d.get('start'))
-                return self._json({'ok': True, 'plan': p, 'filled': n})
+                p, n, info = PL.quick_layout(
+                    d.get('plan') or {}, d.get('track') or '',
+                    d.get('pair'), d.get('gaps'), d.get('start'),
+                    array=d.get('array'), field=d.get('field'),
+                    kinds=d.get('kinds'))
+                return self._json({'ok': True, 'plan': p, 'filled': n,
+                                   'info': I18N.localize_obj(info)})
             except Exception as e:                           # noqa: BLE001
                 return self._json({'error': str(e)}, 500)
         if path == '/api/plan/spectrum':

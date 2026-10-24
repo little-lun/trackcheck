@@ -503,11 +503,17 @@ function plTrigLabel(t) {
   if (t.kind === 'not') return '等非';
   return t.kind;
 }
+/* 积木里的 op 是**标识符**（回传给服务器），显示时要换成官方英文名 */
+function plOp(n) { return (typeof window.tcShow === 'function') ? window.tcShow(n) : n; }
 function plAimLabel(b) {
   const a = b.aim;
   if (a === 'stock') return ' · 空存冰位';
   if (a === 'temp') return ' · 前场临时冰位';
   if (Array.isArray(a)) {
+    // ★ 2026-10-24：拦截炮的动态落点 / 常规炮的滑动落点
+    if (a[1] === 'imp') return ' · 拦截小鬼（动态）';
+    if (a[1] === 'front') return ' · 滑动落点';
+    if (a[1] === 'threat') return ' · 滑动落点（优先威胁）';
     const num = function (v) {
       const f = parseFloat(v);
       return isNaN(f) ? String(v) : ((f === Math.round(f)) ? String(Math.round(f))
@@ -527,7 +533,7 @@ function plBlockChip(b, i, si, on, wave) {
   return '<span class="chip ' + (on ? 'on ' : '') + (missing ? 'no' : '') +
     '" data-act="selBlock" data-set="' + si + '" data-block="' + i + '">' +
     '<small class="bid" title="积木 ID（after_block 触发器靠它定位）">#' + plEsc(bid) + '</small> ' +
-    plEsc(b.op) + plEsc(plAimLabel(b)) + rep +
+    plEsc(plOp(b.op)) + plEsc(plAimLabel(b)) + rep +
     '<small> ' + plEsc(plTrigLabel(b.trig)) + '</small></span>';
 }
 function plGateText(st) {
@@ -609,7 +615,7 @@ function plRenderWaveList() {
   const p = plP();
   document.getElementById('pl-waves').innerHTML = p.waves.map(function (row) {
     const ops = (row.sets || []).map(function (st) {
-      return (st.ops || []).map(function (o) { return o.op; }).join('+');
+      return (st.ops || []).map(function (o) { return plOp(o.op); }).join('+');
     }).slice(0, 2).join(' / ');
     const mk = PLAN.marks.has(row.w);
     return '<div class="wrow' + (row.w === PLAN.sel.wave ? ' on' : '') + (mk ? ' marked' : '')
@@ -673,14 +679,21 @@ function plAimEditor(bp, b) {
   let mode = 'none';
   if (a === 'stock') mode = 'stock';
   else if (a === 'temp') mode = 'temp';
+  else if (Array.isArray(a) && a[1] === 'imp') mode = 'imp';
+  else if (Array.isArray(a) && (a[1] === 'front' || a[1] === 'threat')) mode = 'slide';
   else if (Array.isArray(a)) mode = 'cell';
   const arr = Array.isArray(a) ? a : [3, 2];
   const isCob = b.op === '玉米炮';
+  const opts = [['none', '不给（默认策略）']];
+  if (isCob) {
+    opts.push(['slide', '滑动落点（按最靠前那只自动挑列）']);
+    opts.push(['imp', '拦截动态落点（炸空中的小鬼）']);
+  }
+  opts.push(['cell', isCob ? '指定爆心（可带小数）' : '指定格子']);
+  opts.push(['stock', '空着的永久存冰位'], ['temp', '前场临时冰位']);
   return '<span data-aimmode="' + bp + '">'
     + '<select data-aim="' + bp + '">'
-    + [['none', '不给（默认策略）'], ['cell', isCob ? '指定爆心（可带小数）' : '指定格子'],
-       ['stock', '空着的永久存冰位'], ['temp', '前场临时冰位']]
-      .map(function (o) {
+    + opts.map(function (o) {
         return '<option value="' + o[0] + '"' + (o[0] === mode ? ' selected' : '') + '>' + o[1] + '</option>';
       }).join('')
     + '</select> '
@@ -702,7 +715,7 @@ function plInspector(st, sp, si) {
   const rep = b.repeat;
   const autoBid = plAutoBlockId(PLAN.sel.wave,
                                 PLAN.sel.set, PLAN.sel.block);
-  return '<div class="insp"><div class="row"><b>积木：' + plEsc(b.op) + '</b>'
+  return '<div class="insp"><div class="row"><b>积木：' + plEsc(plOp(b.op)) + '</b>'
     + '<span class="hint">（' + plEsc(spec.note || '') + '）</span>'
     + '<label style="margin-left:12px">ID</label>'
     + '<input type="text" data-path="' + bp + '" data-key="id" value="'
@@ -711,6 +724,20 @@ function plInspector(st, sp, si) {
     + 'title="唯一命名：波数-候选-序号；after_block 用它定位"></div>'
     + '<div class="row"><label>动作</label>'
     + plSel(bp, 'op', b.op, plOps().map(function (o) { return [o.name, o.name]; }))
+    + (b.op === '玉米炮'
+       ? '<label style="margin-left:10px">炮种</label>'
+         + plSel(bp, 'cob', b.cob || 'P',
+                 [['P', 'P 常规炮'], ['S', 'S 分离炮'], ['D', 'D 拦截炮']])
+         + (b.cob === 'D'
+            ? '<label style="margin-left:10px">拦截时机</label>'
+              + plSel(bp, 'imp_when', b.imp_when || 'apex',
+                      [['release', '投掷刚刚出手时'], ['apex', '飞行到最高点时'],
+                       ['land', '小鬼将要落地时']])
+              + '<label style="margin-left:10px">管哪几路</label>'
+              + plSel(bp, 'imp_group', b.imp_group || 'low',
+                      [['low', '1~3 路'], ['high', '4~6 路'], ['any', '全部']])
+            : '')
+       : '')
     + '<label style="margin-left:10px">落点</label>' + plAimEditor(bp, b) + '</div>'
     + '<div class="row"><label>触发器</label>'
     + plCond(b.trig || { kind: 'spawn' }, bp + '.trig', PLAN.cat.triggers) + '</div>'
@@ -731,7 +758,7 @@ function plRenderGlobals() {
     const on = PLAN.sel.g === i;
     let chain = '';
     (r.ops || []).forEach(function (b, bi) {
-      chain += '<span class="chip">' + plEsc(b.op) + plEsc(plAimLabel(b)) + '</span>'
+      chain += '<span class="chip">' + plEsc(plOp(b.op)) + plEsc(plAimLabel(b)) + '</span>'
         + '<button class="ghost mini2" data-act="delGOp" data-path="globals.' + i + '.ops.' + bi + '">✕</button>';
     });
     return '<div class="rule"><div class="rh">'
@@ -769,7 +796,7 @@ function plRenderSimple() {
   const s = p.rescue_simple || (p.rescue_simple = { enabled: true, resources: [], targets: [] });
   let res = '';
   (s.resources || []).forEach(function (b, i) {
-    res += '<span class="chip">' + plEsc(b.op) + plEsc(plAimLabel(b)) + '</span>'
+    res += '<span class="chip">' + plEsc(plOp(b.op)) + plEsc(plAimLabel(b)) + '</span>'
       + '<button class="ghost mini2" data-act="delSRes" data-i="' + i + '">✕</button>';
   });
   const rows = (s.targets || []).map(function (t, i) {
@@ -810,7 +837,7 @@ function plRenderRescue() {
       const ops = Array.isArray(lv) ? lv : (lv.ops || []);
       let chips = '';
       ops.forEach(function (b, bi) {
-        chips += '<span class="chip">' + plEsc(b.op) + plEsc(plAimLabel(b)) + '</span>'
+        chips += '<span class="chip">' + plEsc(plOp(b.op)) + plEsc(plAimLabel(b)) + '</span>'
           + '<button class="ghost mini2" data-act="delLevelOp" data-path="rescue.' + ri + '.levels.' + li + '.' + bi + '">✕</button>';
       });
       return '<div class="lvl"><span class="hint">第 ' + (li + 1) + ' 层</span>' + chips
@@ -1202,7 +1229,18 @@ PL_ROOT.addEventListener('change', async function (e) {
     plSnap();
     const bp = el.dataset.aim, b = plPath(plP(), bp);
     const v = el.value;
-    b.aim = (v === 'cell') ? [3, 2] : (v === 'none' ? null : v);
+    if (v === 'imp') {
+      // ★ 2026-10-24 拦截炮：动态落点 + 条件触发器
+      b.cob = 'D';
+      b.aim = [2, 'imp'];
+      b.imp_group = b.imp_group || 'low';
+      b.imp_when = b.imp_when || 'apex';
+      b.trig = { kind: 'imp', group: b.imp_group, when: b.imp_when };
+    } else if (v === 'slide') {
+      b.aim = [2, 'front'];
+    } else {
+      b.aim = (v === 'cell') ? [3, 2] : (v === 'none' ? null : v);
+    }
     return plRender();
   }
   if (el.dataset.aimrc !== undefined) {
@@ -1265,6 +1303,22 @@ PL_ROOT.addEventListener('change', async function (e) {
     if (el.dataset.key === 'kind') plSnap();
     plSet(p, el.dataset.path + (el.dataset.key ? '.' + el.dataset.key : ''), v);
     if (el.dataset.key === 'kind') plFill(plPath(p, el.dataset.path), v);
+    // ★ 2026-10-24 炮种 / 拦截参数改动 → 同步触发器（拦截炮是条件触发，不是定时）
+    if (['cob', 'imp_when', 'imp_group'].includes(el.dataset.key)) {
+      const b = plPath(p, el.dataset.path);
+      if (b && b.op === '玉米炮') {
+        if (b.cob === 'D') {
+          b.imp_group = b.imp_group || 'low';
+          b.imp_when = b.imp_when || 'apex';
+          if (!Array.isArray(b.aim) || b.aim[1] !== 'imp') b.aim = [2, 'imp'];
+          b.trig = { kind: 'imp', group: b.imp_group, when: b.imp_when };
+        } else if (Array.isArray(b.aim) && b.aim[1] === 'imp') {
+          b.aim = null;
+          if ((b.trig || {}).kind === 'imp') b.trig = { kind: 'spawn' };
+        }
+      }
+      return plRender();
+    }
     if (['kind', 'op', 'what', 'row', 'cmp', 'value', 'card', 'name', 'at', 'zombie',
          'axis', 'waves', 'offset', 'target', 'back', 'set', 'negate', 'plant', 'col'].includes(el.dataset.key))
       return plRender();
@@ -1333,17 +1387,30 @@ async function plQuick() {
   const startEl = document.getElementById('pl-start');
   const start = startEl ? (+startEl.value || 0) : 0;
   if (!track.trim()) { alert('先填轨道，比如 P|P|P|P 或 N|AA\'|I|I'); return; }
-  if (!confirm('会把 20 波（含旗波）的候选整组替换成轨道的动作。'
-    + (gaps.trim() ? '填了波长串 → 具备运算量的操作会按「距上一波 +波长」**定时**。'
-                   : '没填波长串 → 时机留空。')
-    + '继续？')) return;
+  if (!confirm(['会把 20 波（含旗波）的候选整组替换成轨道的动作。',
+      gaps.trim() ? '填了波长串 → 具备运算量的操作会按「距上一波 +波长」**定时**。'
+                  : '没填波长串 → 时机留空。',
+      '同时会**按阵型自动选卡 + 自动填救场**。继续？'].join('\n'))) return;
   plSnap();
+  // ★ 2026-10-24：把**阵型**一起发给后端 —— 旗波要不要冰杀蹦极、炮打哪两路、
+  //   自动选卡与自动救场都要看阵型结构（"阵型结构决定"是用户的原话）。
+  const kinds = (typeof sel !== 'undefined' && sel) ? Array.from(sel) : [];
   const d = await plPost('/api/plan/quick', { plan: plP(), track: track,
-    pair: plPairMode(), gaps: gaps, start: start });
+    pair: plPairMode(), gaps: gaps, start: start,
+    array: (typeof LY !== 'undefined' ? LY.array : null),
+    field: (typeof LY !== 'undefined' ? LY.field : null),
+    kinds: kinds });
   if (d.error) { alert('失败：' + d.error); return; }
   PLAN.bank[PLAN.active].plan = d.plan;
-  alert('已布置 ' + d.filled + ' 波（起手第 ' + start + ' 拍）'
-    + (gaps.trim() ? '，并按波长定时' : '') + ' —— 落点还空着，接着填吧');
+  const inf = d.info || {};
+  const lines = [['已布置 ', String(d.filled), ' 波（起手第 ', String(start), ' 拍）',
+    gaps.trim() ? '，并按波长定时' : ''].join('')];
+  if ((inf.deck_added || []).length) { lines.push('', '自动选卡：'); lines.push(...inf.deck_added); }
+  if (inf.rescue) lines.push('', '自动救场：要保 ' + inf.rescue.n + ' 格，资源 '
+    + (inf.rescue.ash_txt || '—') + ' / ' + (inf.rescue.pads_txt || '—'));
+  if ((inf.hints || []).length) lines.push('', '提示：', ...inf.hints);
+  if ((inf.warnings || []).length) lines.push('', '注意：', ...inf.warnings);
+  alert(lines.join('\n'));
   plRender();
   plSpectrumSoon();
 }

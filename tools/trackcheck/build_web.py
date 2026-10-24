@@ -35,7 +35,7 @@ if ROOT not in sys.path:
 from tools.trackcheck import ui   # noqa: E402
 
 VERSION = '0.3'
-APP_VER = '0.3.2'        # 内部版本（0.x.n = 同一发布里的第 n 处改动）
+APP_VER = '0.3.3'        # 内部版本（0.x.n = 同一发布里的第 n 处改动）
 PYODIDE = '0.29.5'
 DIST_DIR = os.path.join(ROOT, 'tools', 'trackcheck', 'dist')
 
@@ -96,17 +96,31 @@ BOOT_JS = r'''
 (function(){
   'use strict';
   const HINT = __HINT__;
+  const HINT_EN = __HINT_EN__;
   const PY_SRC = __PY_SRC__;
   const nativeFetch = window.fetch.bind(window);
   const boot = document.getElementById('boot');
   const msg = document.getElementById('boot-msg');
+  /* ★ 用户 2026-10-24：启动壳也是用户可见文字 → 必须双语。
+     语言来自 localStorage（页面本体还没渲染，问不到 Python）。 */
+  let EN = false;
+  try { EN = (localStorage.getItem('tc-lang') === 'en'); } catch (e){}
+  const T = (cn, en) => (EN ? en : cn);
+  const bootTitle = document.getElementById('boot-title');
+  if (EN) document.title = 'trackcheck · PvZ Survival Endless research tool';
+  if (bootTitle) bootTitle.textContent =
+    T('TrackCheck · 正在启动运阵引擎…', 'TrackCheck · starting the engine…');
+  if (msg) msg.textContent = T('首次打开会慢一点', 'the first launch takes a little longer');
   const say = t => { if (msg) msg.textContent = t; };
   const die = e => {
     console.error(e);
-    if (msg) msg.innerHTML = '<b style="color:#b91c1c">引擎启动失败</b><br>'
+    if (msg) msg.innerHTML = '<b style="color:#b91c1c">'
+      + T('引擎启动失败', 'the engine failed to start') + '</b><br>'
       + String((e && e.message) || e)
-      + '<br><span style="color:#64748b">（网页版需要能执行 WebAssembly 的浏览器：'
-      + 'Edge / Chrome / Firefox 新版）</span>';
+      + '<br><span style="color:#64748b">'
+      + T('（网页版需要能执行 WebAssembly 的浏览器：Edge / Chrome / Firefox 新版）',
+          '(the web build needs a browser that can run WebAssembly: a recent Edge / Chrome / Firefox)')
+      + '</span>';
   };
 
   __LOADER__
@@ -142,9 +156,9 @@ BOOT_JS = r'''
   let WB = null;
   (async () => {
     try {
-      say(HINT);
+      say(T(HINT, HINT_EN));
       const pyodide = await bootPyodide();
-      say('正在装载运阵引擎…');
+      say(T('正在装载运阵引擎…', 'loading the engine…'));
       WB = await mountEngine(pyodide);
       // 从这里开始，页面上的 /api/* 都由 Python 直接回答
       window.fetch = function(input, init){
@@ -194,7 +208,7 @@ LOADER_OFFLINE = r'''
   const b64text = b64 => new TextDecoder('utf-8').decode(b64bytes(b64));
 
   async function bootPyodide(){
-    say('正在解包内置引擎（约 12MB，稍等）…');
+    say(T('正在解包内置引擎（约 12MB，稍等）…', 'unpacking the built-in engine (~12MB)…'));
     // ① pyodide.asm.js 是普通脚本，注入后全局就有 _createPyodideModule
     const asmUrl = URL.createObjectURL(
       new Blob([b64text(DIST['pyodide.asm.js'])], {type: 'text/javascript'}));
@@ -238,7 +252,7 @@ LOADER_CDN = r'''
     let last = null;
     for (const base of CDNS){
       try {
-        say('正在下载引擎（约 12MB，之后走缓存）：' + base.split('/')[2]);
+        say(T('正在下载引擎（约 12MB，之后走缓存）：', 'downloading the engine (~12MB, cached afterwards): ') + base.split('/')[2]);
         const mod = await import(base + 'pyodide.mjs');
         return await mod.loadPyodide({indexURL: base});
       } catch (e){ console.warn('CDN 失败', base, e); last = e; }
@@ -251,7 +265,7 @@ OVERLAY = '''
 <div id="boot" style="position:fixed;inset:0;z-index:9999;background:#f6f8fb;
  display:flex;align-items:center;justify-content:center">
   <div style="text-align:center;max-width:560px;padding:0 20px">
-    <div style="font:600 16px -apple-system,'Segoe UI','Microsoft YaHei',sans-serif;
+    <div id="boot-title" style="font:600 16px -apple-system,'Segoe UI','Microsoft YaHei',sans-serif;
      color:#0f172a">TrackCheck · 正在启动运阵引擎…</div>
     <div id="boot-msg" style="font:13px/1.7 -apple-system,'Segoe UI','Microsoft YaHei',sans-serif;
      color:#64748b;margin-top:10px">首次打开会慢一点</div>
@@ -287,14 +301,15 @@ def build(kind, out, deps):
         dist = ensure_dist(deps)
         payload = {n: base64.b64encode(b).decode('ascii') for n, b in dist.items()}
         loader = LOADER_OFFLINE.replace('__DIST__', _js_json(payload))
-        hint = '正在解包内置引擎…'
+        hint, hint_en = '正在解包内置引擎…', 'unpacking the built-in engine…'
     else:
         loader = LOADER_CDN.replace('__CDNS__', _js_json(CDN_BASES))
-        hint = '正在下载引擎…'
+        hint, hint_en = '正在下载引擎…', 'downloading the engine…'
 
     js = (BOOT_JS.replace('__PY_SRC__', _js_json(src))
                  .replace('__LOADER__', loader)
-                 .replace('__HINT__', _js_json(hint)))
+                 .replace('__HINT__', _js_json(hint))
+                 .replace('__HINT_EN__', _js_json(hint_en)))
     # ★ 2026-10-24：整页 HTML 不再烘进来 —— 启动壳 + 运行时 `/api/index` 渲染，
     #   这样语言切换 / 以后的界面改动都不用重新打包（也避免 document.write 重复执行）。
     html = (SHELL.replace('__VERSION__', VERSION)

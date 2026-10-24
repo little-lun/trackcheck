@@ -35,6 +35,15 @@ CJK = re.compile(r'[\u4e00-\u9fff]')
 TEXT_KEYS = {'note', 'label', 'trad', 'new', 'group', 'reason', 'tier', 'hint',
              'title', 'text', 'desc', 'summary', 'msg', 'name', 'why'}
 
+# ★ 2026-10-24：这些字面量是**数据**（拿来做 `===` 比较 / 拼标识符），
+#   翻译它们会直接把逻辑改坏。检查器要放过它们。
+#     '炮'    = 操作分组值（`o.group === '炮'` → 玉米炮永远可选）
+#     '旗波'  = 波次角色值（`row.role === '旗波'`）
+#     '关'    = 队列名后缀（`p.name + '关'`，英文界面走 `qname`）
+#     '醒着'  = 勾选框的锁定文案（由 `JS_LITERALS` 的 `> 醒着` 翻，单字面量不动）
+DATA_LITERALS = {'炮', '旗波', '关', '醒着', '特技', '模仿', '模仿者', '垫材',
+                 '冰', '核', '南瓜'}
+
 
 def _walk(obj, path='', out=None):
     """递归收集 (path, 字符串) —— 只收"显示字段"里的值"""
@@ -151,6 +160,26 @@ def main(argv=None):
     from tools.trackcheck import ui
     page_cjk = [t for t in _text_nodes(ui.page_html())
                 if CJK.search(t) and not I18N._is_identifier(t)]
+    # ④ 英文页面里 **JS 字符串字面量**也不该有中文
+    #    （布局编辑器那类"用 JS 拼出来的界面"就藏在这里；它们靠
+    #      `JS_LITERALS` / `BULK` 的片段替换翻掉，漏了看不出来）
+    import json as _json
+    import re as _re
+    htm = ui.page_html()
+    meta_s = _json.dumps(ui.meta_payload(), ensure_ascii=False)
+    models_s = _json.dumps(I18N.localize_obj(
+        __import__('tools.trackcheck.metainfo', fromlist=['x']).models()),
+        ensure_ascii=False).replace('</', '<\\/')
+    htm = htm.replace(meta_s, ' ').replace(models_s, ' ')
+    script_lits = []
+    for sc in _re.findall(r'<script[\s\S]*?</script>', htm):
+        for lit in _re.findall(r"'([^'\n]{1,300}?)'", sc) + \
+                _re.findall(r'"([^"\n]{1,300}?)"', sc):
+            if CJK.search(lit) and not I18N._is_identifier(lit.strip()) \
+                    and lit.strip() not in DATA_LITERALS \
+                    and 'replace(/^' not in lit \
+                    and lit.strip() not in script_lits:
+                script_lits.append(lit.strip())
     I18N.set_lang('zh')
 
     if missing:
@@ -158,8 +187,14 @@ def main(argv=None):
         for src, s, got in missing:
             head = s.replace('\n', ' ')[:70]
             if a.fix_hint:
+                import re as _re
+                key = _re.sub(r'\d+(?:\.\d+)?', '#', s)
                 print('  · [%s] %s' % (src, head))
-                print('    → 往 i18n_bulk.BULK 加：%r' % s)
+                if key == s:
+                    print('    → 往 i18n_bulk.BULK 加：%r' % s)
+                else:
+                    n = len(_re.findall(r'\d+(?:\.\d+)?', s))
+                    print('    → 数字模板（%d 个 %%s）：往 BULK 加键 %r' % (n, key))
             elif a.verbose:
                 print('  · [%s] %s' % (src, head))
                 print('    现在会显示：%s' % (got or '')[:70].replace('\n', ' '))
@@ -172,6 +207,10 @@ def main(argv=None):
     if page_cjk:
         print('✗ 英文页面的可见文本里还有中文：%d 条' % len(page_cjk))
         for t in page_cjk[:20]:
+            print('  · %s' % t[:70].replace('\n', ' '))
+    if script_lits:
+        print('✗ 英文页面里 JS 字符串字面量还有中文：%d 条' % len(script_lits))
+        for t in script_lits[:30]:
             print('  · %s' % t[:70].replace('\n', ' '))
 
     dead = dead_bulk_keys() if a.dead else []

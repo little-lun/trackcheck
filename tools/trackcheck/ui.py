@@ -756,6 +756,10 @@ function lyRenderEditor(){
     + '<label class="hint" title="core = 这个格子是阵型的核心植物（丢了就是崩阵）">'
     + '<input type="checkbox" id="ly-core"'
     + (cell.core ? ' checked' : '') + '> 贴 core 标签</label>'
+    + '<label class="hint" title="常磨损 = 这个植物边打边掉，选卡要带它、'
+    + '并在全场判定里挂「随时准备补」">'
+    + '<input type="checkbox" id="ly-wear"'
+    + (cell.wear ? ' checked' : '') + '> 常磨损</label>'
     + '</div>'
     + '<div class="col"><div class="hint">说明</div><div class="hint" '
     + 'style="max-width:280px">主植物里没有 南瓜 / 睡莲 / 花盆 —— 它们是壳和基座，'
@@ -808,6 +812,10 @@ function lyRenderEditor(){
   gv.onchange = () => { cell.grave = gv.checked; lySetCell(r, c, cell); lyRenderGrid(); };
   const ce = document.getElementById('ly-core');
   if (ce) ce.onchange = () => { cell.core = ce.checked; lySetCell(r, c, cell); lyRenderGrid(); };
+  // ★ 2026-10-24 用户：「给某个格子的植物打上常磨损标签的功能」——
+  //   `wear` 只影响「快捷布置阵解」时的自动选卡与全场判定，不改变模拟本身。
+  const we = document.getElementById('ly-wear');
+  if (we) we.onchange = () => { cell.wear = we.checked; lySetCell(r, c, cell); lyRenderGrid(); };
 }
 
 /* 改了主植物后的连锁反应：玉米炮 → 清掉南瓜/梯子、补底座、清空尾格 */
@@ -1181,7 +1189,7 @@ META.presets.forEach(p => {
   const b = document.createElement('button');
   b.textContent = p.label || p.name;
   b.onclick = () => { setSel(p.kinds);
-                     document.getElementById('name').value = p.qname || (p.name + '关'); };
+                     document.getElementById('name').value = p.qname || p.name; };
   presetsEl.appendChild(b);
 });
 /* ★ 2026-10-22：推荐组合增加「全出怪」—— 勾选这个场地**允许出现的所有僵尸**

@@ -75,14 +75,27 @@ def _num(v):
     return ('%d' % f) if f == int(f) else ('%.1f' % f)
 
 
+def _imp_group(row, rows_n=6):
+    """小鬼/拦截炮的分组：1~3 路 = low，其余 = high（一对拦截炮各管一半）"""
+    return 'low' if int(row) <= 3 else 'high'
+
+
 def _norm_act(a):
-    """积木 → (name, off, aim, trig)。顺手把旧动作名换成植物名（v0.3 统一说法）"""
+    """积木 → (name, off, aim, trig, extra)。顺手把旧动作名换成植物名（v0.3 统一说法）
+
+    ★ 2026-10-24：第 5 项 `extra` 带炮的种类与拦截炮参数
+      （`cob` = P/S/D、`imp_group` = low/high、`imp_when` = release/apex/land）。
+    """
+    keys = ('cob', 'imp_group', 'imp_when')
     if isinstance(a, dict):
+        extra = {k: a.get(k) for k in keys if a.get(k)}
         return (_OP_ALIAS.get(a.get('op'), a.get('op')),
-                int(a.get('at') or 0), a.get('aim'), a.get('trig'))
+                int(a.get('at') or 0), a.get('aim'), a.get('trig'), extra)
+    if len(a) >= 5:
+        return (_OP_ALIAS.get(a[0], a[0]), a[1], a[2], a[3], a[4] or {})
     if len(a) >= 4:
-        return (_OP_ALIAS.get(a[0], a[0]), a[1], a[2], a[3])
-    return (_OP_ALIAS.get(a[0], a[0]), a[1], a[2], None)
+        return (_OP_ALIAS.get(a[0], a[0]), a[1], a[2], a[3], {})
+    return (_OP_ALIAS.get(a[0], a[0]), a[1], a[2], None, {})
 
 
 # ------------------------------------------------------------------ 实体
@@ -184,7 +197,8 @@ class Zombie:
                  'phase', 'vaulted', 'slid', 'armor', 'spd_alt', 'never_eat',
                  'hold_until', 'vault_until', 'vault_to_x',
                  'born_t', 'cat_at', 'eat_ready', 'joker_res',
-                 'shield', 'shield0', 'total_hp0', 'daze_until', 'defused', 'rev')
+                 'shield', 'shield0', 'total_hp0', 'daze_until', 'defused', 'rev',
+                 'imp_out')
 
     def __init__(self, kind, row, x, wave, rng):
         self.kind = kind
@@ -234,6 +248,8 @@ class Zombie:
         self.joker_res = None         # 小丑结局：'died' / 'boom' / 'blank'（炸空）
         self.defused = False          # ★ 磁力菇吸走盒子 → 永久无法爆炸
         self.rev = False              # ★ 矿工出土后**向右走**
+        # ★ 2026-10-24 拦截炮：巨人**只投一次**小鬼（血量首次 ≤ 50% 时）
+        self.imp_out = False
         # ★ 2026-10-22：分阶段速度 / 撑杆跳 / 舞王滑步 / 金属护具
         # ★ 2026-10-23（《僵尸时间表》）：**起步偏差**
         #   正值 = 生成后先停顿（足球/投篮车/撑杆的起步加速）；
@@ -384,6 +400,11 @@ class Sim:
         self.catapult = []               # 投篮车投掷（含被伞挡下的）
         self.joker_units = []            # 每只小丑的结局（早/晚 × 死/炸空/炸掉什么）
         self.cat_pending = []            # 滞空中的篮球（199cs 后落地结算）
+        # ★ 2026-10-24 拦截炮（D）：**只有阵解里出现 D 时**才把小鬼实体化。
+        #   没有 D 的阵解仍走"巨人死时把小鬼血量并入本波"的期望型处理（老基线不变）。
+        self.imp_fly = []                # 在空中飞的小鬼
+        self.imp_active = False          # 本局要不要模拟小鬼投掷
+        self.imp_log = []                # 拦截/落地明细（报告用）
         self.log = []                    # 分级事件
         self.lost = {}                   # {(row,col): plant} 已丧失的植物
         self.ice_touched = set()
@@ -793,16 +814,16 @@ class Sim:
         ctx = self.plan_ctx()
         ctx['wave'] = w
         ctx['fixed_off'] = bool(self.__dict__.get('_fixed_off'))
-        acts = [_norm_act(a) for a in self.track(w, ctx)]   # (name, off, aim, trig)
+        acts = [_norm_act(a) for a in self.track(w, ctx)]   # (name, off, aim, trig, extra)
         self._prev_acts = [a[0] for a in acts]     # 供下一波判定"上一波是不是核"
         if self.relaxed:
-            for name, off, aim, _t in acts:
+            for name, off, aim, _t, _x in acts:
                 self.log.append(dict(t=self.t + off, wave=w, sev='INFO', what='松弛',
                                      row=None, col=None,
                                      detail='本波总血 %d < %d，不烧卡' % (total_hp, self.skip_hp)))
             return meta
-        for name, off, aim, trig in acts:
-            self._schedule(self.t + off, name, aim, w, trig=trig)
+        for name, off, aim, trig, extra in acts:
+            self._schedule(self.t + off, name, aim, w, trig=trig, extra=extra)
 
         # ---- 波角色 + 控制手段（控丑报告要用）
         ice_names = ('寒冰菇', '模仿寒冰菇', '咖啡豆', '冰', '模仿冰', '存冰')
@@ -812,16 +833,16 @@ class Sim:
                 '收尾' if w in (9, 19) else '常规')
         self.wave_ctrl[w] = dict(
             role=role,
-            ice=min((off for nm, off, _a, _t in acts if nm in ice_names), default=None),
-            ash=min((off for nm, off, _a, _t in acts if nm in ash_names), default=None),
-            fog=('种大喷' in [nm for nm, _o, _a, _t in acts]),
-            acts=[nm for nm, _o, _a, _t in acts],
+            ice=min((off for nm, off, _a, _t, _x in acts if nm in ice_names), default=None),
+            ash=min((off for nm, off, _a, _t, _x in acts if nm in ash_names), default=None),
+            fog=('种大喷' in [nm for nm, _o, _a, _t, _x in acts]),
+            acts=[nm for nm, _o, _a, _t, _x in acts],
             n_joker=script.get('小丑', 0),
             n_bungee=script.get('蹦极', 0),
             n=sum(script.values()),
         )
         if script.get('蹦极'):
-            has_ice = any(nm in ice_names for nm, _o, _a, _t in acts)
+            has_ice = any(nm in ice_names for nm, _o, _a, _t, _x in acts)
             # ★ 2026-10-22 用户：**炮不会被蹦极锁定**；保护伞覆盖的植物也不用管。
             #   所以"这一波要防蹦极"只在**真的有目标暴露**时才算 —— 否则不记风险，
             #   报告里也不会冒出"蹦极无冰"这种误报（经典八炮除炮外全在伞下）。
@@ -835,8 +856,8 @@ class Sim:
         #   机会性 = 补存冰（卡一好就补）、垫材、救急窝瓜（临场反应，不算轨迹）
         opportunistic = {'寒冰菇', '模仿寒冰菇', '小喷菇', '花盆', '阳光菇', '胆小菇',
                          '窝瓜'}
-        plan = [nm for nm, _o, _a, _t in acts if nm not in opportunistic]
-        extra = [nm for nm, _o, _a, _t in acts if nm in opportunistic]
+        plan = [nm for nm, _o, _a, _t, _x in acts if nm not in opportunistic]
+        extra = [nm for nm, _o, _a, _t, _x in acts if nm in opportunistic]
         self.wave_snap[w] = dict(
             w=w, t0=self.t, sun=round(self.sun), ice=self.ice_stock,
             cards={k: max(0, v - self.t) for k, v in self.card_ready.items()},
@@ -882,7 +903,8 @@ class Sim:
                       row=r, col=c,
                       detail='用户口径：区域内随机 3 格 · 忽略落地时延')
 
-    def _schedule(self, t, name, aim, w, kind='act', trig=None, due=None, bid=None):
+    def _schedule(self, t, name, aim, w, kind='act', trig=None, due=None,
+                  bid=None, mode=None, extra=None):
         """
         ★ v0.2：`trig` 是"触发器"（阵解栏里的积木可以挂条件）。
           None  → 老行为：到点就执行
@@ -893,19 +915,34 @@ class Sim:
           引擎让事件"等 100cs 再试"，实际生效时刻就会晚。**定时链必须按名义时刻走**，
           否则每等一次就往后漂一点，几十秒后节奏就散了（实测：慢速关出现
           3000cs / 5600cs 的炮空窗，冰车正是从这些空窗里碾进来的）。
+
+        ★ 2026-10-24：`extra` 带炮的种类（`cob` = P/S/D）与拦截炮参数
+          （`imp_group` / `imp_when`）。
         """
         ev = dict(t=t, name=name, aim=aim, wave=w, kind=kind,
                   due=(t if due is None else due))
         if bid:
             ev['bid'] = bid
+        if mode:
+            ev['mode'] = mode
+        if extra:
+            ev.update(extra)
+            if extra.get('cob') == 'D' or (trig or {}).get('kind') == 'imp':
+                # 拦截炮 = 要炸空中飞的小鬼 → 本局把小鬼实体化
+                self.imp_active = True
         if trig:
             ev['trig'] = trig
             # ★ 2026-10-22：`since`（距上次某积木生效后）是跨波锚点，
             #   等待时间本身就是用户给的 at，所以 TTL 至少要覆盖它。
             ttl = trig.get('ttl')
             if ttl is None:
-                ttl = (_TRIG_TTL if trig.get('kind') not in ('since', 'after_block')
-                       else int(trig.get('at') or 0) + _TRIG_TTL)
+                if trig.get('kind') == 'imp':
+                    # 拦截炮要等"巨人投出小鬼"，可能等很久（巨人要掉一半血）
+                    ttl = 60000
+                elif trig.get('kind') not in ('since', 'after_block'):
+                    ttl = _TRIG_TTL
+                else:
+                    ttl = int(trig.get('at') or 0) + _TRIG_TTL
             ev['ttl'] = ttl
             if trig.get('repeat'):
                 ev['repeat'] = trig['repeat']
@@ -966,6 +1003,24 @@ class Sim:
                 last = (self.wave_meta or {}).get('t', self.t)
             return ('fire' if self.t - last >= int(trig.get('at') or 0)
                     else 'wait')
+        if k == 'imp':
+            # ★ 2026-10-24 拦截炮（D）：等"巨人投出的小鬼"飞到某个阶段再开炮。
+            #   三个阶段由用户定：出手 / 最高点 / 落地前（`D.IMP_WINDOWS`）。
+            lo, hi = D.IMP_WINDOWS.get(trig.get('when') or 'apex', (0.4, 0.6))
+            grp = trig.get('group') or 'low'
+            imps = [i for i in self.imp_fly
+                    if not i.get('killed')
+                    and (grp == 'any' or _imp_group(i['row'], self.rows) == grp)]
+            if not imps:
+                return 'wait'
+            prog = [(self.t - i['t0']) / float(max(1, i['t1'] - i['t0']))
+                    for i in imps]
+            if any(lo <= x < hi for x in prog):
+                return 'fire'
+            # 全飞过去了（已经落地）→ 这一发没意义了
+            if all(x >= hi for x in prog):
+                return 'expire'
+            return 'wait'
         if k == 'not':
             r = self._eval_trig(trig.get('of') or {})
             return {'fire': 'wait', 'wait': 'fire', 'expire': 'expire'}[r]
@@ -1071,6 +1126,73 @@ class Sim:
         """轨道在 within cs 内要用这张卡 → 救场不许抢（玩家会先看排程）"""
         for e in self.events:
             if e.get('name') == name and self.t <= e['t'] <= self.t + within:
+                return True
+        return False
+
+    # ------------------------------------------------ 救场层的"预演-回溯"工具
+    def wave_role(self, w=None):
+        """这一波的角色（起手 / 常规 / 收尾 / 旗波）"""
+        w = int(self.cur_wave if w is None else w)
+        return ((self.wave_ctrl.get(w) or {}).get('role')
+                or ('起手' if w == 1 else '旗波' if w in (10, 20)
+                    else '收尾' if w in (9, 19) else '常规'))
+
+    def incoming_dmg(self, z, horizon=300):
+        """**已经排上队的伤害**里，有多少会落在这一只身上（预演-回溯用）
+
+        ★ 2026-10-24 用户：「确认应用了回溯算法，保证不会因轨道中必然死的怪
+          浪费救场资源」。所以救场前先问：这只怪已经被轨道"预定"打死了吗？
+          · `boom_q`：已开炮/已种下的灰烬（结果导向下 fuse=0，多数当帧结算，
+            但绝对时间轴里可能有排队的）
+          · `pending`：AoE 命中队列（忧郁菇一轮 4 次命中）
+          · `chili_q`：辣椒（整行）
+        命中判定沿用引擎自己的几何口径。
+        """
+        tot = 0.0
+        try:
+            for item in self.boom_q:
+                if item[0] > self.t + horizon:
+                    continue
+                row, col, radius, dmg = item[1], item[2], item[3], item[4]
+                cx, cy = D.cell_x(col), self._aim_py(row, col) + D.PLANTS[
+                    '玉米炮']['cob']['dy']
+                zy = self.zy(z.row)
+                if (z.x + 20 - cx) ** 2 + (zy + 20 - cy) ** 2 <= radius ** 2:
+                    tot += dmg
+            for _t, row, rows_n, lo, hi, dmg, _p in list(self.pending):
+                if _t > self.t + horizon:
+                    continue
+                if abs(z.row - row) > max(0, rows_n // 2):
+                    continue
+                if lo <= z.x <= hi:
+                    tot += dmg
+            for _t, row in list(self.chili_q):
+                if _t <= self.t + horizon and z.row == row:
+                    tot += D.ASH_DMG
+            # 轨道**还没生效**的灰烬/炮：按名义时刻看，近了也算"即将被打死"
+            for e in self.events:
+                if e['t'] > self.t + horizon:
+                    continue
+                nm = e.get('name')
+                if nm not in ('毁灭菇', '模仿毁灭菇', '樱桃', '辣椒', '玉米炮'):
+                    continue
+                aim = e.get('aim')
+                if not (isinstance(aim, (list, tuple)) and len(aim) == 2
+                        and not isinstance(aim[1], str)):
+                    continue
+                r0, c0 = float(aim[0]), float(aim[1])
+                if abs(z.row - r0) > 1.5:
+                    continue
+                if abs(D.cell_x(c0) - z.x) <= 130:
+                    tot += D.ASH_DMG
+        except Exception:                                    # noqa: BLE001
+            return 0.0
+        return tot
+
+    def track_need_after(self, name, until):
+        """轨道在 `until` 之前还要用这张卡吗（收尾波动用轨道资源的检查）"""
+        for e in self.events:
+            if e.get('name') == name and self.t < e['t'] <= until:
                 return True
         return False
 
@@ -1645,7 +1767,25 @@ class Sim:
                                      name='玉米炮', ok=False))
             return
         self._cob_cd_wait = 0
-        if isinstance(aim, (tuple, list)) and len(aim) == 2:
+        if isinstance(aim, (tuple, list)) and len(aim) == 2 and aim[1] == 'imp':
+            # ★ 2026-10-24 拦截炮（D）：**动态落点** —— 不写死第几列，而是
+            #   "结果必须保证炸死所有被巨人抛出、正在空中飞的小鬼"。
+            #   炸心取在**当前这群小鬼的重心**上（同一路时就是那一只）。
+            grp = ev.get('imp_group') or 'low'
+            imps = [i for i in self.imp_fly
+                    if not i.get('killed')
+                    and (grp == 'any' or _imp_group(i['row'], self.rows) == grp)]
+            if imps:
+                i0 = min(imps, key=lambda i: abs(i['x'] - D.DMG_LINE))
+                row = float(i0['row'])
+                col = max(1.0, min(9.0, (i0['x'] - 40) / 80.0 + 1))
+            else:
+                # 没有在飞的小鬼（比如巨人已经被打死）→ 打这一组的中路，别空放
+                row = float(aim[0] or (2 if grp == 'low' else 5))
+                zs = [z for z in self.by_row.get(int(row), ()) if z.alive]
+                col = (max(1.0, min(9.0, (min(z.x for z in zs) - 40) / 80.0 + 1))
+                       if zs else 8.0)
+        elif isinstance(aim, (tuple, list)) and len(aim) == 2:
             row = float(aim[0])
             # ★ 滑列落点：`[行, "front"]` / `[行, "threat"]`
             #   ★★ 2026-10-23 用户：**必须带"预演-回溯"**——
@@ -1706,12 +1846,80 @@ class Sim:
                                  name='玉米炮', ok=True, rc=(row, col)))
         # ★ 2026-10-22：炮阵的蹦极靠"炮炸"救 —— 爆炸判定域盖到目标格就算救下
         self._bungee_mark('cob', center=(cx, cy))
+        # ★ 2026-10-24：拦截炮 —— 爆炸判定域盖到空中的小鬼就炸死它
+        if self.imp_active:
+            self._imp_kill(cx, cy, spec['radius'])
         self._log('ASH', '玉米炮开炮 → %s-%s（%s）'
                   % (_num(row), _num(col),
                      '即刻爆' if fuse == 0 else '%.0f cs 后爆' % fuse),
                   row=int(round(row)), col=int(round(col)),
                   detail='R=%d · 1800 · 爆心 x=%.1f y=%.1f · 第 %d-%d 门炮'
                          % (spec['radius'], cx, cy, gun.row, gun.col))
+
+    def _tick_imp(self):
+        """小鬼投掷 / 落地（★ 2026-10-24：**只有阵解里出现拦截炮 D 时才启用**）
+
+        简化模型（见 `data.IMP_*`）：
+          · 巨人血量首次 ≤ 50% 时投出小鬼（图鉴口径），只投一次
+          · 小鬼沿抛物线飞 `IMP_FLIGHT_CS`，落点在巨人前方 `IMP_LAND_GAP_PX`
+          · 拦截炮在三个窗口之一把它炸掉（`_fire_cob` 里判）；漏了就在落点
+            按"并入本波血量、由该路 dps 清掉"处理（与旧的期望型口径一致）
+        """
+        if not self.imp_active:
+            return
+        for z in self.zombies:
+            if not z.alive or not z.giant or z.imp_out:
+                continue
+            if z.hp > z.hp0 * D.IMP_THROW_HP_RATIO:
+                continue
+            z.imp_out = True
+            x1 = max(40.0, z.x - D.IMP_LAND_GAP_PX)
+            self.imp_fly.append(dict(
+                row=z.row, t0=self.t, t1=self.t + D.IMP_FLIGHT_CS,
+                x0=z.x, x1=x1, x=z.x, killed=False, wave=z.wave,
+                from_kind=z.kind))
+            self._log('INFO', '%s 投出小鬼（%d 路，飞向 x=%d）'
+                      % (z.kind, z.row, int(x1)), row=z.row,
+                      detail='血量 %.0f / %.0f ≤ 50%%' % (z.hp, z.hp0))
+        keep = []
+        for i in self.imp_fly:
+            p = (self.t - i['t0']) / float(max(1, i['t1'] - i['t0']))
+            i['x'] = i['x0'] + (i['x1'] - i['x0']) * min(1.0, max(0.0, p))
+            if i.get('killed'):
+                continue
+            if self.t >= i['t1']:
+                # 落地：并入本波血量（后场由 IO 负责，与旧口径一致）
+                m = self.wave_meta
+                if m is not None:
+                    m['skip_hp'] += D.ZOMB['小鬼'][0]
+                    m['skips'].append([float(D.ZOMB['小鬼'][0]),
+                                       D.SKIP_DPS.get(i['row'], 150.0)])
+                self.imp_log.append(dict(wave=i['wave'], row=i['row'],
+                                         res='landed', t=self.t))
+                self._log('WARN', '小鬼落地 %d 路（拦截炮没盖到）' % i['row'],
+                          row=i['row'], detail='已并入本波血量，由该路 dps 清掉')
+                continue
+            keep.append(i)
+        self.imp_fly = keep
+
+    def _imp_kill(self, cx, cy, radius):
+        """炮的爆炸判定域盖到空中的小鬼 → 炸死（拦截成功）"""
+        if not self.imp_fly:
+            return 0
+        n = 0
+        for i in self.imp_fly:
+            if i.get('killed'):
+                continue
+            zy = self.zy(i['row'])
+            if (i['x'] - cx) ** 2 + (zy + 20 - cy) ** 2 <= radius ** 2:
+                i['killed'] = True
+                n += 1
+                self.imp_log.append(dict(wave=i['wave'], row=i['row'],
+                                         res='killed', t=self.t))
+                self._log('ASH', '拦截成功：炸死 %d 路空中的小鬼' % i['row'],
+                          row=i['row'], detail='x=%.0f' % i['x'])
+        self.imp_fly = [i for i in self.imp_fly if not i.get('killed')]
+        return n
 
     def _blover(self, ev):
         """三叶草：秒杀全场气球（气球在本模型里是 SKIP 类的"进场即被清"，所以
@@ -2036,7 +2244,8 @@ class Sim:
             fixed = kept
         for item in fixed:
             t, name, aim, w = item[0], item[1], item[2], item[3]
-            self._schedule(max(0, int(t)), name, aim, w)
+            mode = item[4] if len(item) > 4 else None
+            self._schedule(max(0, int(t)), name, aim, w, mode=mode)
 
     def run(self):
         self._arm_fixed_timeline()
@@ -2049,6 +2258,7 @@ class Sim:
             self._tick_icecar()
             self._tick_catapult()
             self._tick_basket()
+            self._tick_imp()
             self._tick_spike_crush()
             self._tick_joker()
             self._tick_wogua()

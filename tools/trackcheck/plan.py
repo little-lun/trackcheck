@@ -219,6 +219,9 @@ TRIGGERS = [
     #   固定波长的阵，具备运算量的操作（N/P/A/A′…）必须用它定时。
     dict(kind='after_block', label='距某积木生效后（可定位到块）',
          params=['id', 'delay']),
+    # ★ 2026-10-24 拦截炮（D）：等"巨人投出的小鬼"飞到某个阶段
+    dict(kind='imp', label='等空中的小鬼（拦截炮）',
+         params=['group', 'when']),
     dict(kind='all', label='全部满足', params=['of']),
     dict(kind='any', label='任一满足', params=['of']),
     dict(kind='not', label='取反', params=['of']),
@@ -257,9 +260,18 @@ LAYOUT_LETTERS = {
     "I'": ['模仿寒冰菇'], 'I': ['寒冰菇'],
     'W': ['窝瓜'], 'K': ['咖啡豆'],
     "C'": ['花盆'], 'C': ['小喷菇'],
-    'P': ['玉米炮'],
+    'P': ['玉米炮'], 'S': ['玉米炮'], 'D': ['玉米炮'],
     '核': ['毁灭菇'], '冰': ['寒冰菇'], '樱': ['樱桃'], '辣': ['辣椒'],
 }
+
+# ★ 2026-10-24 用户：炮有三种写法，轨道字母不同 ——
+#   `P` 常规炮（一对炮打同一点）
+#   `S` 分离炮（一对炮分开打两个点；**落点不自动填**，留给用户）
+#   `D` 延迟炮 / 拦截炮（实战多用于拦空中飞的小鬼；落点**动态**求）
+COB_LETTERS = {'P': 'P', 'S': 'S', 'D': 'D'}
+COB_KIND_LABEL = {'P': '常规炮', 'S': '分离炮', 'D': '拦截炮'}
+# 拦截炮的三个时机（用户给的三个选项）
+IMP_WHEN = ['release', 'apex', 'land']
 
 # 调整（用户 2026-10-21）：只有 w1 是起手，w2 / w11 / w12 都算常规波
 ROLE_OF = {**{w: '旗波' for w in (10, 20)}, **{w: '收尾' for w in (9, 19)}}
@@ -435,7 +447,9 @@ def _blocks_acts(blocks, ctx):
         if b.get('id'):
             trig = dict(trig or {})
             trig['anchor'] = b['id']
-        out.append(dict(op=op, at=at, aim=b.get('aim'), trig=(trig or None)))
+        out.append(dict(op=op, at=at, aim=b.get('aim'), trig=(trig or None),
+                        **{k: b[k] for k in ('cob', 'imp_group', 'imp_when')
+                           if b.get(k)}))
         prev_at = at
     return out
 
@@ -525,6 +539,16 @@ def probe_target(sim, target):
             will_die, need_cs, _rc = _LA.io_eta(sim, z)
         except Exception:
             will_die, need_cs = False, None
+        # ★ 2026-10-24 用户：「确认应用了回溯算法，保证不会因轨道中必然死的怪
+        #   浪费救场资源」→ 除了 io 推演，还要看**轨道已经/即将打出的伤害**：
+        #   炮、灰烬、辣椒排上队的那一发如果够打死它，就没必要再花一张卡。
+        try:
+            pre = sim.incoming_dmg(z, horizon=400)
+        except Exception:                                    # noqa: BLE001
+            pre = 0.0
+        if pre >= z.hp:
+            sim.__dict__['la_skip_n'] = sim.__dict__.get('la_skip_n', 0) + 1
+            return None
         if will_die and need_cs is not None:
             # ★ 关键在于"植物还撑得住多久"，不是"僵尸什么时候死"：
             #   受保护的那格血 = 南瓜 + 植物，啃食按 1hp/cs 算。
@@ -562,10 +586,29 @@ def run_rescue_resource(sim, res, row=None, target_rc=None):
 
 def _run_rescue_resource(sim, res, row=None, target_rc=None):
     op = LEGACY_OP.get(res.get('op'), res.get('op'))
+    card = _card_key(op)
+    # ★★ 2026-10-24 用户：
+    #   ① 「**除收尾波以外不得动用轨道中的资源**」—— 轨道近期要用的卡，救场不许抢
+    #   ② 「收尾波使用轨道中的资源救场时，**必须先预测这不会导致下一波时轨道断链**」
+    #      —— 收尾波（w9 / w19）允许借用，但如果这张卡在重新转好之前
+    #         轨道还要用一次，就别借（否则下一波的链子立刻断）。
+    final = sim.wave_role() in ('收尾', '旗波')
+    if op not in PAD_NAMES:
+        cd = _card_cd(op) or 0
+        if final:
+            ready_at = sim.t + cd
+            if sim.track_need_after(card, ready_at) or \
+                    sim.track_need_after(op, ready_at):
+                sim.__dict__['rescue_hold_n'] = \
+                    sim.__dict__.get('rescue_hold_n', 0) + 1
+                return False
+        elif sim._reserved(card, within=3000) or sim._reserved(op, within=3000):
+            sim.__dict__['rescue_hold_n'] = \
+                sim.__dict__.get('rescue_hold_n', 0) + 1
+            return False
     # ★ 2026-10-22：卡还在 CD 就直接返回 False（去试下一份资源），
     #   不要走 do_action —— 那会往 broken 里塞一条"断轨：樱桃 CD 没好"，
     #   而救场资源的 CD 轮转是**正常现象**，不是断轨。
-    card = _card_key(op)
     if op not in ('小喷菇', '花盆', '阳光菇', '胆小菇'):
         if sim.card_ready.get(card, 0) > sim.t:
             return False
@@ -751,7 +794,8 @@ def _fixed_timeline(p):
             # 同一波（= 同一拍）的所有运算量**同时生效** —— delay 只看这一波的第一块
             blocks = [b for st in (row.get('sets') or [])
                       for b in (st.get('ops') or [])
-                      if (b.get('op') or '') not in _NO_COUNT_OPS]
+                      if (b.get('op') or '') not in _NO_COUNT_OPS
+                      and b.get('cob') != 'D']
             if not blocks:
                 continue
             if only_count:
@@ -914,7 +958,8 @@ def tick_rescue(sim, rules):
 TRACK_SEP = {'|': 'wave', '｜': 'wave', '-': 'late', '－': 'late',
              '/': 'split', '／': 'split', '~': 'variant', '～': 'variant'}
 # 简写里"一次写一响"能代表一对炮的操作（核/冰/灰烬本来就只有一张卡）
-PAIRABLE = {'P'}
+# ★ 2026-10-24：P/S/D 都是"一对炮"的写法 —— 一次写 = 一对
+PAIRABLE = set(COB_LETTERS)
 
 
 def _track_chars(text):
@@ -942,11 +987,12 @@ def _track_chars(text):
 
 
 def _letters(txt, pair, split, unknown):
-    """一个片段里的记号 → 植物名列表。
+    """一个片段里的记号 → (植物名列表, 对应字母列表)
 
     `split=True`（该片段用过 `/`）时**不按简写翻倍** —— 分场本身就表达了"一对"。
+    ★ 2026-10-24：多返回一份"字母"，`quick_layout` 靠它区分 P / S / D。
     """
-    names = []
+    names, kinds = [], []
     for ch, sep in _track_chars(txt):
         if sep == 'unknown':
             if ch not in unknown:
@@ -956,9 +1002,11 @@ def _letters(txt, pair, split, unknown):
             continue
         for n in (LAYOUT_LETTERS.get(ch) or []):
             names.append(n)
+            kinds.append(ch)
             if pair and ch in PAIRABLE and not split:
                 names.append(n)
-    return names
+                kinds.append(ch)
+    return names, kinds
 
 
 def _parse_beat(seg, pair, unknown):
@@ -973,11 +1021,13 @@ def _parse_beat(seg, pair, unknown):
     def names_of(txt):
         return _letters(txt, pair, split, unknown)
 
-    beat = dict(ops=names_of(parts[0]), late=[], split=split)
+    ops, kinds = names_of(parts[0])
+    beat = dict(ops=ops, kinds=kinds, late=[], late_kinds=[], split=split)
     for p in parts[1:]:
-        grp = names_of(p)
+        grp, gkind = names_of(p)
         if grp:
             beat['late'].append(grp)
+            beat['late_kinds'].append(gkind)
     return beat if (beat['ops'] or beat['late'] or split) else None
 
 
@@ -1268,6 +1318,287 @@ _NO_COUNT_OPS = {'寒冰菇', '模仿寒冰菇', '冰', '模仿冰', '咖啡豆'
 _ICE_OPS = {'寒冰菇', '模仿寒冰菇', '冰', '模仿冰', '存冰'}
 
 
+# ══════════════════════════════════════════════════════════════════
+# 快捷布置：结构判断（旗波要不要冰杀蹦极 / 炮的默认落点 / 自动选卡 / 自动救场）
+# ══════════════════════════════════════════════════════════════════
+def _arr_cells(array):
+    """阵型数组（`{'1-2': {plant, pumpkin, ladder, base, core, wear}}`）→ 规范化列表"""
+    out = []
+    for k, v in (array or {}).items():
+        if not isinstance(v, dict):
+            continue
+        try:
+            r, c = [int(x) for x in str(k).split('-')[:2]]
+        except Exception:                                    # noqa: BLE001
+            continue
+        out.append(dict(row=r, col=c, plant=v.get('plant') or '',
+                        pumpkin=bool(v.get('pumpkin')),
+                        ladder=bool(v.get('ladder')),
+                        core=bool(v.get('core')), wear=bool(v.get('wear'))))
+    return sorted(out, key=lambda x: (x['row'], x['col']))
+
+
+def _field_rows(field, array=None):
+    try:
+        from tools.trackcheck import fields as F
+        return F.get(field or 'PE').rows
+    except Exception:                                        # noqa: BLE001
+        return max([c['row'] for c in _arr_cells(array)] or [6])
+
+
+def cob_lane_pairs(rows_n):
+    """一对炮的**默认落点行**（用户 2026-10-24）
+
+    · 6 路场地 → 2 路 + 5 路（上下各偏一格，能盖到 1~4 / 4~6）
+    · 5 路场地 → 2 路 + 4 路
+    落点列用**滑动落点** `[行, "front"]`（引擎按"预演-回溯"挑最优列）。
+    """
+    return (2, 5) if int(rows_n or 6) >= 6 else (2, 4)
+
+
+def _umbrella_covers(array, rc):
+    r, c = rc
+    for cell in array:
+        if cell['plant'] == '保护伞' and abs(cell['row'] - r) <= 1 \
+                and abs(cell['col'] - c) <= 1:
+            return True
+    return False
+
+
+def _ice_kill_cover(array, rc):
+    """这一格是不是在「冰杀定式」下（二曾 / 瓜曾喷）—— 与 engine 同口径的简化"""
+    r, c = rc
+    zeng = 0
+    for cell in array:
+        if cell['plant'] == '忧郁菇' and abs(cell['row'] - r) <= 1 \
+                and abs(cell['col'] - c) <= 1:
+            zeng += 1
+    if zeng >= 2:
+        return True
+    if zeng >= 1:
+        for cell in array:
+            if cell['plant'] == '冰瓜' and cell['row'] == r \
+                    and abs(cell['col'] - c) <= 3:
+                return True
+    return False
+
+
+def need_ice_for_bungee(array, field=None):
+    """旗波要不要"冰杀蹦极"（用户 2026-10-24 的口径）
+
+    只要阵型结构决定了"蹦极不靠冰"，旗波就**不该**重置到含 I 的拍：
+
+      · 场上没有可偷的目标（全在保护伞 3×3 下 / 只剩玉米炮、垫材）→ 不用管
+      · 炮 ≥ 10 门（超多炮）→ 用炮炸（`_bungee_mark('cob')` 已经支持）
+      · 目标里**识别不出冰杀定式**（既不在伞下、也没有二曾/瓜曾喷盖着）→ 用炮炸
+
+    只有"存在既不在伞下、又处在冰杀定式下的植物"时，才必须让寒冰菇生效。
+    """
+    cells = _arr_cells(array)
+    if not cells:
+        return False
+    n_cob = sum(1 for c in cells if c['plant'] == '玉米炮')
+    if n_cob >= 10:
+        return False                       # 超多炮：直接炮炸蹦极
+    pads = {'小喷菇', '花盆', '阳光菇', '胆小菇'}
+    cand = [c for c in cells
+            if c['plant'] and c['plant'] != '玉米炮' and c['plant'] not in pads
+            and c['plant'] != '保护伞']
+    if not cand:
+        return False                       # 只剩炮 / 垫材 / 伞 → 没什么可偷
+    exposed = [c for c in cand
+               if not _umbrella_covers(cells, (c['row'], c['col']))]
+    if not exposed:
+        return False                       # 全在伞下 → 不用管蹦极
+    return any(_ice_kill_cover(cells, (c['row'], c['col'])) for c in exposed)
+
+
+def _cycle_cs(gaps):
+    """一个循环多少 cs（没填波长串 → None，用不了 CD 推算）"""
+    try:
+        g = [float(x) for x in (gaps or [])]
+    except Exception:                                        # noqa: BLE001
+        return None
+    return int(round(sum(g) * 100)) if g else None
+
+
+# 循环里每种操作出现几次（取所有变体里最多的那个，保守）
+def _cycle_counts(variants):
+    best = {}
+    for beats in variants or []:
+        cur = {}
+        for beat in beats:
+            for op in list(beat.get('ops') or []):
+                cur[op] = cur.get(op, 0) + 1
+            for grp in (beat.get('late') or []):
+                for op in list(grp or []):
+                    cur[op] = cur.get(op, 0) + 1
+        for k, v in cur.items():
+            best[k] = max(best.get(k, 0), v)
+    return best
+
+
+def _card_cd(op):
+    """这张（植物）卡的充能时长（cs）；查不到 → 0（当"随时可用"）"""
+    from tools.trackcheck import data as _D
+    key = CARD_KEY.get(op, op)
+    return int((_D.CARDS.get(key) or {}).get('cd') or 0)
+
+
+def _lst(xs):
+    """可读列表：中文用「、」、英文用「, 」"""
+    from tools.trackcheck import i18n as _I
+    sep = ', ' if _I.is_en() else '、'
+    return sep.join(str(x) for x in xs)
+
+
+def auto_deck(plan, array=None, field=None, kinds=None, variants=None, gaps=None):
+    """**快捷布置阵解时自动选卡**（用户 2026-10-24 的规则）
+
+    ① 先按轨道本身要的卡：一个循环里出现过的操作
+    ② 用波长串算"这个循环里要不要带模仿"：
+       一张卡的 CD 是 `cd`，一个循环 `L` cs；如果 `L < cd × 次数` 就得带模仿
+       （N6s 54s 要 2 个 I、每张冰卡 50s → 带模仿寒冰菇；
+         P3n 36s 要 1 个 N、毁灭菇 50s → 带模仿毁灭菇）
+    ③ 白天场（DE / PE / RE）用到蘑菇 → 带咖啡豆
+    ④ 阵里有**没梯子的南瓜** → 带南瓜（补南瓜）
+    ⑤ 每一行陆路都有梯子南瓜 → 不带辣椒（否则带上，用于控丑 / 压车）
+    ⑥ 出气球且场上没有香蒲 → 带三叶草
+    ⑦ 常磨损标记（`wear`）的植物 → 该植物带上，并在全场判定里挂"随时补"
+    ⑧ 再补 1~2 张灰烬 + 2~3 张垫材做救场
+    最多 10 张，按上面的优先级砍。
+    """
+    from tools.trackcheck import data as _D
+    from tools.trackcheck import fields as F
+    cells = _arr_cells(array)
+    fld = None
+    try:
+        fld = F.get(field or 'PE')
+    except Exception:                                        # noqa: BLE001
+        pass
+    kinds = set(kinds or [])
+    deck, notes, mimic = [], [], []
+
+    def add(name, why=''):
+        if not name or len(deck) >= 10:
+            return False
+        if name in deck:
+            return False
+        deck.append(name)
+        if why:
+            notes.append('%s ← %s' % (name, why))
+        return True
+
+    def add_pair(name, why=''):
+        """一张真卡 + 一张模仿（模仿优先占前位，便于"先点真的"）"""
+        if name not in deck:
+            add(name, why)
+        mic = '%s:%s' % (MIMIC, name)
+        if mic not in deck and len(deck) < 10:
+            deck.append(mic)
+            mimic.append(name)
+            notes.append('模仿者:%s ← %s' % (name, why or 'CD 转不过来'))
+
+    # ---- ① 轨道需要的卡（按循环里出现的次数排序）
+    counts = _cycle_counts(variants)
+    L = _cycle_cs(gaps)
+    for op in sorted(counts, key=lambda o: (-counts[o], o)):
+        if op in PAD_NAMES or op in ('荷叶', '花盆', '玉米炮'):
+            continue                       # 基座 / 玉米炮：属于阵型，不进选卡
+        cd = _card_cd(op)
+        n = counts[op]
+        need2 = bool(L and cd and n * cd > L)
+        if need2:
+            add_pair(op, '循环 %gs 要 %d 个，单卡 CD %.0fs 转不过来'
+                          % (L / 100.0, n, cd / 100.0))
+        else:
+            add(op, '轨道要用')
+
+    # ---- ② 白天场用蘑菇 → 咖啡豆
+    day = not (fld and fld.night)
+    if day and any(MUSHROOM_OPS.match(o) for o in counts):
+        add('咖啡豆', '白天场唤醒蘑菇')
+
+    # ---- ③ 南瓜：有没梯子的南瓜就带
+    pks = [c for c in cells if c['pumpkin']]
+    if any(not c['ladder'] for c in pks):
+        add('南瓜', '阵里有没梯子的南瓜，要边打边补')
+
+    # ---- ④ 辣椒：只有"存在没有梯子南瓜的陆路"才带
+    land_rows = [r for r in range(1, (fld.rows if fld else 6) + 1)
+                 if not (fld and r in fld.water)]
+    lacks = [r for r in land_rows
+             if not any(c['pumpkin'] and c['ladder'] and c['row'] == r
+                        for c in cells)]
+    if lacks:
+        add('辣椒', '这些陆路没有梯子南瓜：%s' % _lst(lacks))
+
+    # ---- ⑤ 气球没猫 → 三叶草
+    if '气球' in kinds and not any(c['plant'] in ('香蒲', '猫咪') for c in cells):
+        add('三叶草', '出气球且场上没有香蒲')
+
+    # ---- ⑥ 常磨损标记的植物：带上，并让全场判定随时补
+    wear_ops = sorted({c['plant'] for c in cells if c['wear'] and c['plant']})
+    for op in wear_ops:
+        add(op, '标记了「常磨损」')
+
+    # ---- ⑦ 救场：1~2 张灰烬 + 2~3 张垫材
+    ash = [x for x in ('樱桃', '辣椒', '窝瓜') if x not in deck][:2]
+    for op in ash:
+        add(op, '救场灰烬')
+    pads = [x for x in ('小喷菇', '花盆', '阳光菇') if x not in deck][:3]
+    if pks and '花盆' not in pads and len(deck) < 10:
+        pads.insert(0, '花盆')             # 屋顶/水上的垫材需要基座
+    for op in pads[:3]:
+        add(op, '救场垫材')
+
+    return dict(deck=deck[:10], notes=notes, mimic=mimic, wear=wear_ops,
+                n_cob=sum(1 for c in cells if c['plant'] == '玉米炮'))
+
+
+MUSHROOM_OPS = re.compile(r'蘑菇|寒冰菇|毁灭菇|忧郁菇|大喷菇|小喷菇|阳光菇|'
+                          r'胆小菇|魅惑菇|磁力菇|海蘑菇|墓碑吞噬者|'
+                          r'模仿.*(菇)')
+
+
+def auto_rescue(array=None, deck=None, kinds=None, field=None):
+    """**快捷布置时自动填救场**（用户 2026-10-24 的规则）
+
+    · core = **所有套南瓜的植物** + **紫卡**（`data.PURPLE_CARDS`）
+      （丢了就是崩阵，所以要写进"要保的植物"里）
+    · 救场资源 = 选卡里那 1~2 张灰烬 + 2~3 张垫材
+    · 优先级：列数越靠前越优先（越靠前越直接顶在阵线上）
+    · 急迫级：垫材 1 格（贴脸才救）、灰烬 2 格（早一点，因为它范围大）
+    """
+    from tools.trackcheck import data as _D
+    cells = _arr_cells(array)
+    deck = list(deck or [])
+    targets = []
+    for c in cells:
+        if not c['plant']:
+            continue
+        want = c['pumpkin'] or c['plant'] in _D.PURPLE_CARDS
+        if not want:
+            continue
+        targets.append(dict(
+            id='%d-%d %s' % (c['row'], c['col'], c['plant']),
+            protect=dict(row=c['row'], col=c['col']),
+            urgency_cells=1.0,
+            # 越靠前（列小）越优先；套南瓜的再高一点
+            priority=int(max(1, 10 - c['col']) + (2 if c['pumpkin'] else 0)),
+            cooldown=60))
+    targets.sort(key=lambda t: -t['priority'])
+    ash = [x for x in deck if x in ('樱桃', '辣椒', '窝瓜')]
+    pads = [x for x in deck if x in PAD_NAMES]
+    res = []
+    for op in pads:
+        res.append(dict(op=op, pad_col='front', only_giant=True))
+    for op in ash:
+        res.append(dict(op=op))
+    return dict(enabled=True, targets=targets[:12], resources=res,
+                ash=ash, pads=pads)
+
+
 def _first_ice_beat(beats):
     """轨道里**第一个含冰**的拍号；没有就 None（旗波重置用）"""
     for i, bt in enumerate(beats or []):
@@ -1279,12 +1610,16 @@ def _first_ice_beat(beats):
     return None
 
 
-def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None):
+def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
+                 array=None, field=None, kinds=None, auto_fill=None):
     """
     把简式轨道铺进**常规波**（默认 20 波全填）。
 
-    ★ 只填"做什么"：落点留给用户补 —— 这一版开始**时机也不再留空**：
-      填了波长串（= 固定波长的阵）就按「距上一波段生效后 +波长」定时。
+    ★ 只填"做什么 + 什么时候 + 默认落点"：
+      · 时机：填了波长串（= 固定波长的阵）就按「距上一波段生效后 +波长」定时
+      · 落点：一对常规炮自动填「滑动落点」；分离炮留空并提示；
+              拦截炮填**动态落点**（炸空中飞的小鬼）
+      · 选卡 / 救场：给了 `array` + `field` 就一并自动生成（用户 2026-10-24）
 
     分隔符的处置（用户 2026-10-22）：
       · `|` → 下一波
@@ -1295,6 +1630,8 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None):
     `start`（用户 2026-10-23）：**起手拍**。固定波长的阵"起手必然从连续节奏最快的点
       开始"，所以允许从轨道里任意一拍起铺。例 N6s = `I-PP|I-PP|N|PP`，
       起手取第 2 拍 → 铺出来是 `PP|N|PP|I-PP|…`（第 1 拍的 I 开局没有运算量，不打）。
+
+    返回 `(plan, filled, info)`；`info` 里有自动选卡 / 自动救场 / 提示与告警。
     """
     p = norm(plan or {})
     rh = p.get('rhythm') or {}
@@ -1308,7 +1645,7 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None):
     parsed = parse_track_full(text, None if mode == 'auto' else (mode == 'short'))
     variants = [v for v in parsed['variants'] if any(cycle_ops([b]) for b in v)]
     if not variants:
-        return p, 0
+        return p, 0, dict(hints=[], warnings=['轨道是空的'], unknown=parsed['unknown'])
 
     # 波长串
     raw_gaps = gaps_text if gaps_text is not None else rh.get(GAPS_KEY)
@@ -1324,6 +1661,22 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None):
     gaps = [float(x) for x in (rh.get(GAPS_KEY) or [])]
     start_i = int(rh.get('start') or 0)
 
+    # ---- 结构判断（用户 2026-10-24）：旗波要不要冰杀蹦极 / 炮打哪两路
+    cells = _arr_cells(array)
+    rows_n = _field_rows(field, array)
+    need_ice = need_ice_for_bungee(array, field) if cells else True
+    lane_a, lane_b = cob_lane_pairs(rows_n)
+    mid_low = 2 if rows_n >= 6 else 2          # 1~3 路的中路
+    mid_high = 5 if rows_n >= 6 else 4         # 4~6 / 4~5 路的中路
+    n_cob = sum(1 for c in cells if c['plant'] == '玉米炮')
+    info = dict(hints=[], warnings=[], unknown=parsed['unknown'],
+                need_ice_bungee=bool(need_ice), n_cob=n_cob,
+                cob_lanes=[lane_a, lane_b], deck_added=[], mimic=[], wear=[])
+    if cells and not need_ice:
+        info['hints'].append(
+            '阵型结构不需要冰杀蹦极（伞覆盖 / 只剩炮 / 超多炮 %d 门 / '
+            '识别不出冰杀定式）→ 旗波不重置到含 I 的拍' % n_cob)
+
     targets = [w for w in range(1, WAVES + 1) if is_regular(w)]
     rows = {int(r['w']): r for r in (p.get('waves') or [])}
     filled = 0
@@ -1331,6 +1684,8 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None):
     beats = variants[0]
     prev_anchor = None   # 上一个**运算量积木**的 id（定时链用）
     j = start_i          # ★ 当前拍号（**可变**：旗波会重置它，见下）
+    n_split_cob = 0
+    n_imp_cob = 0
     for i, w in enumerate(targets):
         if j and j % len(beats) == 0:
             cycle_i = j // len(beats)
@@ -1338,10 +1693,14 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None):
         # ★★ 2026-10-24 用户（从 case 学到的）：**旗波如果要求冰杀蹦极，
         #   就必须从轨道里有 I 的那一拍开始**。FE.雾四炮 的 w10 就是 `I-PP`
         #   （I 用于冰杀蹦极），所以旗波要**重置到第一个含 I 的拍**。
-        if w in (10, 20) and gaps:
+        #   ★ 2026-10-24 追加：**阵型结构决定不用冰杀蹦极时，这条不生效**
+        #     （全在伞下 / 只剩炮 / 超多炮 / 识别不出冰杀定式 → 用炮炸蹦极）。
+        reset_here = False
+        if w in (10, 20) and gaps and need_ice:
             k = _first_ice_beat(beats)
             if k is not None:
                 j = k
+                reset_here = True
         b = j % len(beats)
         beat = beats[b]
         # ★ gap[b] 的语义 = **从第 b−1 拍生效 到 第 b 拍生效** 的间隔（case 实测口径），
@@ -1353,13 +1712,34 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None):
             p['waves'].append(row)
             rows[w] = row
         row['role'] = role_of(w)
-        blocks = [dict(op=op, aim=None, trig={'kind': 'spawn'})
-                  for op in (beat.get('ops') or [])]
-        for grp in (beat.get('late') or []):
-            for op in grp or []:
-                # `-` 之后的时机：留空给用户填（默认"上一块之后 + 0"）
-                blocks.append(dict(op=op, aim=None,
-                                   trig={'kind': 'after', 'at': 0}))
+
+        # ---- 积木（带字母，P/S/D 要区分）
+        groups = []                      # [(是否主时机, 字母列表, 植物列表)]
+        ops0 = list(beat.get('ops') or [])
+        kd0 = list(beat.get('kinds') or [''] * len(ops0))
+        if ops0:
+            groups.append((True, kd0, ops0))
+        for gi, grp in enumerate(beat.get('late') or []):
+            kdg = (beat.get('late_kinds') or [])
+            kdg = kdg[gi] if gi < len(kdg) else [''] * len(grp or [])
+            if grp:
+                groups.append((False, list(kdg), list(grp)))
+        blocks = []
+        for is_main, kds, opsx in groups:
+            for op, letter in zip(opsx, kds):
+                blk = dict(op=op, aim=None,
+                           trig=({'kind': 'spawn'} if is_main
+                                 else {'kind': 'after', 'at': 0}))
+                if op == '玉米炮':
+                    blk['cob'] = COB_LETTERS.get(letter, 'P')
+                blocks.append(blk)
+
+        # ---- 落点（用户 2026-10-24）
+        #   · 一对常规炮（P）→ 滑动落点，6 路场地 2/5 路、5 路场地 2/4 路
+        #   · 单门 / 分离炮（S）→ 留空，提示自己填
+        #   · 拦截炮（D）→ 动态落点 `[行, "imp"]`，给三个时机选项
+        _assign_cob_aims(blocks, groups, lane_a, lane_b, mid_low, mid_high)
+
         # ★ 2026-10-23 用户：起手那一拍里**没有运算量的操作开局不打**
         #   （N6s 从第 2 拍的炮起手时，第 2 拍的 I 不打 —— 开局还没怪可冻）
         if start_i and i == 0:
@@ -1384,7 +1764,10 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None):
         #   反例（旧实现用的 `gaps[(j-1) % n]`，即"自己那一拍的时长"）：
         #   N6s(18,18,9,9) 从第 2 拍起手 → 旧实现给出 18/18/9/9 → 900/1800 全错位；
         #   case 里实测是 900/900/1800/1800，正好是 `gaps[(b+1)%4]`。
-        ops_blocks = [b_ for b_ in blocks if b_['op'] not in _NO_COUNT_OPS]
+        #   ★ 2026-10-24 追加：**拦截炮（D）不参与定时链** —— 它是"按小鬼出手"
+        #     的条件触发，钉死在时间上就没有拦截意义了。
+        ops_blocks = [b_ for b_ in blocks
+                      if b_['op'] not in _NO_COUNT_OPS and b_.get('cob') != 'D']
         if gap_in is not None and prev_anchor and ops_blocks:
             for b_ in ops_blocks:
                 b_['trig'] = {'kind': 'after_block', 'id': prev_anchor,
@@ -1393,21 +1776,154 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None):
         if ops_blocks:
             k = blocks.index(ops_blocks[0]) + 1
             prev_anchor = 'w%d-1-%d' % (w, k)
+        # ★ 每块积木唯一命名：波数-候选-序号（after_block 靠它定位）
+        for k, b_ in enumerate(blocks, 1):
+            b_['id'] = 'w%d-1-%d' % (w, k)
         row['sets'] = [dict(when={'kind': 'always'}, ops=blocks)]
-        label = ' + '.join(b_.get('op') for b_ in blocks) or '（空）'
+        label = ' + '.join(_block_label(b_) for b_ in blocks) or '（空）'
         row['note'] = '快捷布置：' + label
         if beat.get('split'):
             row['note'] += '　· 分场（`/`）：上下半场的落点自己填'
         if len(variants) > 1:
             row['note'] += '　· 波动（`~`）第 %d 套' % (cycle_i % len(variants) + 1)
-        if gap_in is not None and i > 0:
+        if gap_in is not None and i > 0 and ops_blocks:
             row['note'] += '　· 定时（距上一波 %gs）' % gap_in
-        if w in (10, 20) and gaps and _first_ice_beat(beats) is not None:
+        if reset_here:
             row['note'] += '　· 旗波重置到含 I 的拍（冰杀蹦极）'
         filled += 1
         j += 1
+        n_split_cob += sum(1 for b_ in blocks if b_.get('cob') == 'S')
+        n_imp_cob += sum(1 for b_ in blocks if b_.get('cob') == 'D')
+
+    if n_split_cob:
+        info['hints'].append('分离炮（S）×%d 的落点没有自动填 —— 请逐个填「填写落点」'
+                             % n_split_cob)
+    if n_imp_cob:
+        info['hints'].append('拦截炮（D）×%d 的落点是**动态**的：按「炸死所有被巨人'
+                             '抛出在空中飞的小鬼」在运行时求解；时机可选'
+                             '出手 / 最高点 / 落地前' % n_imp_cob)
+    if parsed['unknown']:
+        info['warnings'].append('不认识的记号：%s' % ' '.join(parsed['unknown']))
+
+    # ---- 自动选卡 / 自动救场（用户 2026-10-24）
+    if auto_fill is None:
+        auto_fill = bool(cells)
+    if cells and auto_fill:
+        dk = auto_deck(p, array=array, field=field, kinds=kinds,
+                       variants=variants, gaps=rh.get(GAPS_KEY))
+        p['deck'] = dk['deck']
+        info['deck_added'] = dk['notes']
+        info['mimic'] = dk['mimic']
+        info['wear'] = dk['wear']
+        rs = auto_rescue(array=array, deck=p['deck'], kinds=kinds, field=field)
+        p['rescue_simple'] = rs
+        info['rescue'] = dict(n=len(rs['targets']), ash=rs['ash'],
+                              pads=rs['pads'],
+                              ash_txt=_lst(rs['ash']) or '—',
+                              pads_txt=_lst(rs['pads']) or '—')
+        if dk['wear']:
+            p['globals'] = _merge_wear_globals(p.get('globals'), dk['wear'],
+                                               field=field)
+            info['hints'].append('已给「常磨损」植物挂上全场判定：随时准备补种')
+
     p['waves'].sort(key=lambda r: int(r['w']))
-    return p, filled
+    return p, filled, info
+
+
+def _cob_of(opsx, kds, i):
+    try:
+        return COB_LETTERS.get(kds[i], 'P') if opsx[i] == '玉米炮' else None
+    except Exception:                                        # noqa: BLE001
+        return None
+
+
+def _block_label(b_):
+    """时间轴/备注里一块积木的显示名（炮要带 P/S/D 前缀）"""
+    op = b_.get('op') or ''
+    k = b_.get('cob')
+    if op == '玉米炮' and k:
+        return '%s（%s）' % (k, COB_KIND_LABEL.get(k, k))
+    return op
+
+
+def _assign_cob_aims(blocks, groups, lane_a, lane_b, mid_low, mid_high):
+    """给本波的炮积木分配落点（用户 2026-10-24）
+
+    分组依据 = 轨道里的"时机组"（主时机 / 每个 `-` 组），一对炮必须在同一组里：
+
+      · 两个 `P` → 滑动落点，行分别取 `lane_a` / `lane_b`
+      · 一个 `P`（或落单）→ 视为**分离炮**：`cob='S'`，落点留空
+      · 两个 `D` → 拦截炮：一个盖 1~3 路、一个盖 4~6（5 路场地 4~5），
+                   落点写 `[行, "imp"]`，时机默认"最高点"
+      · `S` 原样保留（落点留空）
+    """
+    pos = 0
+    for is_main, kds, opsx in groups:
+        seg = blocks[pos:pos + len(opsx)]
+        pos += len(opsx)
+        cobs = [b_ for b_ in seg if b_.get('op') == '玉米炮']
+        if not cobs:
+            continue
+        kinds = [b_.get('cob') or 'P' for b_ in cobs]
+        if any(k == 'D' for k in kinds):
+            d_cobs = [b_ for b_ in cobs if b_.get('cob') == 'D']
+            if len(d_cobs) >= 2:
+                # 一对拦截炮：一个管 1~3 路（low），一个管 4~6（high）
+                for n, b_ in enumerate(d_cobs[:2]):
+                    b_['aim'] = [mid_low if n == 0 else mid_high, 'imp']
+                    b_['imp_group'] = 'low' if n == 0 else 'high'
+                    b_['imp_when'] = b_.get('imp_when') or 'apex'
+                    b_['trig'] = {'kind': 'imp', 'group': b_['imp_group'],
+                                  'when': b_['imp_when']}
+            else:
+                # 单门拦截炮：不分组，谁在空中飞就打谁
+                b_ = d_cobs[0]
+                b_['aim'] = [mid_low, 'imp']
+                b_['imp_group'] = 'any'
+                b_['imp_when'] = b_.get('imp_when') or 'apex'
+                b_['trig'] = {'kind': 'imp', 'group': 'any',
+                              'when': b_['imp_when']}
+            rest = [b_ for b_ in cobs if b_.get('cob') != 'D']
+            if not rest:
+                continue
+            cobs = rest
+            kinds = [b_.get('cob') or 'P' for b_ in cobs]
+        # 成对的常规炮
+        pairs = [cobs[k:k + 2] for k in range(0, len(cobs) - len(cobs) % 2, 2)]
+        lanes = (lane_a, lane_b)
+        for pr in pairs:
+            p0, p1 = pr
+            if 'S' in (p0.get('cob'), p1.get('cob')):
+                for b_ in pr:                 # 分离炮：留空
+                    b_['cob'] = 'S'
+                    b_['aim'] = None
+                continue
+            p0['aim'] = [lanes[0], 'front']
+            p1['aim'] = [lanes[1], 'front']
+        if len(cobs) % 2 == 1:
+            b_ = cobs[-1]
+            if b_.get('cob') != 'D':
+                b_['cob'] = 'S'
+                b_['aim'] = None
+
+
+def _merge_wear_globals(existing, wear_ops, field=None):
+    """给"常磨损"的植物挂一条全场判定：该植物没了就补（用户 2026-10-24）
+
+    全场判定的结构是 `{id, enabled, every, cooldown, when(gate), ops}`，
+    条件用 `plant_count`（场上某植物数量 < 1 = 全没了）。
+    """
+    out = [r for r in (existing or []) if isinstance(r, dict)]
+    for op in wear_ops:
+        rid = '补%s' % op
+        if any(r.get('id') == rid for r in out):
+            continue
+        out.append(dict(
+            id=rid, enabled=True, every=50, cooldown=0,
+            when=dict(kind='plant_count', plant=op, cmp='<', value=1),
+            ops=[dict(op=op, aim=None, trig={'kind': 'spawn'})]))
+    return out
+
 
 
 # ------------------------------------------------------------------ 批量编辑 / 波次平移
@@ -1511,7 +2027,7 @@ def validate(plan):
         bad('选卡', '卡槽只有 10 个，现在填了 %d 张' % len(deck))
     dup = {c for c in deck if deck.count(c) > 1}
     if dup:
-        bad('选卡', '重复带卡：%s' % '、'.join(sorted(dup)))
+        bad('选卡', '重复带卡：%s' % _lst(sorted(dup)))
     for c in deck:
         base = MIMIC if c == MIMIC else (mimic_target(c) or c)
         if base not in PLANT_ALL and c != MIMIC:
@@ -2264,8 +2780,8 @@ def example_fe4(rid='N6s'):
     #   所以**雾四炮这个示例默认打开绝对时间轴**（经典八炮那种"炮数刚好卡产能"
     #   的阵仍然关闭，见 CHANGELOG）。
     p['rhythm']['fixed_timeline'] = True
-    p, _n = quick_layout(p, '|'.join(conf['beats']), pair='full',
-                         start=conf.get('start', 0))
+    p, _n, _info = quick_layout(p, '|'.join(conf['beats']), pair='full',
+                                start=conf.get('start', 0))
 
     # ★ 落点：炮按列滑动；冰种在**陆路空格**（夜场没有存冰位、水路要荷叶）；
     #   **毁灭菇要种在水路前排空格** —— 只有水路前排才能同时盖住
@@ -2688,6 +3204,38 @@ _SPEC_PLAN = """# TrackCheck 阵解 JSON 格式说明（format = {fmt}）
       {{"op":"玉米炮","aim":[4,8],"trig":{{"kind":"spawn"}}}}]}}]}}]}}
 ```
 （`pair:"short"` 时写一个 P 就会自动变成两门；上面是"自己写两块"的等价写法）
+
+## 炮种 P / S / D（积木的 `cob` 字段）
+
+| `cob` | 名字 | 含义 |
+|---|---|---|
+| `P` | 常规炮 | 一对炮炸 8/9 列，落点可以左右滑动 |
+| `S` | 分离炮 | 单独一门补刀，**落点必须自己填** |
+| `D` | 拦截炮（延迟炮） | 落点由「炸死所有被巨人抛在空中的小鬼」**在运行时求解** |
+
+`P` / `S` / `D` 都是 `玉米炮`，区别只在落点怎么来：
+
+- `P` 的 `aim` 写成 `[行, "front"]`，引擎把"front"理解成"这一行最靠前的僵尸"，允许滑动。
+- `S` 的 `aim` 留空（`null`），等你自己填具体 `[行, 列]`。
+- `D` 的 `aim` 写成 `[行, "imp"]`，配合 `trig`：
+
+```json
+{{"op":"玉米炮","cob":"D","aim":[2,"imp"],
+  "imp_group":"low","imp_when":"apex",
+  "trig":{{"kind":"imp","group":"low","when":"apex"}}}}
+```
+
+  - `trig.kind = "imp"`：等到**有小鬼在空中飞**时才开炮（没有在飞的小鬼就一直等，等到这段窗口过去才放弃）。
+  - `imp_group`：`low` 管 1~3 路、`high` 管 4~6 路（5 行场地为 4~5）、`any` 不分。
+  - `imp_when`：`release` 出手时就拦 / `apex` 飞到最高点拦（默认）/ `land` 快落地时拦。
+  - 带 `D` 或带 `imp` 触发器的阵解会启用"小鬼实体化"模型（半血投出、飞行、落地才并入本体血量）；
+    没有 `D` 的阵解仍走老模型（巨人死时小鬼直接并入），所以老结果不受影响。
+
+## 阵容里的 `wear`（常磨损）
+
+编辑阵图时每格可以勾「常磨损」（JSON 里是 `"wear": true`）。
+它有两个作用：① 自动选卡会把这个植物带上；② 自动补一行全场判定「随时准备补」。
+套了南瓜的植物和紫卡自动算 `core`，救场会优先保护它们。
 
 ## 这个模型里"操作"只有两种
 

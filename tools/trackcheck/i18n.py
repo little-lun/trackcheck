@@ -541,6 +541,37 @@ JS_LITERALS = {
     ' 格': ' cells', ' 发': ' shots', ' 处': ' places', ' 波': ' waves',
     '失败：': 'failed: ', '存冰数': 'Ice bank', '导入 ': 'Import ',
     '继续？': 'Continue?',
+    '全部': 'All',
+    " · 拦截小鬼（动态）": " · interception (dynamic)",
+    " · 滑动落点": " · sliding spot",
+    " · 滑动落点（优先威胁）": " · sliding spot (threat first)",
+    "滑动落点（按最靠前那只自动挑列）": "Sliding spot (auto-pick the column covering the leading zombie)",
+    "拦截动态落点（炸空中的小鬼）": "Interception spot (blast the Imps in the air)",
+    "<label style=\"margin-left:10px\">炮种</label>": "<label style=\"margin-left:10px\">Cob kind</label>",
+    "P 常规炮": "P regular cob",
+    "S 分离炮": "S separated cob",
+    "D 拦截炮": "D interception cob",
+    "<label style=\"margin-left:10px\">拦截时机</label>": "<label style=\"margin-left:10px\">Intercept at</label>",
+    "投掷刚刚出手时": "Right as the throw starts",
+    "飞行到最高点时": "At the apex of the flight",
+    "小鬼将要落地时": "Just before the Imp lands",
+    "<label style=\"margin-left:10px\">管哪几路</label>": "<label style=\"margin-left:10px\">Covers lanes</label>",
+    "> 常磨损": "> Wear-prone",
+    "常磨损 = 这个植物边打边掉，选卡要带它、": "Wear-prone = this plant keeps being worn down; the seed deck must include it ",
+    "并在全场判定里挂「随时准备补」": "and a global check keeps it replanted",
+    "同时会**按阵型自动选卡 + 自动填救场**。继续？": "It will also **auto-pick the seed deck from the formation and auto-fill the rescue layer**. Continue?",
+    "）; 下表是**已参与模拟**的": "); the table below lists the ",
+    "项，其余只当占格/未建模。</div>": " entries that **take part in the simulation**; the rest only occupy a cell",
+    "后台跑一个本地服务 + 打开浏览器": "run a local server in the background and open a browser",
+    "先建占位、后补卡片": "create placeholders first, fill in cards later",
+    "被模仿的植物": "the imitated plant",
+    "某一块具体积木": "one specific block",
+    "组名": "group name",
+    "阵型结构决定": "determined by the formation structure",
+    "再触发": "trigger again",
+    "点了没反应": "clicked and nothing happened",
+    "看阵": "view formation",
+    "等全部": "wait for all",
     # ---- 阵容编辑器的勾选框（JS 里 `> 套南瓜` 这样拼出来）
     '> 醒着': '> Awake', '> 套南瓜': '> Pumpkin', '> 搭梯（梯子南瓜）': '> Ladder',
     '> 墓碑': '> Gravestone', '> 有 花盆': '> Flower Pot', '> 有 睡莲': '> Lily Pad',
@@ -634,7 +665,8 @@ _KEEP_KEYS = {'code', 'value', 'key', 'lang', 'langs', 'version', 'schema',
               'gaps', 'track_seps', 'regular', 'role', 'zombie'}
 # 只有这些 key 的字符串值需要翻译（其余一律原样）
 _TEXT_KEYS = {'note', 'label', 'trad', 'new', 'group', 'reason', 'tier', 'hint',
-              'title', 'text', 'desc', 'summary', 'msg'}
+              'title', 'text', 'desc', 'summary', 'msg',
+              'ash_txt', 'pads_txt'}
 
 
 def _is_identifier(s):
@@ -733,6 +765,9 @@ def localize(text, names=True):
     for a, b in pairs:
         if a in s:
             s = s.replace(a, b)
+    # ★ 2026-10-24：**数字模板先跑** —— 否则 `（拦截炮）` 这种短键会先把整句改坏，
+    #   带数字的长句模板就再也匹配不上了（实测：拦截炮提示被切成半中半英）。
+    s = _num_templates_in(s)
     for k in _keys_desc(BULK):
         if k in s:
             s = s.replace(k, BULK[k])
@@ -800,6 +835,7 @@ def _clean_bulk(d):
             continue
         # 只是某个植物/僵尸名的**片段**（`炮` ⊂ `玉米炮`）→ 会把名字咬坏
         #   ⚠️ 反过来（长句**包含**植物名）是允许的：整句替换是原子的。
+        #   ★ 数字模板键（`循环 #s 要 # 个`）不含中文名，直接放行。
         if any(k in n for n in NAMES):
             continue
         # 整句优先：如果它只是某条 PHRASES 的一截，就丢掉（否则会把整句切碎）
@@ -829,6 +865,11 @@ def tr(s):
 
     和 `localize()` 的区别：`localize` 为了不误伤专有名词，1~2 字短词只在
     标签位置替换；而 JSON 的值本身就是完整标签，必须允许精确匹配。
+
+    ★ 2026-10-24：加一层**数字模板**查表 —— `循环 36s 要 1 个，单卡 CD 50s
+      转不过来` 这种句子带数字，整串查表永远命中不了。所以把连续数字换成
+      `#` 再查一次（`BULK` 里存成 `循环 #s 要 # 个…` 的键，值里用 `%s`），
+      查到后再把原数字按顺序填回去。这样一句模板就够，不用为每个数字组合写一条。
     """
     if not is_en() or not s:
         return s
@@ -839,10 +880,70 @@ def tr(s):
         v = d.get(s)
         if v:
             return v
+    v = _num_template(s)
+    if v:
+        return v
     v = _label_rules(s)
     if v != s:
         return v
     return localize(s, names=True)
+
+
+_NUM_RE = None
+
+
+def _num_templates_in(s):
+    """把 `BULK` 里**含 `#` 的键**当成带数字的模板，在 `s` 里做子串替换。
+
+    例：键 `　· 定时（距上一波 #s）` → 值 `　· timed (%ss after the previous wave)`，
+    能把 `快捷布置：P（常规炮）　· 定时（距上一波 9s）` 里的尾巴翻掉，
+    而前缀 `快捷布置：` 由普通 BULK 片段负责 —— 拼出来的长句不必逐句登记。
+    """
+    global _NUM_TPL
+    if _NUM_TPL is None:
+        import re as _re
+        out = []
+        for k, v in BULK.items():
+            if '#' not in k:
+                continue
+            n = k.count('#')
+            if v.count('%s') != n:
+                continue
+            # ⚠️ 不能靠 `re.escape(k).replace('\\#', …)` —— Python 3.7+ 的
+            #   `re.escape` 已经**不转义 `#`** 了，那样写永远匹配不上（踩过）。
+            pat = r'(\d+(?:\.\d+)?)'.join(_re.escape(part) for part in k.split('#'))
+            out.append((_re.compile(pat), v))
+        # 长的先试，避免短模板抢先
+        out.sort(key=lambda t: -len(t[0].pattern))
+        _NUM_TPL = out
+    for rx, v in _NUM_TPL:
+        if rx.search(s):
+            s = rx.sub(lambda m, _v=v: _v % m.groups(), s)
+    return s
+
+
+_NUM_TPL = None
+
+
+def _num_template(s):
+    """数字模板查表：`循环 36s…` → 键 `循环 #s…` → 值里 `%s` 按顺序填回数字"""
+    global _NUM_RE
+    if _NUM_RE is None:
+        import re as _re
+        _NUM_RE = _re.compile(r'\d+(?:\.\d+)?')
+    if not _NUM_RE.search(s):
+        return None
+    key = _NUM_RE.sub('#', s)
+    tpl = BULK.get(key) or PHRASES.get(key) or WORDS.get(key) or LABELS.get(key)
+    if not tpl:
+        return None
+    nums = _NUM_RE.findall(s)
+    if tpl.count('%s') != len(nums):
+        return None                  # 模板与数字数对不上 → 不敢乱填
+    try:
+        return tpl % tuple(nums)
+    except Exception:                                        # noqa: BLE001
+        return None
 
 
 # ---------------------------------------------------------------- 术语表

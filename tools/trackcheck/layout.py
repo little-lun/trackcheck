@@ -165,8 +165,10 @@ def clean(cell):
     out['grave'] = bool(out.get('grave'))
     # ★ 2026-10-23：core 标签（丢了就算崩阵）—— 默认 False，不写进旧数据
     out['core'] = bool(out.get('core'))
+    # ★ 2026-10-24：常磨损标签（自动选卡要带它 + 全场判定随时补）
+    out['wear'] = bool(out.get('wear'))
     if (out['plant'] is None and not out['pumpkin'] and not out['base']
-            and not out['grave'] and not out['core']):
+            and not out['grave'] and not out['core'] and not out['wear']):
         return None
     return out
 

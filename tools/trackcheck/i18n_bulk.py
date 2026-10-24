@@ -2,12 +2,16 @@
 """
 i18n_bulk.py —— **批量整串词条**（子代理翻译 + 人工校对）
 
-来源：从**原始中文页面**里抽出的整串文案（界面 HTML/JS 串 + 模型清单备注），
-由子代理按 `i18n.py` 顶部的口径翻译（PVZ 原版用官方英文名、字母术语原样保留）。
+来源：从**原始中文页面**里抽出的整串文案（界面 HTML/JS 串 + 模型清单备注 + 报告文案 +
+阵解目录 + 内置示例阵解），由子代理按 `i18n.py` 顶部的口径翻译
+（PVZ 原版用官方英文名、字母术语原样保留）。
 
-为什么整串放在这里、而不是拆进 `WORDS`：
-  逐词替换容易把句子切坏（历史教训：`邻D6`、`仅Flag Zombie波`、`引擎暂Not modeled`）。
-  整串在 `i18n.localize()` 里**优先级最高**，整句先命中，剩下的碎片才轮到逐词。
+两种键：
+  · **原样整串**（最常见）：`localize()` 里最长整串先命中，剩下的碎片才轮到逐词。
+  · **数字模板**（含 `#` 的键）：`快捷布置：…　· 定时（距上一波 #s）` 这种带数字的句子，
+    键里数字一律写成 `#`、值里用 `%s` 按顺序填回 —— 一句模板覆盖所有数字组合。
+
+⚠️ 中文原句改了写法 → 这里的**键必须同步改**（`check_i18n.py --dead` 能查出来）。
 """
 
 BULK = {
@@ -192,6 +196,7 @@ BULK = {
     "Settings · 语言 / Language": "Settings · Language",
     "不是全场配置（缺 plans / spawns）": "Not a full config (plans / spawns missing)",
     " 张参与模拟，其余只当占格/未建模。</div>": " cards are simulated; the rest only occupy a cell / are Not modeled.</div>",
+    "项，其余只当占格/未建模。</div>": " entries that **take part in the simulation**; the rest only occupy a cell / are not modelled.</div>",
     "（i = 建模原则：结果导向 / 哪些时延不计）": "(i = modeling principle: result-oriented / which delays are ignored)",
     "（哪些植物参与模拟、哪些只是占格、哪些还没建模）": "(which plants are simulated, which only occupy a cell, which are not modeled yet)",
     "两套节奏摆动；wavelength list写": "alternating two rhythms; the wavelength list takes",
@@ -328,7 +333,7 @@ BULK = {
     "（玉米炮不能搭）": "(Cob Cannon cannot take a Ladder)",
     "（蘑菇才有睡眠）": "(only mushrooms sleep)",
     " · 钉耙第 ": " · rake row ",
-    " 波（起手第 ": " waves (opening beat ",
+    " 波（起手第 ": " waves (starting at beat ",
     " 种，已锁定）": " kinds blocked, locked)",
     "2021 传统": "2021 (legacy)",
     "2026 新版": "2026 (new)",
@@ -458,7 +463,7 @@ BULK = {
     "阵型要点": "Formation notes",
     "＋ 新建": "+ New",
     " 副本": " copy",
-    " 拍）": " beat)",
+    " 拍）": ")",
     "上一波": "Previous wave",
     "不可行": "Not feasible",
     "全出怪": "All spawns",
@@ -1200,4 +1205,63 @@ BULK = {
     # 模型清单（2026-10-24 与引擎对齐后的新措辞）
     "只当**垫材 4**：25 阳光、7.5s 充能，落地钉住一只僵尸；不产生任何输出": "Used only as **Padding 4**: 25 sun, 7.5s recharge, pins one zombie where it lands; deals no damage",
     "速度由横坐标定（x≥700 时 0.25，x<400 时 0.10，中间线性）；碾压判定 + 铺冰道（**车死冰道不消失**）；受击框 (-10, 宽100)（向右伸出一截，与被碾植物同格时也算命中）": "Speed is fixed by the x coordinate (0.25 at x≥700, 0.10 at x<400, linear in between); crush checks + lays an ice trail (**the trail stays after the vehicle dies**); hitbox (-10, width 100) (it reaches to the right, so a plant in the same cell still gets hit)",
+
+    # 数字模板（键里的数字一律写成 `#`，值里用 %s 按顺序填回）
+
+    "快捷布置：寒冰菇 + P（常规炮） + P（常规炮）　· 定时（距上一波 #s）": "Quick layout: Ice-shroom + P (regular cob) + P (regular cob)　· timed (%ss after the previous wave)",
+    "快捷布置：P（常规炮） + P（常规炮）　· 定时（距上一波 #s）": "Quick layout: P (regular cob) + P (regular cob)　· timed (%ss after the previous wave)",
+    "快捷布置：#（分离炮）": "Quick layout: # (separated cob)",
+    "快捷布置：#（拦截炮）": "Quick layout: # (interception cob)",
+
+    # 布局编辑器 / 模型清单里的长片段（按子串替换）
+
+    "常磨损 = 这个植物边打边掉，选卡要带它、": "Wear-prone = this plant keeps being worn down; the seed deck must include it ",
+    "）；下表是**已参与模拟**的": "); the table below lists the ",
+    "并在全场判定里挂「随时准备补」": "and a global check keeps it replanted",
+
+    # 拦截炮 / 分离炮相关（2026-10-24）
+
+    "快捷布置：#（拦截炮）#（拦截炮）#s": "Quick layout: # (interception cob) + # (interception cob)",
+    "快捷布置：#（分离炮）#（分离炮）": "Quick layout: # (separated cob) + # (separated cob)",
+    "等空中的小鬼（拦截炮）": "Wait for airborne Imps (interception cob)",
+    "快捷布置：#（拦截炮）": "Quick layout: # (interception cob)",
+
+    # 快捷布置的备注片段（子串 + 数字模板）
+
+    "　· 分场（`/`）：上下半场的落点自己填": "　· split (`/`): fill in the landing spots for both halves yourself",
+    "　· 旗波重置到含 I 的拍（冰杀蹦极）": "　· flag wave restarts at the beat containing I (freeze-kill the Bungee Zombie)",
+    "　· 波动（`~`）第 # 套": "　· variant (`~`) set %s",
+    "　· 定时（距上一波 #s）": "　· timed (%ss after the previous wave)",
+    "快捷布置：": "Quick layout: ",
+
+    # 拦截炮 / 分离炮 / 自动选卡 / 自动救场（2026-10-24）
+
+    "拦截炮（D）×# 的落点是**动态**的：按「炸死所有被巨人抛出在空中飞的小鬼」在运行时求解；时机可选出手 / 最高点 / 落地前": "Interception cobs (D) x%s have a **dynamic** landing spot: it is solved at run time so that \"every Imp thrown by a Gargantuar is killed in mid-air\"; the timing is selectable (release / apex / just before landing)",
+    "阵型结构不需要冰杀蹦极（伞覆盖 / 只剩炮 / 超多炮 # 门 / 识别不出冰杀定式）→ 旗波不重置到含 I 的拍": "The formation structure does not need a freeze-kill for the Bungee Zombie (all under Umbrella Leaf / only cobs left / # or more cobs / no freeze-kill setup recognised) → the flag wave does not restart at the beat containing I",
+    "分离炮（S）×# 的落点没有自动填 —— 请逐个填「填写落点」": "The separated cobs (S) have no landing spot yet — fill each one in",
+    "循环 #s 要 # 个，单卡 CD #s 转不过来": "the %ss cycle needs %s of them, and one card recharges in %ss",
+    "已给「常磨损」植物挂上全场判定：随时准备补种": "A global check was added for the wear-prone plants: keep them replanted",
+    "阵里有没梯子的南瓜，要边打边补": "the formation has pumpkins without a ladder; they must be repaired",
+    "这些陆路没有梯子南瓜：#": "these land lanes have no laddered pumpkin: %s",
+    "出气球且场上没有香蒲": "Balloon Zombies spawn and there is no Cattail",
+    "标记了「常磨损」": "tagged as wear-prone",
+    "白天场唤醒蘑菇": "day field, mushrooms must be woken",
+    "CD 转不过来": "the card cannot recharge in time",
+    "（常规炮）": " (regular cob)",
+    "（分离炮）": " (separated cob)",
+    "（拦截炮）": " (interception cob)",
+    "轨道要用": "used by the track",
+    "救场灰烬": "rescue ash",
+    "救场垫材": "rescue padding",
+    "自动选卡：": "Auto deck:",
+    "自动救场：要保 ": "Auto rescue: protecting ",
+    " 格，资源 ": " cells, resources ",
+    "提示：": "Hints:",
+    "注意：": "Warnings:",
+    "阵型结构不需要冰杀蹦极（伞覆盖 / 只剩炮 / 超多炮 # 门 / 识别不出冰杀定式）"
+    "→ 旗波不重置到含 I 的拍":
+        "the formation does not call for freeze-killing Bungees (umbrella-covered / "
+        "cobs only / %s cobs is plenty / no freeze-kill pattern recognised) → flag "
+        "waves are not reset to the beat that has I",
 }
+
