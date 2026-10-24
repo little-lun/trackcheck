@@ -747,7 +747,7 @@ function lyRenderEditor(){
        : (noCover ? '（玉米炮不能搭）' : '')) + '</label>'
     + '<label class="hint' + (baseLocked ? ' lock' : '') + '">'
     + '<input type="checkbox" id="ly-base"' + (baseOn ? ' checked' : '')
-    + (baseLocked ? ' disabled' : '') + '> 有 ' + baseRule.name
+    + (baseLocked ? ' disabled' : '') + '> Have ' + tcShow(baseRule.name)
     + (baseLocked
        ? '（有植物/南瓜/玉米炮 → 必须有）'
        : (baseRule.need ? '（空地可以先不放）' : '（草地上只能放花盆）')) + '</label>'

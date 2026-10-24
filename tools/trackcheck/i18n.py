@@ -206,6 +206,13 @@ PHRASES = {
         'Left-click a cell → edit below; drag along a row/column to select '
         '(hold Shift to extend)',
     '整行套南瓜': 'Pumpkin on row', '整行搭梯': 'Ladder on row',
+    '> 墓碑</label>': '> Gravestone</label>',
+    '（有植物/南瓜/玉米炮 → 必须有）': ' (plant / Pumpkin / Cob Cannon present - required)',
+    '（空地可以先不放）': ' (an empty cell can stay bare)',
+    '（草地上只能放花盆）': ' (on lawn only a Flower Pot can go here)',
+    '（水路南瓜不能搭梯）': ' (a Pumpkin on water cannot carry a Ladder)',
+    '（玉米炮不能搭）': ' (not on a Cob Cannon)',
+
     '清空阵型': 'Clear formation',
     '粘贴阵型字符串后点「导入」': 'Paste a formation string, then click Import',
     '推荐组合：': 'Presets: ', '全不选': 'Select none',
@@ -534,6 +541,11 @@ JS_LITERALS = {
     ' 格': ' cells', ' 发': ' shots', ' 处': ' places', ' 波': ' waves',
     '失败：': 'failed: ', '存冰数': 'Ice bank', '导入 ': 'Import ',
     '继续？': 'Continue?',
+    # ---- 阵容编辑器的勾选框（JS 里 `> 套南瓜` 这样拼出来）
+    '> 醒着': '> Awake', '> 套南瓜': '> Pumpkin', '> 搭梯（梯子南瓜）': '> Ladder',
+    '> 墓碑': '> Gravestone', '> 有 花盆': '> Flower Pot', '> 有 睡莲': '> Lily Pad',
+    '整行套南瓜': 'Pumpkin on row', '整行搭梯': 'Ladder on row',
+
     # ---- 选卡栏那句拼接提示（`'…张（含' + 名字 + '）；其中 …'`）
     ' 张（含': ' cards (incl. ', '）；其中 ': '); of which ',
     ' 张参与模拟，其余只当占格/未建模。</div>':
