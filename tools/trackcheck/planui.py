@@ -557,21 +557,40 @@ function plRenderBank() {
 function plRenderDeck() {
   const deck = plP().deck || [];
   const plants = PLAN.cat.plants || PLAN.cat.cards;
+  // ★ 2026-10-24 用户：**已经被选走的植物不再出现在别的卡槽里**
+  //   · 普通植物：别的槽已经选了它 → 这个槽不再显示这个选项
+  //   · 模仿者：别的槽已经占了模仿者 → 这个槽不再显示「模仿者（模仿）」
+  //   · 但"被模仿的植物"仍然可以当普通卡选（模仿者:寒冰菇 不占用 寒冰菇 这个名字）
+  const usedPlain = {};          // 别的槽用掉的普通植物名
+  let mimicTaken = false;
+  deck.forEach(function (c, i) {
+    if (!c) return;
+    if (c.indexOf(MIMIC_TAG + ':') === 0) { mimicTaken = true; return; }
+    if (c === MIMIC_TAG) { mimicTaken = true; return; }
+    usedPlain[c] = i;
+  });
   let h = '';
   for (let i = 0; i < 10; i++) {
     const cur = deck[i] || '';
-    const mimic = cur.indexOf(MIMIC_TAG + ':') === 0;
-    const target = mimic ? cur.split(':')[1] : '';
-    const shown = mimic ? MIMIC_TAG : cur;
+    const mimic = cur.indexOf(MIMIC_TAG + ':') === 0 || cur === MIMIC_TAG;
+    const target = cur.indexOf(MIMIC_TAG + ':') === 0 ? cur.split(':')[1] : '';
+    const shown = cur;
+    // 本槽自己占用的普通植物名（要保留在选项里）
+    const own = (!mimic && cur) ? cur : '';
     h += '<div class="slot"><b>' + (i + 1) + '</b>'
       + '<select data-deck="' + i + '">'
       + '<option value=""' + (cur ? '' : ' selected') + '>（空）</option>'
-      + plants.map(function (c) {
-        return '<option value="' + plEsc(c) + '"' + (shown === c ? ' selected' : '') + '>'
+      + plants.filter(function (c) {
+          // 被别的槽选走的普通植物 → 不显示（自己这槽的除外）
+          return c === own || usedPlain[c] === undefined;
+        }).map(function (c) {
+        return '<option value="' + plEsc(c) + '"' + (!mimic && shown === c ? ' selected' : '') + '>'
           + plEsc(c) + '</option>';
       }).join('')
-      + '<option value="' + MIMIC_TAG + '"' + (mimic ? ' selected' : '') + '>'
-      + MIMIC_TAG + '（模仿）</option>'
+      + (mimic || !mimicTaken
+        ? '<option value="' + MIMIC_TAG + '"' + (mimic ? ' selected' : '') + '>'
+          + MIMIC_TAG + '（模仿）</option>'
+        : '')
       + '</select>'
       + (mimic
         ? '<select data-mimic="' + i + '">'

@@ -174,6 +174,9 @@ def _finalize(job):
 
     # 代表局：第一个没崩的；全崩就取第一个
     best = next((r for r in reports if not r.get('fail')), reports[0])
+    # ★ 2026-10-24 用户：**逐种子明细可以点击选择**，后面的详情显示这个模拟对局。
+    #   做法：把每一局都渲染成卡片放进隐藏 div，点表格行切换显示哪一张。
+    job['seed_cards'] = [H.card_html(r, dev) for r in reports]
     job['html'] = render_job(job, best, dev)
     job['status'] = 'done'
 
@@ -205,6 +208,20 @@ def clear():
     JOBS.clear()
 
 
+def _verdict(s):
+    """★ 2026-10-24 用户定的**可无尽判据**：
+    「如果多次测试中存在 1 次能过（这次能过并不是因为出怪降低了难度，毕竟所有出怪
+      都是饱和出怪），都可以说是可无尽。」
+
+    所以判定只看"有没有 ≥1 局通过"，不看通过率。
+    """
+    if not s.get('n'):
+        return ''
+    if s.get('ok', 0) >= 1:
+        return '　<b class="ok">可无尽</b>'
+    return '　<b class="bad">不可无尽</b>'
+
+
 def _fmt_dev(dev):
     if dev is None:
         return '<span class="dim">自定义（无参照）</span>'
@@ -219,16 +236,22 @@ def render_job(job, rep, dev):
              else '<span class="lv" style="background:#059669">零偏离</span>')
 
     rows = ''.join(
-        '<tr><td>%d</td><td>%.2f s</td><td class="%s">%s</td><td>%d</td>'
+        '<tr class="srow" data-sc="%d-%d"><td>%d</td><td>%.2f s</td><td class="%s">%s</td><td>%d</td>'
         '<td>%d</td><td>%d</td><td>%d</td><td>%s</td></tr>'
-        % (x['seed'], x['span'], 'bad' if x['fail'] else 'ok',
+        % (job['id'], x['seed'], x['seed'], x['span'], 'bad' if x['fail'] else 'ok',
            '崩' if x['fail'] else '通',
            x['ice'], x['rep'], x['lost'], x['crush'],
            H.level_badge(x['lv']) if x['lv'] else '—')
         for x in job['seed_rows'])
+    # ★ 2026-10-24：每一局一份可切换的详情（点表格行显示那一局）
+    seed_cards = ''.join(
+        '<div class="seecard" id="sc-%d-%d">%s</div>' % (job['id'], i, c)
+        for i, c in enumerate(job.get('seed_cards') or []))
+    rep_card = ('' if job.get('seed_cards')
+                else H.card_html(rep, dev))
 
     kinds_txt = '、'.join(job['kinds'])
-    card = H.card_html(rep, dev)
+    card = ''
     ice_txt = ('存冰 <b>%.1f</b>/%d' % (s['ice'], round(s.get('icecap') or 0))
                if s.get('icecap')
                else '存冰 <b class="dim">—</b><span class="dim">（夜场不存冰）</span>')
@@ -271,17 +294,18 @@ def render_job(job, rep, dev):
             '</div>'
             '<div class="jstrip">'
             '<span>出怪（%d 种）：%s</span>'
-            '<span>种子 <b>%d</b>　跑完 <b class="%s">%d / %d</b></span>'
+            '<span>种子 <b>%d</b>　跑完 <b class="%s">%d / %d</b>%s</span>'
             '<span>常规波长 <b>%.2f s</b>　偏差 %s</span>'
             '<span>减速覆盖 <b>%.0f%%</b>　核 <b>%.1f</b> 个/局　碾压 <b class="%s">%d</b></span>'
             '<span>阳光 <b>%.0f</b>　%s　补南瓜 <b>%.1f</b> 次</span>'
             '%s'
             '<span>最高等级 %s</span>'
             '</div>'
-            '<details class="seedbox"><summary>逐种子明细（%d 局）</summary>'
+            '<details class="seedbox"><summary>逐种子明细（%d 局，点一行看那一局的详情）</summary>'
             '<table class="mini"><tr><th>种子</th><th>常规波长</th><th>结果</th>'
             '<th>存冰</th><th>补南瓜</th><th>植物损失</th><th>冰车碾压</th><th>等级</th></tr>'
             '%s</table></details>'
+            '%s'
             '%s'
             '</div>'
             % (job['id'], esc_html(job['name']), job['name'], job['tier'],
@@ -289,7 +313,8 @@ def render_job(job, rep, dev):
                _deck_line(job),
                len(job['kinds']), kinds_txt,
                job['seeds'], 'ok' if s['ok'] == s['n'] else 'bad', s['ok'], s['n'],
+               _verdict(s),
                s['avg'], _fmt_dev(dev),
                s['cov'], s['kn'], 'ok' if s['crush'] == 0 else 'bad', s['crush'],
                s['sun'], ice_txt, s['rep'], struct_txt,
-               badge, s['n'], rows, card))
+               badge, s['n'], rows, rep_card, seed_cards))

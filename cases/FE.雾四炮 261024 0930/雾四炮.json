@@ -1,0 +1,1001 @@
+{
+  "format": "trackcheck-plan/3",
+  "name": "雾四炮",
+  "note": "N6s（wiki 的 c6u）：I-PP|I-PP|N|PP(18,18,9,9)，54s 循环、双冰单核、4 炮够用。★ 别和 N6（20,20,7.5×2）搞混，差 2 秒。★ 起手 PP|N|PP（从第 2 拍的炮起手，第 1 拍的 I 开局不打）。",
+  "field": "FE",
+  "deck": [
+    "寒冰菇",
+    "模仿者:寒冰菇",
+    "毁灭菇",
+    "睡莲",
+    "樱桃",
+    "三叶草",
+    "窝瓜",
+    "南瓜",
+    "小喷菇",
+    "大喷菇"
+  ],
+  "rhythm": {
+    "system": "N",
+    "id": "N6s",
+    "name": "N6s",
+    "beats": [
+      "I-PP",
+      "I-PP",
+      "N",
+      "PP"
+    ],
+    "gaps": [
+      18,
+      18,
+      9,
+      9
+    ],
+    "pair": "full",
+    "start": 1
+  },
+  "waves": [
+    {
+      "w": 1,
+      "role": "起手",
+      "sets": [
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "玉米炮",
+              "aim": [
+                2,
+                "threat"
+              ],
+              "trig": {
+                "kind": "time",
+                "at": 900
+              },
+              "id": "w1-1-1"
+            },
+            {
+              "op": "玉米炮",
+              "aim": [
+                5,
+                "threat"
+              ],
+              "trig": {
+                "kind": "time",
+                "at": 900
+              },
+              "id": "w1-1-2"
+            }
+          ]
+        }
+      ],
+      "note": "起手：PP|N|PP（最快起手，第 1 拍的 I 不打）"
+    },
+    {
+      "w": 2,
+      "role": "常规",
+      "sets": [
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "毁灭菇",
+              "aim": [
+                4,
+                7
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w1-1-1",
+                "delay": 900
+              },
+              "id": "w2-1-1"
+            }
+          ]
+        }
+      ],
+      "note": "快捷布置：毁灭菇　· 定时（波距 18s）"
+    },
+    {
+      "w": 3,
+      "role": "常规",
+      "sets": [
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "玉米炮",
+              "aim": [
+                2,
+                "threat"
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w2-1-1",
+                "delay": 900
+              },
+              "id": "w3-1-1"
+            },
+            {
+              "op": "玉米炮",
+              "aim": [
+                5,
+                "threat"
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w2-1-1",
+                "delay": 900
+              },
+              "id": "w3-1-2"
+            }
+          ]
+        }
+      ],
+      "note": "快捷布置：玉米炮 + 玉米炮　· 定时（波距 9s）"
+    },
+    {
+      "w": 4,
+      "role": "常规",
+      "sets": [
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "寒冰菇",
+              "aim": [
+                3,
+                5
+              ],
+              "trig": {
+                "kind": "spawn"
+              },
+              "id": "w4-1-1"
+            },
+            {
+              "op": "玉米炮",
+              "aim": [
+                2,
+                "threat"
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w3-1-1",
+                "delay": 1800
+              },
+              "id": "w4-1-2"
+            },
+            {
+              "op": "玉米炮",
+              "aim": [
+                5,
+                "threat"
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w3-1-1",
+                "delay": 1800
+              },
+              "id": "w4-1-3"
+            }
+          ]
+        }
+      ],
+      "note": "快捷布置：寒冰菇 + 玉米炮 + 玉米炮　· 定时（波距 9s）"
+    },
+    {
+      "w": 5,
+      "role": "常规",
+      "sets": [
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "模仿寒冰菇",
+              "aim": [
+                3,
+                5
+              ],
+              "trig": {
+                "kind": "spawn"
+              },
+              "id": "w5-1-1"
+            },
+            {
+              "op": "玉米炮",
+              "aim": [
+                2,
+                "threat"
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w4-1-2",
+                "delay": 1800
+              },
+              "id": "w5-1-2"
+            },
+            {
+              "op": "玉米炮",
+              "aim": [
+                5,
+                "threat"
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w4-1-2",
+                "delay": 1800
+              },
+              "id": "w5-1-3"
+            }
+          ]
+        }
+      ],
+      "note": "快捷布置：寒冰菇 + 玉米炮 + 玉米炮　· 定时（波距 18s）"
+    },
+    {
+      "w": 6,
+      "role": "常规",
+      "sets": [
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "毁灭菇",
+              "aim": [
+                4,
+                8
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w5-1-2",
+                "delay": 900
+              },
+              "id": "w6-1-1"
+            }
+          ]
+        }
+      ],
+      "note": "快捷布置：毁灭菇　· 定时（波距 18s）"
+    },
+    {
+      "w": 7,
+      "role": "常规",
+      "sets": [
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "玉米炮",
+              "aim": [
+                2,
+                "threat"
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w6-1-1",
+                "delay": 900
+              },
+              "id": "w7-1-1"
+            },
+            {
+              "op": "玉米炮",
+              "aim": [
+                5,
+                "threat"
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w6-1-1",
+                "delay": 900
+              },
+              "id": "w7-1-2"
+            }
+          ]
+        }
+      ],
+      "note": "快捷布置：玉米炮 + 玉米炮　· 定时（波距 9s）"
+    },
+    {
+      "w": 8,
+      "role": "常规",
+      "sets": [
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "寒冰菇",
+              "aim": [
+                3,
+                5
+              ],
+              "trig": {
+                "kind": "spawn"
+              },
+              "id": "w8-1-1"
+            },
+            {
+              "op": "玉米炮",
+              "aim": [
+                2,
+                "threat"
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w7-1-1",
+                "delay": 1800
+              },
+              "id": "w8-1-2"
+            },
+            {
+              "op": "玉米炮",
+              "aim": [
+                5,
+                "threat"
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w7-1-1",
+                "delay": 1800
+              },
+              "id": "w8-1-3"
+            }
+          ]
+        }
+      ],
+      "note": "快捷布置：寒冰菇 + 玉米炮 + 玉米炮　· 定时（波距 9s）"
+    },
+    {
+      "w": 9,
+      "role": "收尾",
+      "sets": [
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "玉米炮",
+              "aim": [
+                2,
+                "threat"
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w8-1-2",
+                "delay": 1800
+              },
+              "id": "w9-1-1",
+              "repeat": {
+                "every": 900,
+                "times": 2
+              }
+            },
+            {
+              "op": "玉米炮",
+              "aim": [
+                5,
+                "threat"
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w8-1-2",
+                "delay": 1800
+              },
+              "id": "w9-1-2",
+              "repeat": {
+                "every": 900,
+                "times": 2
+              }
+            },
+            {
+              "op": "模仿寒冰菇",
+              "aim": [
+                3,
+                5
+              ],
+              "trig": {
+                "kind": "spawn"
+              },
+              "id": "w9-1-3"
+            }
+          ]
+        }
+      ],
+      "note": "快捷布置：寒冰菇 + 玉米炮 + 玉米炮　· 定时（波距 18s）"
+    },
+    {
+      "w": 10,
+      "role": "旗波",
+      "sets": [
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "寒冰菇",
+              "aim": [
+                3,
+                5
+              ],
+              "trig": {
+                "kind": "spawn"
+              },
+              "id": "w10-1-1"
+            },
+            {
+              "op": "玉米炮",
+              "aim": [
+                2,
+                "threat"
+              ],
+              "trig": {
+                "kind": "time",
+                "id": "w4-1-2",
+                "delay": 1800,
+                "at": 1800
+              },
+              "id": "w10-1-2"
+            },
+            {
+              "op": "玉米炮",
+              "aim": [
+                5,
+                "threat"
+              ],
+              "trig": {
+                "kind": "time",
+                "id": "w4-1-2",
+                "delay": 1800,
+                "at": 1800
+              },
+              "id": "w10-1-3"
+            }
+          ]
+        }
+      ],
+      "note": "快捷布置：寒冰菇 + 玉米炮 + 玉米炮　· 定时（波距 18s）"
+    },
+    {
+      "w": 11,
+      "role": "常规",
+      "sets": [
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "模仿寒冰菇",
+              "aim": [
+                3,
+                5
+              ],
+              "trig": {
+                "kind": "spawn"
+              },
+              "id": "w11-1-1"
+            },
+            {
+              "op": "玉米炮",
+              "aim": [
+                2,
+                "threat"
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w10-1-2",
+                "delay": 1800
+              },
+              "id": "w11-1-2"
+            },
+            {
+              "op": "玉米炮",
+              "aim": [
+                5,
+                "threat"
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w10-1-2",
+                "delay": 1800
+              },
+              "id": "w11-1-3"
+            }
+          ]
+        }
+      ],
+      "note": "快捷布置：寒冰菇 + 玉米炮 + 玉米炮　· 定时（波距 18s）"
+    },
+    {
+      "w": 12,
+      "role": "常规",
+      "sets": [
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "毁灭菇",
+              "aim": [
+                3,
+                7
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w11-1-2",
+                "delay": 900
+              },
+              "id": "w12-1-1"
+            }
+          ]
+        }
+      ],
+      "note": "快捷布置：毁灭菇　· 定时（波距 18s）"
+    },
+    {
+      "w": 13,
+      "role": "常规",
+      "sets": [
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "玉米炮",
+              "aim": [
+                2,
+                "threat"
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w12-1-1",
+                "delay": 900
+              },
+              "id": "w13-1-1"
+            },
+            {
+              "op": "玉米炮",
+              "aim": [
+                5,
+                "threat"
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w12-1-1",
+                "delay": 900
+              },
+              "id": "w13-1-2"
+            }
+          ]
+        }
+      ],
+      "note": "快捷布置：玉米炮 + 玉米炮　· 定时（波距 9s）"
+    },
+    {
+      "w": 14,
+      "role": "常规",
+      "sets": [
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "寒冰菇",
+              "aim": [
+                3,
+                5
+              ],
+              "trig": {
+                "kind": "spawn"
+              },
+              "id": "w14-1-1"
+            },
+            {
+              "op": "玉米炮",
+              "aim": [
+                2,
+                "threat"
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w13-1-1",
+                "delay": 1800
+              },
+              "id": "w14-1-2"
+            },
+            {
+              "op": "玉米炮",
+              "aim": [
+                5,
+                "threat"
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w13-1-1",
+                "delay": 1800
+              },
+              "id": "w14-1-3"
+            }
+          ]
+        }
+      ],
+      "note": "快捷布置：寒冰菇 + 玉米炮 + 玉米炮　· 定时（波距 9s）"
+    },
+    {
+      "w": 15,
+      "role": "常规",
+      "sets": [
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "模仿寒冰菇",
+              "aim": [
+                3,
+                5
+              ],
+              "trig": {
+                "kind": "spawn"
+              },
+              "id": "w15-1-1"
+            },
+            {
+              "op": "玉米炮",
+              "aim": [
+                2,
+                "threat"
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w14-1-2",
+                "delay": 1800
+              },
+              "id": "w15-1-2"
+            },
+            {
+              "op": "玉米炮",
+              "aim": [
+                5,
+                "threat"
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w14-1-2",
+                "delay": 1800
+              },
+              "id": "w15-1-3"
+            }
+          ]
+        }
+      ],
+      "note": "快捷布置：寒冰菇 + 玉米炮 + 玉米炮　· 定时（波距 18s）"
+    },
+    {
+      "w": 16,
+      "role": "常规",
+      "sets": [
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "毁灭菇",
+              "aim": [
+                3,
+                8
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w15-1-2",
+                "delay": 900
+              },
+              "id": "w16-1-1"
+            }
+          ]
+        }
+      ],
+      "note": "快捷布置：毁灭菇　· 定时（波距 18s）"
+    },
+    {
+      "w": 17,
+      "role": "常规",
+      "sets": [
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "玉米炮",
+              "aim": [
+                2,
+                "threat"
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w16-1-1",
+                "delay": 900
+              },
+              "id": "w17-1-1"
+            },
+            {
+              "op": "玉米炮",
+              "aim": [
+                5,
+                "threat"
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w16-1-1",
+                "delay": 900
+              },
+              "id": "w17-1-2"
+            }
+          ]
+        }
+      ],
+      "note": "快捷布置：玉米炮 + 玉米炮　· 定时（波距 9s）"
+    },
+    {
+      "w": 18,
+      "role": "常规",
+      "sets": [
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "寒冰菇",
+              "aim": [
+                3,
+                5
+              ],
+              "trig": {
+                "kind": "spawn"
+              },
+              "id": "w14-1-1"
+            },
+            {
+              "op": "玉米炮",
+              "aim": [
+                2,
+                "threat"
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w17-1-1",
+                "delay": 1800
+              },
+              "id": "w14-1-2"
+            },
+            {
+              "op": "玉米炮",
+              "aim": [
+                5,
+                "threat"
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w17-1-1",
+                "delay": 1800
+              },
+              "id": "w14-1-3"
+            }
+          ]
+        }
+      ],
+      "note": "快捷布置：寒冰菇 + 玉米炮 + 玉米炮　· 定时（波距 9s）"
+    },
+    {
+      "w": 19,
+      "role": "收尾",
+      "sets": [
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "玉米炮",
+              "aim": [
+                2,
+                "threat"
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w18-1-1",
+                "delay": 1800
+              },
+              "id": "w19-1-1",
+              "repeat": {
+                "every": 900,
+                "times": 2
+              }
+            },
+            {
+              "op": "玉米炮",
+              "aim": [
+                5,
+                "threat"
+              ],
+              "trig": {
+                "kind": "after_block",
+                "id": "w18-1-1",
+                "delay": 1800
+              },
+              "id": "w19-1-2",
+              "repeat": {
+                "every": 900,
+                "times": 2
+              }
+            },
+            {
+              "op": "模仿寒冰菇",
+              "aim": [
+                3,
+                5
+              ],
+              "trig": {
+                "kind": "spawn"
+              }
+            }
+          ]
+        }
+      ],
+      "note": "快捷布置：玉米炮 + 玉米炮　· 定时（波距 9s）"
+    },
+    {
+      "w": 20,
+      "role": "旗波",
+      "sets": [
+        {
+          "when": {
+            "kind": "always"
+          },
+          "ops": [
+            {
+              "op": "玉米炮",
+              "aim": [
+                2,
+                "threat"
+              ],
+              "trig": {
+                "kind": "time",
+                "id": "w19-1-1",
+                "delay": 900,
+                "at": 200
+              },
+              "id": "w20-1-1",
+              "repeat": {
+                "every": 900,
+                "times": 2
+              }
+            },
+            {
+              "op": "玉米炮",
+              "aim": [
+                5,
+                "threat"
+              ],
+              "trig": {
+                "kind": "time",
+                "id": "w19-1-1",
+                "delay": 900,
+                "at": 200
+              },
+              "id": "w20-1-2",
+              "repeat": {
+                "every": 900,
+                "times": 2
+              }
+            },
+            {
+              "op": "寒冰菇",
+              "aim": [
+                3,
+                5
+              ],
+              "trig": {
+                "kind": "spawn"
+              },
+              "id": "w20-1-3"
+            }
+          ]
+        }
+      ],
+      "note": "旗波：同常规"
+    }
+  ],
+  "globals": [],
+  "rescue": [],
+  "rescue_simple": {
+    "enabled": true,
+    "resources": [
+      {
+        "op": "樱桃"
+      },
+      {
+        "op": "窝瓜"
+      },
+      {
+        "op": "小喷菇",
+        "pad_col": "front"
+      },
+      {
+        "op": "南瓜"
+      },
+      {
+        "op": "大喷菇",
+        "aim": null
+      }
+    ],
+    "targets": [
+      {
+        "id": "1-4 大喷",
+        "protect": {
+          "row": 1,
+          "col": 4
+        },
+        "urgency_cells": 1.5,
+        "priority": 10,
+        "cooldown": 60
+      },
+      {
+        "id": "2-4 大喷",
+        "protect": {
+          "row": 2,
+          "col": 4
+        },
+        "urgency_cells": 1.5,
+        "priority": 10,
+        "cooldown": 60
+      },
+      {
+        "id": "5-4 大喷",
+        "protect": {
+          "row": 5,
+          "col": 4
+        },
+        "urgency_cells": 1.5,
+        "priority": 10,
+        "cooldown": 60
+      },
+      {
+        "id": "6-4 大喷",
+        "protect": {
+          "row": 6,
+          "col": 4
+        },
+        "urgency_cells": 1.5,
+        "priority": 10,
+        "cooldown": 60
+      }
+    ]
+  },
+  "slots": {},
+  "params": {}
+}

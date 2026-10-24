@@ -259,6 +259,23 @@ def best_aim(sim, row, radius, dy, dmg, cols=None, integer=False, tables=None):
         will_die, _cs, _rc = io_eta(sim, f, tabs)
         must[r] = not will_die
 
+    def _must_weight(r):
+        """这条"必须炸"的前锋有多急 —— 越靠里、越是载具/巨人，权重越大。
+
+        ★ 2026-10-24：一门炮只能挑一个列，`n_must` 只数个数会让
+          "冰车已经推到 3 列"和"杂兵还在 8 列"同权 → 炮去打人群、车碾进来。
+        """
+        f = front.get(r)
+        if f is None:
+            return 0.0
+        w = 3.0 if (f.kind in ('冰车', '投篮') or f.giant) else 1.0
+        if f.x < 400:
+            w *= 3.0                      # 已经推到 5 列以内 = 马上就要啃/碾
+        elif f.x < 560:
+            w *= 1.5
+        return w
+
+
     best, best_key = None, None
     for c in cand:
         cx = base + (c - 1.0) * D.CELL_W
@@ -266,15 +283,13 @@ def best_aim(sim, row, radius, dy, dmg, cols=None, integer=False, tables=None):
         # 硬约束：被这一炮纵向覆盖到的每一路，若"最靠前那只"必须炸（IO 救不了），
         # 就必须被打中 —— 否则这个候选**不可行**（用户 2026-10-23 口径）。
         feasible = True
-        n_must = 0                 # 这一炮盖住了几个"必须炸"的前锋
-        n_must_total = 0
+        n_must = 0.0               # 这一炮盖住的"必须炸的前锋"有多急（加权）
         for r in rows:
             f = front.get(r)
             if f is None or not must.get(r):
                 continue
-            n_must_total += 1
             if _covered(sim, f, cx, cy, radius):
-                n_must += 1
+                n_must += _must_weight(r)
             else:
                 feasible = False
         kills = 0.0

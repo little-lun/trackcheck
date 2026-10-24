@@ -1247,6 +1247,20 @@ _NO_COUNT_OPS = {'寒冰菇', '模仿寒冰菇', '冰', '模仿冰', '咖啡豆'
                  '小喷菇', '花盆', '阳光菇', '胆小菇', '南瓜',
                  '垫材', '垫材2', '垫材3', '垫材4', '荷叶', '花盆'}
 
+# 冰类操作（旗波"冰杀蹦极"要挑含它的那一拍）
+_ICE_OPS = {'寒冰菇', '模仿寒冰菇', '冰', '模仿冰', '存冰'}
+
+
+def _first_ice_beat(beats):
+    """轨道里**第一个含冰**的拍号；没有就 None（旗波重置用）"""
+    for i, bt in enumerate(beats or []):
+        ops = list(bt.get('ops') or [])
+        for grp in (bt.get('late') or []):
+            ops.extend(grp or [])
+        if any(o in _ICE_OPS for o in ops):
+            return i
+    return None
+
 
 def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None):
     """
@@ -1299,12 +1313,23 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None):
     cycle_i = 0          # 第几轮循环（用于 `~` 交替）
     beats = variants[0]
     prev_anchor = None   # 上一个**运算量积木**的 id（定时链用）
+    j = start_i          # ★ 当前拍号（**可变**：旗波会重置它，见下）
     for i, w in enumerate(targets):
-        j = i + start_i                  # ★ 起手拍：从第 start_i 拍开始铺
         if j and j % len(beats) == 0:
             cycle_i = j // len(beats)
             beats = variants[cycle_i % len(variants)]
-        beat = beats[j % len(beats)]
+        # ★★ 2026-10-24 用户（从 case 学到的）：**旗波如果要求冰杀蹦极，
+        #   就必须从轨道里有 I 的那一拍开始**。FE.雾四炮 的 w10 就是 `I-PP`
+        #   （I 用于冰杀蹦极），所以旗波要**重置到第一个含 I 的拍**。
+        if w in (10, 20) and gaps:
+            k = _first_ice_beat(beats)
+            if k is not None:
+                j = k
+        b = j % len(beats)
+        beat = beats[b]
+        # ★ gap[b] 的语义 = **从第 b−1 拍生效 到 第 b 拍生效** 的间隔（case 实测口径），
+        #   所以"这一波离上一波多久"就是 `gaps[本波拍号]`。
+        gap_in = (gaps[b % len(gaps)] if gaps else None)
         row = rows.get(w)
         if row is None:
             row = dict(w=w, role=role_of(w), sets=[])
@@ -1321,35 +1346,49 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None):
         # ★ 2026-10-23 用户：起手那一拍里**没有运算量的操作开局不打**
         #   （N6s 从第 2 拍的炮起手时，第 2 拍的 I 不打 —— 开局还没怪可冻）
         if start_i and i == 0:
-            kept = [b for b in blocks if b['op'] not in _NO_COUNT_OPS]
+            kept = [b_ for b_ in blocks if b_['op'] not in _NO_COUNT_OPS]
             if kept:
                 blocks = kept
+        # ★ 2026-10-24：起手那一拍的定时 —— 用户 case 里是 `time at 900`
+        #   （刷怪后 0.9s 才开炮，等僵尸走进可伤区）。
+        if i == 0 and gaps and w == targets[0]:
+            for b_ in blocks:
+                if b_['op'] not in _NO_COUNT_OPS:
+                    b_['trig'] = {'kind': 'time', 'at': 900}
         # ★★ 2026-10-23：**固定波长阵的定时**
         #   锚点必须落在**具备运算量的那一块**上（炮 / 核 / 灰烬），
         #   不能落在"刷怪即刻"的冰上 —— 冰是按刷怪时刻打的（慢波要一出来就冻），
         #   拿它当锚点等于让整条定时链跟着"运算量刷波"走，那就不是定时了。
-        #   实测后果：FE.雾四炮 的炮在 w4 之后整段空窗 3400cs（4 门炮同时进 CD），
-        #   边路冰车正好从这段真空里碾进来。
-        ops_blocks = [b for b in blocks if b['op'] not in _NO_COUNT_OPS]
-        if gaps and prev_anchor and ops_blocks:
-            g = gaps[(j - 1) % len(gaps)]
-            for b in ops_blocks:
-                b['trig'] = {'kind': 'after_block', 'id': prev_anchor,
-                             'delay': int(round(g * 100))}
+        #
+        # ★★ 2026-10-24 用户：从 case 学到的映射关系（**这是本版改的重点**）。
+        #   `gaps[i]` 的语义 = **从第 i−1 拍生效 到 第 i 拍生效 的间隔**
+        #   （不是"第 i 拍自己持续多久"）。
+        #   所以承载第 b 拍的那一波，它的"到下一波的间隔" = `gaps[(b+1) % n]`。
+        #   反例（旧实现用的 `gaps[(j-1) % n]`，即"自己那一拍的时长"）：
+        #   N6s(18,18,9,9) 从第 2 拍起手 → 旧实现给出 18/18/9/9 → 900/1800 全错位；
+        #   case 里实测是 900/900/1800/1800，正好是 `gaps[(b+1)%4]`。
+        ops_blocks = [b_ for b_ in blocks if b_['op'] not in _NO_COUNT_OPS]
+        if gap_in is not None and prev_anchor and ops_blocks:
+            for b_ in ops_blocks:
+                b_['trig'] = {'kind': 'after_block', 'id': prev_anchor,
+                              'delay': int(round(gap_in * 100))}
         # 本波的新锚点 = 这一波第一块**有运算量**的积木
         if ops_blocks:
             k = blocks.index(ops_blocks[0]) + 1
             prev_anchor = 'w%d-1-%d' % (w, k)
         row['sets'] = [dict(when={'kind': 'always'}, ops=blocks)]
-        label = ' + '.join(b.get('op') for b in blocks) or '（空）'
+        label = ' + '.join(b_.get('op') for b_ in blocks) or '（空）'
         row['note'] = '快捷布置：' + label
         if beat.get('split'):
             row['note'] += '　· 分场（`/`）：上下半场的落点自己填'
         if len(variants) > 1:
             row['note'] += '　· 波动（`~`）第 %d 套' % (cycle_i % len(variants) + 1)
-        if gaps:
-            row['note'] += '　· 定时（波距 %gs）' % gaps[(i) % len(gaps)]
+        if gap_in is not None:
+            row['note'] += '　· 定时（距上一波 %gs）' % gap_in
+        if w in (10, 20) and gaps and _first_ice_beat(beats) is not None:
+            row['note'] += '　· 旗波重置到含 I 的拍（冰杀蹦极）'
         filled += 1
+        j += 1
     p['waves'].sort(key=lambda r: int(r['w']))
     return p, filled
 
@@ -2037,8 +2076,8 @@ FE4_STR = (
 
 # 夜场：蘑菇免唤醒 → 咖啡豆没用；冰/核的落点必须是**陆路空格**（水路要荷叶，
 # 而夜场又没有存冰位）。荷叶留在卡组里给"7~9 列核坑"用。
-_FE4_DECK = ['寒冰菇', '模仿寒冰菇', '毁灭菇', '模仿毁灭菇',
-             '樱桃', '辣椒', '窝瓜', '南瓜', '荷叶', '小喷菇']
+_FE4_DECK = ['寒冰菇', '模仿寒冰菇', '毁灭菇', '荷叶',
+             '樱桃', '三叶草', '窝瓜', '南瓜', '小喷菇', '大喷菇']
 
 _FE4_PLANS = {
     'N6s': dict(system='N', beats=['I-PP', 'I-PP', 'N', 'PP'],
@@ -2203,11 +2242,11 @@ def example_fe4(rid='N6s'):
     #     「起手必然从连续节奏最快的点开始」。FE.雾四炮 的起手 = **PP|N|PP**，
     #     即 N6s 从第 2 拍起铺，且第 2 拍的 I 开局不打（没有运算量）。
     p['rhythm'][GAPS_KEY] = [float(g) for g in conf['gaps']]
-    # ★ 2026-10-24：`rhythm.fixed_timeline = True` 可以打开"运算量绝对时间轴"
-    #   （见 `plan._fixed_timeline`）。**默认不开**：实测对 FE.雾四炮 的
-    #   全出怪/慢速两档都没有提升（炮在僵尸还没进场时被迫空放），而对手写
-    #   阵解尾部拥挤的情况反而更容易在 w18/19 崩。留着供实验。
-    p['rhythm'].pop('fixed_timeline', None)
+    # ★★ 2026-10-24 用户：「固定波长的阵，运算量必须是定时的」+「与刷波解耦」。
+    #   实测（N6s / FE）：关掉 → 慢速只到 w12~14；打开 → 到 w18~19。
+    #   所以**雾四炮这个示例默认打开绝对时间轴**（经典八炮那种"炮数刚好卡产能"
+    #   的阵仍然关闭，见 CHANGELOG）。
+    p['rhythm']['fixed_timeline'] = True
     p, _n = quick_layout(p, '|'.join(conf['beats']), pair='full',
                          start=conf.get('start', 0))
 
@@ -2215,14 +2254,21 @@ def example_fe4(rid='N6s'):
     #   **毁灭菇要种在水路前排空格** —— 只有水路前排才能同时盖住
     #   上下两条水路 + 相邻陆路，凑够 **2 个运算量**（用户 2026-10-23 点名）。
     #   冰/核的格子逐波轮换：冰车压过留冰道、核留弹坑，同一格会被卡死。
-    ICE_CELLS = [(2, 9), (1, 9), (5, 9), (6, 9), (2, 8), (1, 8), (5, 8), (6, 8)]
-    NUKE_CELLS = [(3, 7), (4, 7), (3, 8), (4, 8), (3, 9), (4, 9)]
+    # ★★ 2026-10-24 用户：「按照 case 中的 FE.雾四炮 解法来重写其示例」——
+    #   直接照 `cases/FE.雾四炮 261023` 里那份**实战阵解**的参数：
+    #     · 冰种在 **3-5**（水路前排，紧挨着 3/4 路双曾）
+    #     · 核种在 **4-7 / 4-8 / 3-7** 轮换（水路前排空格，能盖住上下两条水路 +
+    #       相邻陆路，凑够 2 个运算量）
+    #     · 炮落点滑列（仰 2 / 仰 5）
+    #     · 旗波重置到含 I 的拍（冰杀蹦极）—— 由 `quick_layout` 负责
+    ICE_CELLS = [(3, 5)]
+    NUKE_CELLS = [(4, 7), (4, 8), (3, 7)]
     KEEP = {2: (2, 'threat'), 5: (5, 'threat')}     # 一对炮：仰 2 / 仰 5（滑列）
 
     ice_n = nuke_n = 0          # 冰 / 核各用掉几次（决定用原卡还是模仿者）
     for wi, row in enumerate(p['waves']):
-        ice_rc = ICE_CELLS[wi % len(ICE_CELLS)]
-        nuke_rc = NUKE_CELLS[wi % len(NUKE_CELLS)]
+        ice_rc = ICE_CELLS[0]
+        nuke_rc = NUKE_CELLS[(max(0, wi - 1)) % len(NUKE_CELLS)]
         for st in row['sets']:
             k = 0
             for b in st['ops']:
@@ -2253,16 +2299,15 @@ def example_fe4(rid='N6s'):
     for w in (10, 20):
         next(x for x in p['waves'] if int(x['w']) == w)['note'] = '旗波：同常规'
 
-    # 救场层：贴脸才出手（炮在水路 1~4 列，保护这四门）
+    # 救场层（照 case）：贴脸才出手，保护 4 条陆路的 4 列大喷
     p['rescue_simple'] = dict(
         enabled=True,
-        resources=[{'op': '樱桃'}, {'op': '窝瓜'}, {'op': '辣椒'},
+        resources=[{'op': '樱桃'}, {'op': '窝瓜'},
                    {'op': '小喷菇', 'pad_col': 'front'},
-                   {'op': '南瓜'}],
-        targets=[dict(id='%d-%d 炮' % (r, c), protect={'row': r, 'col': c},
-                      urgency_cells=2, priority=100 - 10 * c + r,
-                      cooldown=50, include_icecar=True)
-                 for (r, c) in ((3, 1), (3, 3), (4, 1), (4, 3))])
+                   {'op': '南瓜'}, {'op': '大喷菇'}],
+        targets=[dict(id='%d-4 大喷' % r, protect={'row': r, 'col': 4},
+                      urgency_cells=1.5, priority=10, cooldown=60)
+                 for r in (1, 2, 5, 6)])
     p = norm(p)
     return dict(ok=True, field='FE', name='雾四炮',
                 array={'%d-%d' % k: v for k, v in arr.items()},

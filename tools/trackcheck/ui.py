@@ -199,6 +199,12 @@ table.q td.dim{color:#64748b;font-size:11.5px}
 .jstrip b{color:#0f172a}
 .seedbox{margin:0 0 10px}
 .seedbox summary{cursor:pointer;font-size:12px;color:#2563eb;padding:3px 0}
+/* ★ 2026-10-24：逐种子明细可以点行切换显示的详情 */
+tr.srow{cursor:pointer}
+tr.srow:hover td{background:#eff6ff}
+tr.srow.on td{background:#dbeafe;font-weight:600}
+.seecard{display:none}
+.seecard.on{display:block;margin-top:6px;border-top:1px dashed #cbd5e1;padding-top:6px}
 .prog{font-size:12px;color:#64748b}
 /* ---- 报告卡片（与 html_report 同款） ---- */
 .card{border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;background:#fff}
@@ -1274,7 +1280,25 @@ document.getElementById('file').onchange = ev => {
 */
 document.addEventListener('click', async e => {
   const b = e.target.closest ? e.target.closest('button[data-pdf]') : null;
-  if (!b) return;
+  if (!b) {
+    // ★ 2026-10-24：逐种子明细点一行 → 显示那一局的详情
+    const tr = e.target.closest ? e.target.closest('tr.srow') : null;
+    if (tr) {
+      const jid = tr.dataset.sc;
+      const box = tr.closest('.job');
+      if (box) {
+        const on = tr.classList.contains('on');
+        box.querySelectorAll('tr.srow').forEach(x => x.classList.remove('on'));
+        box.querySelectorAll('.seecard').forEach(x => x.classList.remove('on'));
+        if (!on) {
+          tr.classList.add('on');
+          const card = box.querySelector('#sc-' + jid);
+          if (card) card.classList.add('on');
+        }
+      }
+    }
+    return;
+  }
   const url = '/api/pdf?id=' + b.dataset.pdf;
   const old = b.textContent;
   b.disabled = true; b.textContent = '生成中…';
