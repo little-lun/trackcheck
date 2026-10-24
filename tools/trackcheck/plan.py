@@ -262,7 +262,11 @@ LAYOUT_LETTERS = {
     "C'": ['花盆'], 'C': ['小喷菇'],
     'P': ['玉米炮'], 'S': ['玉米炮'], 'D': ['玉米炮'],
     '核': ['毁灭菇'], '冰': ['寒冰菇'], '樱': ['樱桃'], '辣': ['辣椒'],
+    # ★ 2026-10-24 冰变奏（冰代奏）复合符号 —— 三个字符紧挨着当一个记号
+    'PI1': ['寒冰菇'], 'PI2': ['寒冰菇'], 'PI3': ['寒冰菇'], 'cI4': ['寒冰菇'],
 }
+# 记号长度（从长到短匹配，`PI1` 必须先于 `P`）
+_TRACK_LENS = (3, 2, 1)
 
 # ★ 2026-10-24 用户：炮有三种写法，轨道字母不同 ——
 #   `P` 常规炮（一对炮打同一点）
@@ -270,6 +274,55 @@ LAYOUT_LETTERS = {
 #   `D` 延迟炮 / 拦截炮（实战多用于拦空中飞的小鬼；落点**动态**求）
 COB_LETTERS = {'P': 'P', 'S': 'S', 'D': 'D'}
 COB_KIND_LABEL = {'P': '常规炮', 'S': '分离炮', 'D': '拦截炮'}
+
+# ══════════════════════════════════════════════════════════════════
+# ★ 2026-10-24 用户：**冰变奏（冰代奏）复合轨道符号**
+#
+#   复合符号的字符**紧挨着**，整体当成一个记号（`PI1` 不是 `P` + `I1`）：
+#     ICE1 → `PI1`   ICE2 → `PI2`   ICE3 → `PI3`   ICE4 → `cI4`
+#
+#   来源：https://wiki.pvz1.com/doku.php?id=攻略:冰代奏
+#         + 《精确数据》「寒冰菇取消投掷小鬼」
+#
+#   四者的区别只在**"冰相对谁、晚多久生效"**，所以落成积木时就是一个
+#   `寒冰菇` 积木 + 不同的触发器（本模型"种植即生效"，所以生效 = 开播）。
+# ══════════════════════════════════════════════════════════════════
+ICE_COMPOSITE = {
+    'PI1': dict(id='ICE1', ice_cs=360, basis='wave',
+                label='ICE1（PI1）',
+                note='冰在本波 226~601cs 生效（常用 360）：冻住撑杆并拖延巨人，'
+                     '解决"舞王撑杆不同收"'),
+    'PI2': dict(id='ICE2', ice_cs=0, basis='cob',
+                label='ICE2（PI2）',
+                note='冰与炮同步生效（原速巨人不晚于炮 105cs、减速不晚于 210cs）：'
+                     '冻住正在投掷的巨人并在它投出小鬼前瞬杀，常见形式 PI2|PSD'),
+    'PI3': dict(id='ICE3', ice_cs=106, basis='cob',
+                label='ICE3（PI3）',
+                note='原速炮生效 106cs 后冰生效（减速 211cs）：利用 bug 取消小鬼生成，'
+                     '比 ICE2 多拖 284cs；**只有 1cs 有效时机**',
+                warn='ICE3 的操作精确度极高（有效时机只有 1cs），实战几乎无法稳定复现'),
+    'cI4': dict(id='ICE4', ice_cs=134, basis='pad',
+                label='ICE4（cI4）',
+                note='原速巨人垫材种植 134cs 后冰生效（减速 266cs）：原理同 ICE3，'
+                     '取消**锤击**生效',
+                warn='ICE4 至今没有开发出可以应用的阵型，只能当作理论记录'),
+}
+ICE_LETTERS = list(ICE_COMPOSITE)
+
+
+def _ice_trig(ic):
+    """冰变奏 → 积木的触发器
+
+    · `basis == 'wave'`（ICE1）：**本波刷怪后 N cs** 冰生效 → `time at N`
+    · `basis == 'cob'`（ICE2/ICE3）：**炮生效后 N cs** → `after at N`
+    · `basis == 'pad'`（ICE4）：**垫材种下后 N cs** → `after at N`
+      （垫材也是一块积木，"上一块之后 N cs"正好对上）
+    """
+    if ic['basis'] == 'wave':
+        return {'kind': 'time', 'at': int(ic['ice_cs'])}
+    return {'kind': 'after', 'at': int(ic['ice_cs'])}
+
+
 # 拦截炮的三个时机（用户给的三个选项）
 IMP_WHEN = ['release', 'apex', 'land']
 
@@ -964,7 +1017,7 @@ PAIRABLE = set(COB_LETTERS)
 
 
 def _track_chars(text):
-    """把 `P|P` 拆成 [(字符, 分隔符)] —— 支持 `AA'`、`N'` 这种两字符记号"""
+    """把 `P|P` 拆成 [(记号, 分隔符)] —— 支持 `AA'`、`N'`、`PI1`、`cI4` 这种多字符记号"""
     s = ''.join((text or '').split())
     out = []
     i = 0
@@ -974,15 +1027,17 @@ def _track_chars(text):
             out.append(('', TRACK_SEP[ch]))
             i += 1
             continue
-        two = s[i:i + 2]
-        if two in LAYOUT_LETTERS:
-            out.append((two, None))
-            i += 2
+        hit = None
+        for n in _TRACK_LENS:                 # 从长到短：`PI1` 优先于 `P`
+            tok = s[i:i + n]
+            if len(tok) == n and tok in LAYOUT_LETTERS:
+                hit = tok
+                break
+        if hit:
+            out.append((hit, None))
+            i += len(hit)
             continue
-        if ch in LAYOUT_LETTERS:
-            out.append((ch, None))
-        else:
-            out.append((ch, 'unknown'))
+        out.append((ch, 'unknown'))
         i += 1
     return out
 
@@ -1687,6 +1742,7 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
     j = start_i          # ★ 当前拍号（**可变**：旗波会重置它，见下）
     n_split_cob = 0
     n_imp_cob = 0
+    ice_used = {}
     for i, w in enumerate(targets):
         if j and j % len(beats) == 0:
             cycle_i = j // len(beats)
@@ -1733,6 +1789,11 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
                                  else {'kind': 'after', 'at': 0}))
                 if op == '玉米炮':
                     blk['cob'] = COB_LETTERS.get(letter, 'P')
+                elif letter in ICE_COMPOSITE:
+                    # ★ 2026-10-24 冰变奏：用触发器表达"冰相对谁、晚多久生效"
+                    ic = ICE_COMPOSITE[letter]
+                    blk['ice_var'] = ic['id']
+                    blk['trig'] = _ice_trig(ic)
                 blocks.append(blk)
 
         # ---- 落点（用户 2026-10-24）
@@ -1795,6 +1856,9 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
         j += 1
         n_split_cob += sum(1 for b_ in blocks if b_.get('cob') == 'S')
         n_imp_cob += sum(1 for b_ in blocks if b_.get('cob') == 'D')
+        for b_ in blocks:
+            if b_.get('ice_var'):
+                ice_used[b_['ice_var']] = ice_used.get(b_['ice_var'], 0) + 1
 
     if n_split_cob:
         info['hints'].append('分离炮（S）×%d 的落点没有自动填 —— 请逐个填「填写落点」'
@@ -1803,6 +1867,21 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
         info['hints'].append('拦截炮（D）×%d 的落点是**动态**的：按「炸死所有被巨人'
                              '抛出在空中飞的小鬼」在运行时求解；时机可选'
                              '出手 / 最高点 / 落地前' % n_imp_cob)
+    if ice_used:
+        info['ice_var'] = ice_used
+        parts = []
+        for k in ('ICE1', 'ICE2', 'ICE3', 'ICE4'):
+            if not ice_used.get(k):
+                continue
+            key = [kk for kk, v in ICE_COMPOSITE.items() if v['id'] == k][0]
+            parts.append('%s ×%d' % (ICE_COMPOSITE[key]['label'], ice_used[k]))
+        info['hints'].append('冰变奏（冰代奏）：%s —— 触发器已按"冰相对谁生效"填好'
+                             % '、'.join(parts))
+        # ★ 用户 2026-10-24：ICE4 至今无可用阵型、ICE3 只有 1cs 有效时机 → 必须警告
+        if ice_used.get('ICE4'):
+            info['warnings'].append(ICE_COMPOSITE['cI4']['warn'])
+        if ice_used.get('ICE3'):
+            info['warnings'].append(ICE_COMPOSITE['PI3']['warn'])
     if parsed['unknown']:
         info['warnings'].append('不认识的记号：%s' % ' '.join(parsed['unknown']))
 
@@ -1839,11 +1918,14 @@ def _cob_of(opsx, kds, i):
 
 
 def _block_label(b_):
-    """时间轴/备注里一块积木的显示名（炮要带 P/S/D 前缀）"""
+    """时间轴/备注里一块积木的显示名（炮要带 P/S/D 前缀，冰变奏带 ICE 名）"""
     op = b_.get('op') or ''
     k = b_.get('cob')
     if op == '玉米炮' and k:
         return '%s（%s）' % (k, COB_KIND_LABEL.get(k, k))
+    iv = b_.get('ice_var')
+    if iv:
+        return '%s·%s' % (op, iv)
     return op
 
 
@@ -2428,6 +2510,15 @@ def catalog():
         gaps_key=GAPS_KEY,
         cob_cd=COB_CD, long_card_cd=LONG_CARD_CD,
         p_min=P_MIN, c_min=C_MIN,
+        # ★ 2026-10-24：炮积木 / 卡积木分开列 —— 界面上是两个不同的"加积木"入口
+        cob_ops=[dict(name=o['name'], cob=k, label='%s %s' % (k, v),
+                      note=o.get('note') or '')
+                 for k, v in COB_KIND_LABEL.items()
+                 for o in OPS if o['name'] == '玉米炮'],
+        cob_tip=dict(note=[o for o in OPS if o['name'] == '玉米炮'][0]['note']),
+        card_ops=[o for o in OPS if o.get('group') != '炮'],
+        # ★ 2026-10-24 冰变奏（冰代奏）
+        ice_variants=[dict(letter=k, **v) for k, v in ICE_COMPOSITE.items()],
     )
 
 
@@ -3111,6 +3202,22 @@ _SPEC_PLAN = """# TrackCheck 阵解 JSON 格式说明（format = {fmt}）
 | `~` | 波动符（两套节奏摆动） | 两套**逐循环交替**铺进去 |
 
 字母表：{letters}
+
+### 冰变奏（冰代奏）复合符号
+
+`PI1` / `PI2` / `PI3` / `cI4` 是**三字符紧挨**的复合记号（不是 `P` + `I1`），
+分别对应 ICE1 / ICE2 / ICE3 / ICE4：
+
+| 符号 | 名称 | 冰生效时机 | 用途 |
+|---|---|---|---|
+| `PI1` | ICE1 | 本波 **226~601cs**（常用 360） | 冻住撑杆并拖延巨人（"舞王撑杆不同收"的解法之一） |
+| `PI2` | ICE2 | **与炮同步**（原速 ≤ 炮 +105cs、减速 ≤ +210cs） | 冻住正在投掷的巨人，在它投出小鬼前瞬杀；常见 `PI2|PSD` |
+| `PI3` | ICE3 | 炮生效后 **106cs**（减速 211cs） | 利用 bug **取消小鬼生成**，比 ICE2 多拖 284cs；**只有 1cs 有效时机** |
+| `cI4` | ICE4 | 垫材种下后 **134cs**（减速 266cs） | 同原理**取消锤击**；**至今没有可应用的阵型** |
+
+快捷布置会把它们落成"寒冰菇积木 + 对应触发器"（`time at 360` / `after at 0|106|134`），
+并给积木打上 `ice_var`（`ICE1`~`ICE4`）供界面显示。手工加也走同一条路：
+冰积木上有一个「冰变奏」下拉，选完自动改触发器。
 
 ### 波长校验（`gaps` 填了就会查）
 

@@ -518,6 +518,13 @@ def _keys_desc(d):
 #   ⚠️ 只放**纯显示**的片段：`任意`（= 任意僵尸）、`旗波`（role 值）、`炮`/`特技`
 #      （group 值）、`模仿`（模仿者前缀）这些是**数据**，绝不能进来。
 JS_LITERALS = {
+    # ★ 2026-10-24：炮积木 / 卡积木分离后的标签片段
+    '<label>动作</label>': '<label>Action</label>',
+    # 这两条只以**带引号字面量**的形式出现，走 BULK 会被_clean_bulk 当整句碎片丢掉
+    '动作': 'Action',
+    '冰相对谁、晚多久生效': 'what the ice is timed against, and how much later',
+    '<div class="row"><label>落点</label>': '<div class="row"><label>Landing spot</label>',
+    '>冰相对谁、晚多久生效<': '>what the ice is timed against, and how much later<',
     # ★ 2026-10-24：积木检查器里"分离炮动态落点"那几个短片段 + 「+ 炮」按钮
     ' · 动态落点（': ' · dynamic landing (',
     ' 路': ' lane',

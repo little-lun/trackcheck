@@ -302,11 +302,15 @@ function plDeckOps() {
   return out;
 }
 function plOps() {
+  // ★★ 2026-10-24 用户：**卡积木只列植物卡片** —— 炮有独立的「+ 炮积木」入口，
+  //   不再混在这个下拉里（以前同一个玉米炮能从三处加进来，是个 bug）。
+  //   选卡为空时退回全部卡积木，否则下拉里一个选项都没有（积木动作会是空的）。
   const allowed = plDeckOps();
-  const ops = PLAN.cat.ops.filter(function (o) {
-    // ★ 2026-10-22：P（玉米炮）永远可选 —— 它属于阵型，不属于选卡
-    return o.group === '炮' || o.group === '特技' || allowed.indexOf(o.name) >= 0;
+  const card = PLAN.cat.card_ops || [];
+  const ops = card.filter(function (o) {
+    return o.group === '特技' || allowed.indexOf(o.name) >= 0;
   });
+  const list = ops.length ? ops : card.slice();
   // 模仿了 OPS 里没有的植物 → 补一块（引擎未建模，校验会提示）
   allowed.forEach(function (o) {
     if (o.indexOf('模仿') === 0 && !PLAN.cat.ops.some(function (x) { return x.name === o; })) {
@@ -314,7 +318,8 @@ function plOps() {
                  note: '引擎暂未建模这张模仿卡（写进阵解可以，跑起来会记未知卡片）' });
     }
   });
-  return ops;
+  // ★ 2026-10-24：`ops` 上面已被 `list` 取代（防空选卡），这里给后者
+  return list;
 }
 function plCardOpts() {
   const deck = (plP().deck || []).filter(Boolean);
@@ -540,6 +545,7 @@ function plBlockChip(b, i, si, on, wave) {
     '" data-act="selBlock" data-set="' + si + '" data-block="' + i + '">' +
     '<small class="bid" title="积木 ID（after_block 触发器靠它定位）">#' + plEsc(bid) + '</small> ' +
     plEsc(plOp(b.op)) + plEsc(plAimLabel(b)) + rep +
+    (b.ice_var ? '<small> ' + plEsc(b.ice_var) + '</small>' : '') +
     '<small> ' + plEsc(plTrigLabel(b.trig)) + '</small></span>';
 }
 function plGateText(st) {
@@ -683,8 +689,8 @@ function plRenderWave() {
       + '<button class="ghost mini2" data-act="downSet" data-path="' + sp + '">↓</button>'
       + '<button class="ghost mini2" data-act="delSet" data-path="' + sp + '">✕</button></div>'
       + '<div class="chain">' + chain
-      + '<button class="ghost mini2" data-act="addBlock" data-path="' + sp + '.ops">+ 积木</button>'
-      + '<button class="ghost mini2" data-act="addCob" data-path="' + sp + '.ops" title="直接放一块玉米炮（P 常规炮 + 滑动落点）">+ 炮</button>'
+      + '<button class="ghost mini2" data-act="addBlock" data-path="' + sp + '.ops">+ 卡积木</button>'
+      + '<button class="ghost mini2" data-act="addCob" data-path="' + sp + '.ops" title="直接放一块玉米炮（P 常规炮 + 滑动落点）">+ 炮积木</button>'
       + '<span class="hint" style="margin-left:8px">条件不成立就整组跳过、试下一个候选</span></div>'
       + plInspector(st, sp, si) + '</div>';
   }).join('');
@@ -757,34 +763,59 @@ function plInspector(st, sp, si) {
   const b = (st.ops || [])[PLAN.sel.block];
   if (!b) return '';
   const bp = sp + '.ops.' + PLAN.sel.block;
-  const spec = PLAN.cat.ops.find(function (o) { return o.name === b.op; }) || {};
+  const isCob = b.op === '玉米炮';
+  const spec = (isCob ? PLAN.cat.cob_tip
+                      : PLAN.cat.ops.find(function (o) { return o.name === b.op; }))
+               || {};
   const rep = b.repeat;
   const autoBid = plAutoBlockId(PLAN.sel.wave,
                                 PLAN.sel.set, PLAN.sel.block);
-  return '<div class="insp"><div class="row"><b>积木：' + plEsc(plOp(b.op)) + '</b>'
+  // ★★ 2026-10-24 用户：**炮积木与卡积木彻底分开** ——
+  //   以前"动作"下拉里既有玉米炮又有植物，加积木的入口也有两个，等于同一件事三条路。
+  //   现在：炮积木只显示「炮种 P/S/D」，卡积木只显示「动作 = 植物」，
+  //         两者之间用一个「⇄ 转成…」按钮显式切换。
+  const kindSel = isCob
+    ? ('<label>炮种</label>'
+       + plSel(bp, 'cob', b.cob || 'P',
+               [['P', 'P 常规炮'], ['S', 'S 分离炮'], ['D', 'D 拦截炮']])
+       + (b.cob === 'D'
+          ? '<label style="margin-left:10px">拦截时机</label>'
+            + plSel(bp, 'imp_when', b.imp_when || 'apex',
+                    [['release', '投掷刚刚出手时'], ['apex', '飞行到最高点时'],
+                     ['land', '小鬼将要落地时']])
+            + '<label style="margin-left:10px">管哪几路</label>'
+            + plSel(bp, 'imp_group', b.imp_group || 'low',
+                    [['low', '1~3 路'], ['high', '4~6 路'], ['any', '全部']])
+          : ''))
+    : ('<label>动作</label>'
+       + plSel(bp, 'op', b.op, plOps().map(function (o) { return [o.name, o.name]; })));
+  // 冰变奏（冰代奏）：只在冰积木上出现
+  const isIce = (b.op === '寒冰菇' || b.op === '模仿寒冰菇');
+  const iceSel = isIce
+    ? ('<label style="margin-left:10px" title="冰代奏：冰相对谁、晚多久生效">冰变奏</label>'
+       + '<select data-icevar="' + bp + '">'
+       + '<option value=""' + (b.ice_var ? '' : ' selected') + '>（不是冰变奏）</option>'
+       + (PLAN.cat.ice_variants || []).map(function (v) {
+           return '<option value="' + plEsc(v.id) + '"'
+             + (b.ice_var === v.id ? ' selected' : '') + ' title="'
+             + plEsc(v.note || '') + '">' + plEsc(v.label) + '</option>';
+         }).join('')
+       + '</select>')
+    : '';
+  return '<div class="insp"><div class="row"><b>'
+    + (isCob ? '炮积木' : '卡积木') + '：' + plEsc(plOp(b.op)) + '</b>'
     + '<span class="hint">（' + plEsc(spec.note || '') + '）</span>'
     + '<label style="margin-left:12px">ID</label>'
     + '<input type="text" data-path="' + bp + '" data-key="id" value="'
     + plEsc(b.id || '') + '" placeholder="' + plEsc(autoBid)
     + '" style="width:96px;font-size:11.5px" '
     + 'title="唯一命名：波数-候选-序号；after_block 用它定位"></div>'
-    + '<div class="row"><label>动作</label>'
-    + plSel(bp, 'op', b.op, plOps().map(function (o) { return [o.name, o.name]; }))
-    + (b.op === '玉米炮'
-       ? '<label style="margin-left:10px">炮种</label>'
-         + plSel(bp, 'cob', b.cob || 'P',
-                 [['P', 'P 常规炮'], ['S', 'S 分离炮'], ['D', 'D 拦截炮']])
-         + (b.cob === 'D'
-            ? '<label style="margin-left:10px">拦截时机</label>'
-              + plSel(bp, 'imp_when', b.imp_when || 'apex',
-                      [['release', '投掷刚刚出手时'], ['apex', '飞行到最高点时'],
-                       ['land', '小鬼将要落地时']])
-              + '<label style="margin-left:10px">管哪几路</label>'
-              + plSel(bp, 'imp_group', b.imp_group || 'low',
-                      [['low', '1~3 路'], ['high', '4~6 路'], ['any', '全部']])
-            : '')
-       : '')
-    + '<label style="margin-left:10px">落点</label>' + plAimEditor(bp, b) + '</div>'
+    + '<div class="row">' + kindSel + iceSel
+    + '<button class="ghost mini2" style="margin-left:10px" data-act="flipBlock"'
+    + ' data-path="' + bp + '" title="在炮积木 / 卡积木之间切换">'
+    + (isCob ? '⇄ 转成卡积木' : '⇄ 转成炮积木') + '</button>'
+    + '</div>'
+    + '<div class="row"><label>落点</label>' + plAimEditor(bp, b) + '</div>'
     + '<div class="row"><label>触发器</label>'
     + plCond(b.trig || { kind: 'spawn' }, bp + '.trig', PLAN.cat.triggers) + '</div>'
     + '<div class="row"><label>循环</label>'
@@ -1124,6 +1155,9 @@ PL_ROOT.addEventListener('click', async function (e) {
       const si = +(path.split('.')[3]) || 0;
       arr.push({ op: first, aim: null, trig: { kind: 'spawn' } });
       plRenumber(arr);
+      // ★ 2026-10-24：新加的积木直接选中，检查器立刻打开（不然还得再点一下）
+      PLAN.sel.set = si;
+      PLAN.sel.block = arr.length - 1;
     },
     // ★ 2026-10-24 用户报的 bug：炮操作类以前只能靠「快捷布置阵解」生成，手放不了。
     //   这里给一个专门的「+ 炮」按钮：直接放一块正常的 P（常规炮、滑动落点）。
@@ -1145,6 +1179,30 @@ PL_ROOT.addEventListener('click', async function (e) {
     downBlock: function () {
       plSnap(); plMoveBlock(path, +1);
       plRenumber(plPath(p, path.replace(/\.[^.]+$/, '')));
+    },
+    // ★★ 2026-10-24 用户：炮积木 ⇄ 卡积木。两种积木的字段不通用，切换时要一起换掉。
+    flipBlock: function () {
+      plSnap();
+      const b = plPath(p, path);
+      if (!b) return;
+      if (b.op === '玉米炮') {
+        // 炮 → 卡：换成选卡里的第一张卡
+        const deck = p.deck || [];
+        const first = plOps().find(function (o) { return deck.indexOf(o.name) >= 0; })
+          || plOps()[0];
+        b.op = (first && first.name) || '寒冰菇';
+        delete b.cob; delete b.imp_group; delete b.imp_when; delete b.dyn_kinds;
+        b.aim = null;
+        b.trig = { kind: 'spawn' };
+      } else {
+        // 卡 → 炮
+        b.op = '玉米炮';
+        b.cob = 'P';
+        b.aim = [2, 'front'];
+        delete b.ice_var;
+        b.trig = { kind: 'spawn' };
+      }
+      plRender();
     },
     copyBlock: function () {
       const b = plPath(p, path);
@@ -1353,6 +1411,24 @@ PL_ROOT.addEventListener('change', async function (e) {
     const b = plPath(plP(), el.dataset.dynrow);
     if (!Array.isArray(b.aim)) b.aim = [2, 'dyn'];
     b.aim[0] = +el.value;
+    return plRender();
+  }
+  if (el.dataset.icevar !== undefined) {
+    // ★ 2026-10-24 冰变奏：选 ICE1~ICE4 → 自动把触发器设成"冰相对谁、晚多久生效"
+    plSnap();
+    const b = plPath(plP(), el.dataset.icevar);
+    const v = el.value;
+    const tbl = {};
+    (PLAN.cat.ice_variants || []).forEach(function (x) { tbl[x.id] = x; });
+    if (!v || !tbl[v]) {
+      delete b.ice_var;
+    } else {
+      const ic = tbl[v];
+      b.ice_var = ic.id;
+      b.trig = (ic.basis === 'wave')
+        ? { kind: 'time', at: +ic.ice_cs || 0 }
+        : { kind: 'after', at: +ic.ice_cs || 0 };
+    }
     return plRender();
   }
   if (el.dataset.dynkind !== undefined) {

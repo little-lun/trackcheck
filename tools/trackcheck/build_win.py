@@ -15,8 +15,15 @@ build_win.py —— 打 Windows 版：主程序 exe + 安装程序 exe（内含�
 安装包时可以直接编译。）
 
 用法：
-    python -m tools.trackcheck.build_win              # 全打
-    python -m tools.trackcheck.build_win --only app   # 只打主程序
+    python -m tools.trackcheck.build_win                   # 内部版：只打 exe（不含安装包）
+    python -m tools.trackcheck.build_win --release         # 正式发布：再加安装包 + 合并更新日志
+    python -m tools.trackcheck.build_win --only app        # 只打主程序
+    python -m tools.trackcheck.build_win --only setup      # 只打安装包（要 exe 已在）
+
+★ 2026-10-24 用户定的轻量化规则：
+  **没有 release 的内部版本只出 html + exe，不生成 setup 安装包**；
+  正式 release 时才把这一段所有 `0.x.n` 的更新日志**合并**成一份发布说明，
+  再打安装包（这样安装包里带的日志是"一个发布"的完整说明，不是逐条碎片）。
 """
 
 import argparse
@@ -29,7 +36,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 DESK = os.path.join(ROOT, 'tools', 'trackcheck', 'desktop')
 DIST = os.path.join(ROOT, 'tools', 'trackcheck', 'dist')
 WORK = os.path.join(ROOT, 'tools', 'trackcheck', 'build')
-APP_VER = '0.3.6'
+APP_VER = '0.3.7'
 APP_PKG = '0.3'          # 文件名只到 0.x（0.x.n 是同一发布里的改动计数）
 ICON = os.path.join(DESK, 'trackcheck.ico')
 VERFILE = os.path.join(DESK, 'version_info.txt')
@@ -150,9 +157,49 @@ def write_docs():
         shutil.copy2(src, os.path.join(DIST, '发布说明.md'))
 
 
+def merged_changelog(pkg=None):
+    """把 CHANGELOG 里属于**同一个 0.x 发布**的所有小节合并成一份发布说明
+
+    ★ 2026-10-24 用户：内部版本只出 html+exe；到 release 时才合并更新日志、
+      再打安装包（安装包里带的应该是"这一个发布"的完整说明）。
+    """
+    pkg = pkg or APP_PKG
+    path = os.path.join(ROOT, 'CHANGELOG.md')
+    if not os.path.exists(path):
+        return ''
+    with open(path, encoding='utf-8') as f:
+        text = f.read()
+    keep, hit = [], False
+    for line in text.split('\n'):
+        if line.startswith('## ['):
+            hit = line.startswith('## [%s.' % pkg) or line.startswith('## [%s]' % pkg)
+            if hit:
+                keep.append(line)
+            continue
+        if hit:
+            keep.append(line)
+    body = '\n'.join(keep).strip()
+    return ('# trackcheck v%s · 更新日志（%s 发布合并版）\n\n%s\n'
+            % (pkg, pkg, body)) if body else ''
+
+
+def write_release_notes():
+    """release 专用：把 0.x.n 的日志合并成 dist/更新日志-v0.x.md"""
+    body = merged_changelog()
+    if not body:
+        return None
+    out = os.path.join(DIST, '更新日志-v%s.md' % APP_PKG)
+    with open(out, 'w', encoding='utf-8') as f:
+        f.write(body)
+    print('   合并更新日志 → %s（%d 字节）' % (os.path.basename(out), len(body)), flush=True)
+    return out
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument('--only', choices=['app', 'uninst', 'setup', 'all'], default='all')
+    ap.add_argument('--release', action='store_true',
+                    help='正式发布：额外打 setup 安装包，并合并 0.x.n 的更新日志')
     a = ap.parse_args(argv)
 
     with open(VERFILE, 'w', encoding='utf-8') as f:
@@ -167,11 +214,29 @@ def main(argv=None):
 
     app_exe = os.path.join(DIST, 'TrackCheck.exe')
     un_exe = os.path.join(DIST, 'Uninstall.exe')
-    if a.only == 'all':
+    if a.only in ('all', 'app') and (a.only == 'all' or not os.path.exists(app_exe)):
         app_exe = build_app()
+    if a.only in ('all', 'uninst') and (a.only == 'all' or not os.path.exists(un_exe)):
         un_exe = build_uninstaller()
-    build_installer(app_exe, un_exe)
-    write_docs()
+
+    do_setup = a.release or a.only == 'setup'
+    if do_setup:
+        if not (os.path.exists(app_exe) and os.path.exists(un_exe)):
+            raise RuntimeError('打安装包需要 dist/ 里先有 TrackCheck.exe 和 Uninstall.exe')
+        if a.release:
+            write_release_notes()
+        build_installer(app_exe, un_exe)
+        write_docs()
+    else:
+        # ★ 内部版本：只出 html + exe，不生成安装包
+        #   上一次 release 留下的 setup.exe 是**旧版本**的，留着容易误发 → 删掉
+        stale = os.path.join(DIST, 'trackcheck-v%s-setup.exe' % APP_PKG)
+        if os.path.exists(stale):
+            os.remove(stale)
+            print('   删掉上次 release 留下的旧安装包 %s'
+                  % os.path.basename(stale), flush=True)
+        print('（内部版本：跳过 setup 安装包；要打安装包请加 --release）', flush=True)
+
     print('\n产物目录：%s' % DIST, flush=True)
     for n in sorted(os.listdir(DIST)):
         print('   %-34s %6.2f MB' % (n, os.path.getsize(os.path.join(DIST, n)) / 1048576.0))
