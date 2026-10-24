@@ -251,7 +251,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({'error': 'bad json'}, 400)
             from tools.trackcheck import i18n as I18N
             return self._json({'ok': True, 'lang': I18N.set_lang(d.get('lang'))})
-        if path == '/api/plan/validate':            try:
+        if path == '/api/plan/validate':
+            try:
                 d = json.loads(raw or b'{}')
             except Exception:
                 return self._json({'error': 'bad json'}, 400)
