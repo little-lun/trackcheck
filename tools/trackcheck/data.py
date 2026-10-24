@@ -233,8 +233,22 @@ CATAPULT_INTERVAL = 300       # 《精确数值》投篮攻击间隔
 BASKET_FLIGHT = 199
 BASKET_DMG = 75               # 篮球单发伤害（社区常用值）
 
-# ---- 读报（Newspaper）：报纸是**二类防具**（只挡平射），被打掉后先发愣再暴走
-# ★ 2026-10-23 用户：
+# ---- 矿工（Digger）★★ 2026-10-24 完整模型（图鉴 + 《精确数据》）
+#   图鉴 Digger Zombie：`Health 370 / 100 (hard hat) / 270 (zombie)`；
+#     `Speed 1.2 (underground) / 7 (walking)`；
+#     "Digs through the ground and appears on the left side of the lawn, then eats
+#      through the player's defenses from the left. Vulnerable to Magnet-shroom,
+#      Gloom-shroom, Starfruit, Potato Mine (only when armed), and Split Pea."
+#   《精确数据》11.x：开始出土到晕 **130cs**；晕眩 **350cs**（减速 ×2）。
+#   用户口径：挖掘时**不对植物产生影响**、快速到底线；底线出土后**眩晕**再**向右走**；
+#     挖掘时被磁力菇吸走镐子 → **立即出土、向左走、不眩晕**。
+MINER_DIG_CS = 120       # 地下 1.2s/格
+MINER_WALK_CS = 700      # 地上 7s/格
+MINER_SURFACE_CS = 130   # 开始出土 → 晕
+MINER_STUN_CS = 350      # 眩晕（受减速影响时 ×2）
+MINER_TOP_X = 20         # 出土位置（防线最左端，1 列之前）
+
+# ---- 读报（Newspaper）：报纸是**二类防具**（只挡平射），被打掉后先发愣再暴走# ★ 2026-10-23 用户：
 #   「报纸破掉时会发愣一两秒且报纸属于二类防具（扶梯、报纸、铁门均为二类防具，
 #     在 AoE 伤害、投掷子弹下二类防具不起作用；其余防具属一类防具，必须先破坏
 #     才能对僵尸造成伤害，但是灰烬、炮、窝瓜可以直接击杀僵尸）」
@@ -962,6 +976,9 @@ FRONT_EXCLUDE = {'海豚', '矿工', '小鬼', '气球', '跳跳', '蹦极', '�
 # ★★ 2026-10-23 用户：「投篮就绪、舞王召唤都必须如实制作模型」
 #   → **投篮**不再走"进场 N cs 后按 dps 自动清掉"的假模型，改成真实体：
 #     走 216cs/列、473cs 就绪、+74cs 投出发篮球、之后每 300cs 一发（表 + 精确数值）。
+# ★★ 2026-10-24：矿工**不再是 SKIP**，改成真实体（用户点名要完整模型）：
+#   地下挖掘（1.2s/格、不与植物交互、快速到底线）→ 底线出土 → 眩晕 →
+#   向右走啃后场；挖掘时被磁力菇吸走镐子 → 立即出土、向左走、不眩晕。
 SKIP_KINDS = {'蹦极', '气球', '潜水', '雪橇', '雪人'}
 SKIP_LIFE = 1500        # 旧参数，已不用（保留避免引用报错）
 # 该路对单只僵尸的实际自然输出 dps（= io_map.py 实测值，红眼口径）

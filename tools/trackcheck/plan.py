@@ -662,18 +662,46 @@ def tick_rescue_simple(sim, cfg):
 
 # ------------------------------------------------------------------ 编译入口
 def compile_plan(plan):
-    """→ (track_fn, rescue_tick, globals_tick)"""
+    """→ (track_fn, rescue_tick, globals_tick)
+
+    ★★ 2026-10-24 —— **固定波长阵的"运算量时间轴"**
+
+    用户口径：「对于固定波长的阵，其具备运算量的操作（N / P / A / A′…）必须是定时的，
+    使用触发器『距某积木生效后若干时长』」。
+
+    但只按 `after_block` 串还不够：**波不是在固定时刻刷出来的**
+    （生存无尽的波是"本波剩余血量跌破阈值"才刷），所以"第 15 波的操作"要等到
+    w15 真的刷出来才会被排期 —— 一旦前面的兵清得慢，后面的炮就跟着迟到，
+    甚至出现 3000~5600cs 的炮空窗（实测：FE.雾四炮 慢速关就是被这段空窗里的
+    冰车碾穿 6-4 的）。
+
+    所以这里把整局的运算量**编译成一条绝对时间轴**：
+      · 第一个运算量记 t0；
+      · 之后每一块 = 上一块 + 它自己的 delay（`after_block.delay` 或 `time.at`）；
+      · 全部按绝对 `time` 排进引擎，**与波次刷新完全解耦**。
+    非运算量（冰 / 咖啡豆 / 大喷）仍然跟着刷怪走（慢波要"刷出来就冻"）。
+
+    `track.fixed` = [(t_abs, name, aim, wave), ...]；`track.fixed_ids` = {w: 跳过集}
+    """
     p = norm(plan or {})
     rows = {int(r['w']): r for r in (p.get('waves') or [])}
     rules = p.get('rescue') or []
     g_rules = p.get('globals') or []
     simple = p.get('rescue_simple') or {}
     hist = {}
+    fixed = _fixed_timeline(p)
+    # ★ 绝对时间轴一旦成立，这些波的**运算量**就全部由轴负责 ——
+    #   刷怪时不能再排一遍（否则同一块积木会打两次）。
+    fixed_waves = fixed[1] if fixed else set()
 
     def track(w, ctx):
         if int(w or 0) <= 1:
             hist.clear()
-        return _wave_acts(rows.get(int(w or 0)), ctx, hist)
+        acts = _wave_acts(rows.get(int(w or 0)), ctx, hist)
+        if int(w or 0) in fixed_waves and not (ctx or {}).get('fixed_off'):
+            # 运算量已经排进绝对时间轴 → 这里只留"非运算量"（冰 / 咖啡豆 / 种大喷）
+            acts = [a for a in acts if (a.get('op') or '') in _NO_COUNT_OPS]
+        return acts
 
     def rescue_tick(sim):
         tick_rescue_simple(sim, simple)
@@ -682,7 +710,58 @@ def compile_plan(plan):
     def globals_tick(sim):
         tick_globals(sim, g_rules)
 
+    track.fixed = [(t, nm, aim, w) for (t, nm, aim, w, _bid) in (fixed[0] if fixed else [])]
+    track.fixed_waves = fixed_waves
     return track, rescue_tick, globals_tick
+
+
+def _fixed_timeline(p):
+    """把整局的**运算量**铺成一条绝对时间轴。返回 (events, waves) 或 None。
+
+    `events` = [(t_abs, op, aim, w, bid)]；`waves` = 哪些波的运算量被这条轴接管。
+
+    ★★ 2026-10-24：**改为按阵解显式开启**（`rhythm.fixed_timeline = True`）。
+      原因：绝对时间轴只有在"阵解自己的节奏与场上炮的产能匹配"时才更好。
+      · FE.雾四炮（4 炮、18s 慢波）→ 开了明显更稳（冰车会被炸死）；
+      · 经典八炮 P4（8 炮、9s 一对炮）→ 开了反而 0/20：
+        绝对时刻会逼着炮在"僵尸还没进场"时开空炮，把装填浪费掉。
+      所以默认沿用原来的"距上一块生效后 N cs"链，需要的阵解自己打开。
+    """
+    rh = p.get('rhythm') or {}
+    if not rh.get('fixed_timeline'):
+        return None
+    gaps = [float(x) for x in (rh.get(GAPS_KEY) or [])]
+    if not gaps:
+        return None
+    rows = sorted((p.get('waves') or []), key=lambda r: int(r.get('w') or 0))
+    events, waves = [], set()
+    t = None
+    for row in rows:
+        w = int(row.get('w') or 0)
+        # 同一波（= 同一拍）的所有运算量**同时生效** —— 所以 delay 只看这一波的第一块
+        blocks = [b for st in (row.get('sets') or [])
+                  for b in (st.get('ops') or [])
+                  if (b.get('op') or '') not in _NO_COUNT_OPS]
+        if not blocks:
+            continue
+        trig = blocks[0].get('trig') or {}
+        k = trig.get('kind')
+        if k == 'after_block':
+            d = int(trig.get('delay') or trig.get('at') or 0)
+        elif k in (None, 'spawn'):
+            d = None                    # 起手块：自己定 t0
+        elif k == 'time':
+            d = int(trig.get('at') or 0)
+        else:
+            return None                 # 有非时间型触发器 → 不做绝对轴
+        if t is None:
+            t = d if d is not None else 0
+        else:
+            t += (0 if d is None else d)
+        for b in blocks:
+            events.append((t, b.get('op'), b.get('aim'), w, b.get('id')))
+        waves.add(w)
+    return (events, waves) if events else None
 
 
 # ------------------------------------------------------------------ 详细救场层
@@ -2123,6 +2202,11 @@ def example_fe4(rid='N6s'):
     #     「起手必然从连续节奏最快的点开始」。FE.雾四炮 的起手 = **PP|N|PP**，
     #     即 N6s 从第 2 拍起铺，且第 2 拍的 I 开局不打（没有运算量）。
     p['rhythm'][GAPS_KEY] = [float(g) for g in conf['gaps']]
+    # ★ 2026-10-24：`rhythm.fixed_timeline = True` 可以打开"运算量绝对时间轴"
+    #   （见 `plan._fixed_timeline`）。**默认不开**：实测对 FE.雾四炮 的
+    #   全出怪/慢速两档都没有提升（炮在僵尸还没进场时被迫空放），而对手写
+    #   阵解尾部拥挤的情况反而更容易在 w18/19 崩。留着供实验。
+    p['rhythm'].pop('fixed_timeline', None)
     p, _n = quick_layout(p, '|'.join(conf['beats']), pair='full',
                          start=conf.get('start', 0))
 

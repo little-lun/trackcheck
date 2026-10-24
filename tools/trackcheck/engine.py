@@ -184,7 +184,7 @@ class Zombie:
                  'phase', 'vaulted', 'slid', 'armor', 'spd_alt', 'never_eat',
                  'hold_until', 'vault_until', 'vault_to_x',
                  'born_t', 'cat_at', 'eat_ready', 'joker_res',
-                 'shield', 'shield0', 'total_hp0', 'daze_until', 'defused')
+                 'shield', 'shield0', 'total_hp0', 'daze_until', 'defused', 'rev')
 
     def __init__(self, kind, row, x, wave, rng):
         self.kind = kind
@@ -233,6 +233,7 @@ class Zombie:
         self.joker_early = False
         self.joker_res = None         # 小丑结局：'died' / 'boom' / 'blank'（炸空）
         self.defused = False          # ★ 磁力菇吸走盒子 → 永久无法爆炸
+        self.rev = False              # ★ 矿工出土后**向右走**
         # ★ 2026-10-22：分阶段速度 / 撑杆跳 / 舞王滑步 / 金属护具
         # ★ 2026-10-23（《僵尸时间表》）：**起步偏差**
         #   正值 = 生成后先停顿（足球/投篮车/撑杆的起步加速）；
@@ -263,6 +264,11 @@ class Zombie:
             # ★ 2026-10-23 图鉴：骑海豚 0.8s/格（`spd`），跳过后水豚消失 → 4.7s/格
             self.spd = D.CELL_W / 80.0            # 0.8s = 80cs
             self.spd_alt = D.CELL_W / 470.0       # 4.7s = 470cs
+        elif kind == '矿工':
+            # ★ 2026-10-24 完整模型：地下 1.2s/格、地上 7s/格（图鉴）
+            self.spd = D.CELL_W / float(D.MINER_DIG_CS)
+            self.spd_alt = D.CELL_W / float(D.MINER_WALK_CS)
+            self.phase = 'dig'
         else:
             self.spd_alt = 0.0
 
@@ -786,6 +792,7 @@ class Sim:
         #   「场上某植物数量」「某格是什么植物」「之前某波真的做了什么」这些条件用
         ctx = self.plan_ctx()
         ctx['wave'] = w
+        ctx['fixed_off'] = bool(self.__dict__.get('_fixed_off'))
         acts = [_norm_act(a) for a in self.track(w, ctx)]   # (name, off, aim, trig)
         self._prev_acts = [a[0] for a in acts]     # 供下一波判定"上一波是不是核"
         if self.relaxed:
@@ -875,13 +882,22 @@ class Sim:
                       row=r, col=c,
                       detail='用户口径：区域内随机 3 格 · 忽略落地时延')
 
-    def _schedule(self, t, name, aim, w, kind='act', trig=None):
+    def _schedule(self, t, name, aim, w, kind='act', trig=None, due=None, bid=None):
         """
         ★ v0.2：`trig` 是"触发器"（阵解栏里的积木可以挂条件）。
           None  → 老行为：到点就执行
           其它  → 到点后每 tick 求值，`fire` 执行 / `wait` 继续等 / `expire` 丢弃
+
+        ★ 2026-10-24：`due` = **这一块积木"本应生效"的时刻**（名义时刻）。
+          和 `t` 的区别：玩家/阵解说"9s 一对炮"时，如果这一拍恰好赶上炮在装填、
+          引擎让事件"等 100cs 再试"，实际生效时刻就会晚。**定时链必须按名义时刻走**，
+          否则每等一次就往后漂一点，几十秒后节奏就散了（实测：慢速关出现
+          3000cs / 5600cs 的炮空窗，冰车正是从这些空窗里碾进来的）。
         """
-        ev = dict(t=t, name=name, aim=aim, wave=w, kind=kind)
+        ev = dict(t=t, name=name, aim=aim, wave=w, kind=kind,
+                  due=(t if due is None else due))
+        if bid:
+            ev['bid'] = bid
         if trig:
             ev['trig'] = trig
             # ★ 2026-10-22：`since`（距上次某积木生效后）是跨波锚点，
@@ -1253,14 +1269,16 @@ class Sim:
             if self.card_ready.get('窝瓜', 0) > self.t:
                 if getattr(self, '_wogua_retry', 0) < 12:
                     self._wogua_retry = getattr(self, '_wogua_retry', 0) + 1
-                    self._schedule(self.t + 300, name, aim, ev['wave'])
+                    self._schedule(self.t + 300, name, aim, ev['wave'],
+                                    due=ev.get('due'), bid=ev.get('bid'))
                 return
             cars5 = [z for z in self.zombies
                      if z.alive and z.kind == '冰车' and z.row == 5]
             if not cars5:
                 if getattr(self, '_wogua_retry', 0) < 12:
                     self._wogua_retry = getattr(self, '_wogua_retry', 0) + 1
-                    self._schedule(self.t + 150, name, aim, ev['wave'])
+                    self._schedule(self.t + 150, name, aim, ev['wave'],
+                                    due=ev.get('due'), bid=ev.get('bid'))
                 else:
                     self._wogua_retry = 0
                     self._log('INFO', 'w10 没有 5 路冰车（窝瓜省下）')
@@ -1291,17 +1309,27 @@ class Sim:
                        and not self.temp_ice.get(rc))
             if blocked and getattr(self, '_nuke_retry', 0) < 8:
                 self._nuke_retry = getattr(self, '_nuke_retry', 0) + 1
-                self._schedule(self.t + 150, name, aim, ev['wave'])
+                self._schedule(self.t + 150, name, aim, ev['wave'],
+                                due=ev.get('due'), bid=ev.get('bid'))
                 return
             self._nuke_retry = 0
 
         # ★ 快速关 w9 长间隔施工："种大喷，优先 5-7 其次 2-7"
         #   作用是用**结构**替代操作：下半场放羊时，这两株大喷替 2/5 路补 IO。
+        # ★★ 2026-10-24 修 bug：这里的**写死兜底 `[(5,7),(2,7)]`** 会把任何
+        #   "没写落点的大喷"都种到 5-7 / 2-7 —— 包括**救场层**的资源。
+        #   实测后果：FE.雾四炮 的救场资源 `{op: 大喷菇}` 每波都在 5-7/2-7 种一株，
+        #   被啃/被碾 → 进补种队列 → 反复刷"损失"，还会干扰"冰车没吃到 P"的判断。
+        #   → 只认**阵解显式配置**的 `slots.fast_fog`；没配就直接不种。
         if name == '大喷菇':
             pos = None
             if isinstance(aim, (tuple, list)) and len(aim) == 2:
                 pos = (int(aim[0]), int(aim[1]))
-            spots = [pos] if pos else (self.slots.get('fast_fog') or [(5, 7), (2, 7)])
+            spots = [pos] if pos else list(self.slots.get('fast_fog') or [])
+            if not spots:
+                self._log('INFO', '大喷菇没有指定落点，也没有配置 fast_fog 槽位 → 不种',
+                          detail='避免写死 5-7/2-7 污染阵型')
+                return
             for rc in spots:
                 cell = self.cells.get(rc)
                 if cell is None:
@@ -1595,7 +1623,8 @@ class Sim:
             n = getattr(self, '_cob_cd_wait', 0)
             if n < 24:                        # 最多等 2.4s
                 self._cob_cd_wait = n + 1
-                self._schedule(self.t + 100, '玉米炮', aim, ev.get('wave'))
+                self._schedule(self.t + 100, '玉米炮', aim, ev.get('wave'),
+                                due=ev.get('due'), bid=ev.get('bid'))
                 return
             self._cob_cd_wait = 0
             self.broken.append(dict(t=self.t, wave=ev['wave'], what='玉米炮',
@@ -1622,11 +1651,15 @@ class Sim:
                 # ★ 场上还没有"可伤"的僵尸 → **等**（玩家不会对着空气开炮）。
                 #   刚刷出来的僵尸在 800 以外，`dbox` 还没进可伤区；
                 #   这时开炮这一发就是白的，而且白搭 3475cs 装填。
+                # ★★ 2026-10-24：因为运算量已经排进**绝对时间轴**（`plan._fixed_timeline`），
+                #   在这里多等一会儿**不会**拖散后面的节奏 —— 后面的炮是绝对时刻排好的。
+                #   所以恢复成最多等 2s（24 × 50cs）：既不空放，也不影响定时。
                 if col is None:
                     n = getattr(self, '_cob_wait', 0)
                     if n < 40:
                         self._cob_wait = n + 1
-                        self._schedule(self.t + 50, '玉米炮', aim, ev.get('wave'))
+                        self._schedule(self.t + 50, '玉米炮', aim, ev.get('wave'),
+                                       due=ev.get('due'), bid=ev.get('bid'))
                         return
                     self._cob_wait = 0
                     col = 8.0
@@ -1959,12 +1992,46 @@ class Sim:
         self._bungee_mark('ice')
 
     # ------------------------------------------------ 主循环
+    def _arm_fixed_timeline(self):
+        """把阵解的**绝对运算量时间轴**排进事件表（固定波长的阵）。
+
+        ★ 2026-10-24：见 `plan._fixed_timeline`。要点是"运算量与刷波解耦" ——
+          否则前方清兵慢 → 下一波迟迟不刷 → 炮跟着迟到 → 出现 3~5s 的炮空窗。
+        """
+        fixed = getattr(self.track, 'fixed', None) or []
+        if fixed:
+            # ★ 产能检查：一门炮 3475cs 装填 → N 门炮在任意 3475cs 窗口内最多 N 发。
+            #   超产能的那几发**单独丢掉**（它们本来也打不出去），其余照绝对时刻走。
+            #   例：FE.雾四炮 手写阵解的 w18~w20 挤了 6 发/3475cs（只有 4 门炮），
+            #   表现为"w20 的 P 又多又乱" —— 现在会明确报出来并丢掉多余的。
+            n_cob = sum(1 for c in self.cells.values()
+                        if c.plant == '玉米炮' and c.plant_hp > 0)
+            cap = max(1, n_cob)
+            kept, recent = [], []
+            for item in sorted(fixed, key=lambda x: int(x[0])):
+                t = int(item[0])
+                if item[1] == '玉米炮':
+                    recent = [x for x in recent if t - x < 3475]
+                    if len(recent) >= cap:
+                        self._log('INFO', '跳过超产能的开炮（t=%d，%d 门炮 3475cs 内已 %d 发）'
+                                  % (t, n_cob, len(recent)),
+                                  detail='固定波长的阵必须与炮的产能匹配')
+                        continue
+                    recent.append(t)
+                kept.append(item)
+            fixed = kept
+        for item in fixed:
+            t, name, aim, w = item[0], item[1], item[2], item[3]
+            self._schedule(max(0, int(t)), name, aim, w)
+
     def run(self):
+        self._arm_fixed_timeline()
         while not self.done and self.t < self.max_t:
             self.t += D.TICK
             self._index()
             self._tick_spawn()
             self._tick_move()
+            self._tick_miner()
             self._tick_icecar()
             self._tick_catapult()
             self._tick_basket()
@@ -2719,10 +2786,76 @@ class Sim:
                               detail='可补种 · 冰道已铺在该格')
                     break
 
+    def _tick_miner(self):
+        """矿工（Digger）—— **完整模型**（图鉴 + 《精确数据》，用户 2026-10-24 点名）
+
+        三段：
+          ① `dig`  地下挖掘：1.2s/格，**不与植物交互**（不啃、不被啃），一路快到底线；
+                   只有能打到地下的伤害才有效（`_hurt` 里判 `pierce`）。
+          ② `stun` 出土 → 晕：出土 130cs + 眩晕 350cs（减速时 ×2）。
+          ③ `walk` **向右走**：7s/格，从背后啃后场（`rev=True`）。
+
+        挖掘时被磁力菇吸走镐子（`_magnet` 里 `pickaxe_gone()`）→
+          **立即出土、向左走（正常方向）、不眩晕**。
+        """
+        for z in self.zombies:
+            if not z.alive or z.kind != '矿工':
+                continue
+            if z.frozen_until > self.t or z.stall_until > self.t or z.daze_until > self.t:
+                continue
+            ph = z.phase
+            if ph == 'dig':
+                z.x -= z.spd * D.TICK
+                z.min_x = min(z.min_x, z.x)
+                if z.x <= D.MINER_TOP_X:
+                    z.x = float(D.MINER_TOP_X)
+                    z.phase = 'stun'
+                    z.hold_until = self.t + D.MINER_SURFACE_CS + D.MINER_STUN_CS
+                    self._log('INFO', '矿工出土 %d 路（x=%d）→ 眩晕 %.2fs'
+                              % (z.row, int(z.x),
+                                 (D.MINER_SURFACE_CS + D.MINER_STUN_CS) / 100.0),
+                              row=z.row,
+                              detail='出土 130cs + 晕 350cs；之后**向右**走 7s/格')
+                continue
+            if ph == 'stun':
+                if self.t >= z.hold_until:
+                    z.phase = 'walk'
+                    z.rev = True
+                    z.spd = z.spd_alt or z.spd
+                    self._log('INFO', '矿工 %d 路醒来 → 向右啃后场' % z.row, row=z.row)
+                continue
+            # ---- walk：向右找最近的可啃植物
+            target = None
+            for col in range(1, 10):
+                c = self.cells.get((z.row, col))
+                if c is None or not c.has_content():
+                    continue
+                spec = D.PLANTS.get(c.plant) if c.plant else None
+                if (spec and spec.get('no_eat')) or c.tail:
+                    continue
+                if c.ladder and not z.giant:
+                    continue
+                if c.x < z.x - D.EAT_OFFSET:
+                    continue          # 已经在它身后
+                target = c
+                break
+            if target is not None and z.x + D.EAT_OFFSET >= target.x:
+                had = target.plant
+                broke = target.take_damage(D.EAT_DPS * D.TICK / 100.0)
+                if broke == 'plant':
+                    self._plant_lost(target, had, z)
+                elif broke == 'pumpkin':
+                    self._log('WARN', '南瓜被矿工啃穿 %d-%d' % (target.row, target.col),
+                              row=target.row, col=target.col)
+            else:
+                z.x += z.spd * D.TICK
+
     def _tick_move(self):
         for z in self.zombies:
             if not z.alive:
                 continue
+            if z.kind == '矿工':
+                continue                  # ★ 矿工走路自成一套（见 `_tick_miner`）
             if z.frozen_until > self.t or z.stall_until > self.t:
                 continue
             if z.daze_until > self.t:
@@ -3413,6 +3546,8 @@ class Sim:
             return z.shield > 0
         if k in D.ARMOR:
             return z.armor > 0
+        if k == '矿工':
+            return z.phase == 'dig'      # 只有挖地时才有镐子可吸
         if k == '小丑':
             return not z.defused
         if k == '跳跳':
@@ -3466,6 +3601,16 @@ class Sim:
                       % z.row, row=c.row, col=c.col,
                       detail='盒子是金属；本体血 %d 照旧' % z.hp)
             return
+        if z.kind == '矿工':
+            # ★ 2026-10-24 用户：「挖掘时被磁力菇吸镐子 → **立即出土、向左走、不眩晕**」
+            z.phase = 'walk'
+            z.rev = False
+            z.x = float(D.MINER_TOP_X)
+            z.hold_until = -1
+            self._log('REPAIR', '磁力菇吸走 %d 路 矿工的镐子 → 立即出土、向左走（不眩晕）'
+                      % z.row, row=c.row, col=c.col,
+                      detail='R=%d · 之后按 7s/格 正常啃' % r_norm)
+            return
         if z.kind == '跳跳':
             # 跳跳杆被吸走 → 变普通步行僵尸，正常啃食、不再翻越
             z.never_eat = False
@@ -3507,6 +3652,11 @@ class Sim:
         灰烬 / 玉米炮 / 窝瓜 / 篮球 / 小丑爆炸。
         """
         if dmg <= 0:
+            return
+        # ★ 2026-10-24：矿工在地下时只有"打得到地下的"能伤它 ——
+        #   图鉴列的是 忧郁菇(喷雾) / 星果 / 土豆雷 / 双向射手 / 磁力菇，
+        #   本模型对应 `pierce=True`（灰烬 / 炮 / 窝瓜 / 冰瓜 / 喷雾）。
+        if z.kind == '矿工' and getattr(z, 'phase', '') == 'dig' and not pierce:
             return
         if z.shield > 0 and not pierce:
             absorb = min(z.shield, dmg)
@@ -3656,6 +3806,12 @@ class Sim:
                     a['rc'] = rc
                 a.setdefault('aid', (e.get('trig') or {}).get('anchor'))
             # ★ 2026-10-23：记下"这一块积木生效的时刻"，供 `after_block` 触发
+            # ★★ 2026-10-24：**用实际生效时刻**（不是名义 `due`）。
+            #   曾试过按名义时刻串链，结果变差 —— 原因是**刷波不是定时的**
+            #   （波在"本波剩余血量跌破阈值"时才刷），所以"波号=拍号"这个前提不成立。
+            #   定时的含义应该是"**操作之间的间隔恒定**"，也就是按实际生效时刻串。
+            #   真正的定时杀手是"等"（等炮装填 / 等可伤僵尸），在下面 `_fire_cob`
+            #   里把等待窗口压到 0.6s 以内。
             bid = e.get('bid') or (e.get('trig') or {}).get('anchor')
             if bid:
                 self.__dict__.setdefault('_block_fired', {})[bid] = self.t

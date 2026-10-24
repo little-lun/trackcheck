@@ -97,6 +97,25 @@ def _base_speed(z):
     return getattr(z, 'spd', 0.0) or 0.0
 
 
+# 推演里"IO 根本拦不住"的类型：
+#   · 蹦极（从天上来，落地抓取是机制杀）
+#   · 气球（飞越一切非对空植物）
+#   · 冰车 / 投篮 —— 载具，**碾过即摧毁植物**，静态 dps 表对它无效
+#     （除非本路有地刺/地刺王，见 `_has_spike`）
+_IO_IMMUNE = {'蹦极', '气球'}
+
+
+def _has_spike(sim, row):
+    """本路有没有地刺类（载具的真对策：判定域重合 → 互相破坏）"""
+    for col in range(1, 10):
+        cell = sim.cells.get((row, col))
+        if cell is not None and cell.plant:
+            spec = D.PLANTS.get(cell.plant) or {}
+            if spec.get('spike'):
+                return True
+    return False
+
+
 def front_core_col(sim, row):
     """这一路最靠前的 CORE 植物在第几列（僵尸能吃到它）；没有返回 None"""
     best = None
@@ -123,9 +142,17 @@ def io_eta(sim, z, table=None):
     做法：从它现在的位置开始，一格一格往左走，用 `_speed_of`（已含减速）算
     每格用时，用该格 dps 扣血；血扣完就判死。不做逐 cs 模拟 —— 这是"短暂的推演"，
     目的只是"会不会死"，不必精确到 cs。
+
+    ★★ 2026-10-24 用户报的"冰车没吃到 P/N"的真因就在这里：
+      **载具（冰车 / 投篮车）碾过即摧毁植物**，所以"后面那些格子还有 dps"是假的 ——
+      `dps_by_cell` 是静态表，它假设植物永远活着。于是推演得出"IO 会把它收掉"，
+      `best_aim` 的硬约束就放它过关（`must=False`），炮去打人群了，车一路碾进来。
+      → 现在载具直接判"IO 拦不住"（除非本路有地刺/地刺王，那才是 IO 的真对策）。
     """
     if z is None or not z.alive:
         return True, 0, None
+    if z.kind in _IO_IMMUNE or (z.kind in ('冰车', '投篮') and not _has_spike(sim, z.row)):
+        return False, None, None
     core_col = front_core_col(sim, z.row)
     if core_col is None:
         return False, None, None
@@ -235,15 +262,19 @@ def best_aim(sim, row, radius, dy, dmg, cols=None, integer=False, tables=None):
         # 硬约束：被这一炮纵向覆盖到的每一路，若"最靠前那只"必须炸（IO 救不了），
         # 就必须被打中 —— 否则这个候选**不可行**（用户 2026-10-23 口径）。
         feasible = True
-        kills = 0.0
-        dmgv = 0.0
+        n_must = 0                 # 这一炮盖住了几个"必须炸"的前锋
+        n_must_total = 0
         for r in rows:
             f = front.get(r)
             if f is None or not must.get(r):
                 continue
-            if not _covered(sim, f, cx, cy, radius):
+            n_must_total += 1
+            if _covered(sim, f, cx, cy, radius):
+                n_must += 1
+            else:
                 feasible = False
-                break
+        kills = 0.0
+        dmgv = 0.0
         for z in zs:
             if not _covered(sim, z, cx, cy, radius):
                 continue
@@ -252,8 +283,14 @@ def best_aim(sim, row, radius, dy, dmg, cols=None, integer=False, tables=None):
             dmgv += w * min(dmg, max(0.0, z.hp)) / float(dmg)
             if z.hp <= dmg:
                 kills += w
-        # 字典序：先"可行"，再"打死多少"，再"打掉多少血"，最后"别离第 8 列太远"
-        key = (1 if feasible else 0, round(kills, 3), round(dmgv, 3), -abs(c - 8.0))
+        # 字典序：先"可行"，再"盖住多少个必须炸的前锋"，再"打死多少"，
+        # 再"打掉多少血"，最后"别离第 8 列太远"。
+        # ★ 2026-10-24：加了 `n_must` 这一级 —— 一门炮盖不住两个相隔很远的点时
+        #   （人群在 8 列、冰车已经推到 5 列），旧实现会整体判"都不可行"然后
+        #   按 kills 选人群，于是**冰车被静默丢掉**（慢速关 6-4 就是这么被碾的）。
+        #   现在"必须炸的前锋优先"，宁可少杀几只杂兵。
+        key = (1 if feasible else 0, n_must, round(kills, 3),
+               round(dmgv, 3), -abs(c - 8.0))
         if best_key is None or key > best_key:
             best, best_key = c, key
     if best is None:
