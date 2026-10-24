@@ -178,8 +178,15 @@ def _finalize(job):
     #   做法：把每一局都渲染成卡片放进隐藏 div，点表格行切换显示哪一张。
     job['seed_cards'] = [H.card_html(r, dev) for r in reports]
     job['html'] = render_job(job, best, dev)
+    # ★ 2026-10-24：报告也跟随界面语言（纯呈现层，词典替换）
+    try:
+        from tools.trackcheck import i18n as I18N
+        if I18N.is_en():
+            job['html'] = I18N.localize(job['html'])
+            job['seed_cards'] = [I18N.localize(c) for c in job['seed_cards']]
+    except Exception:
+        pass
     job['status'] = 'done'
-
 
 def _worst_level(reports, dev):
     """最严重的一级 —— LEVEL_RANK 越小越严重（L0 < L1 < L2 < L3 < L4）。"""

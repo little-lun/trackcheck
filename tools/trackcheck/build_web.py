@@ -34,8 +34,8 @@ if ROOT not in sys.path:
 
 from tools.trackcheck import ui   # noqa: E402
 
-VERSION = '0.2'
-APP_VER = '0.2.36'        # 内部版本（0.x.n = 同一发布里的第 n 处改动）
+VERSION = '0.3'
+APP_VER = '0.3.0'        # 内部版本（0.x.n = 同一发布里的第 n 处改动）
 PYODIDE = '0.29.5'
 DIST_DIR = os.path.join(ROOT, 'tools', 'trackcheck', 'dist')
 
@@ -43,7 +43,9 @@ DIST_DIR = os.path.join(ROOT, 'tools', 'trackcheck', 'dist')
 SOURCES = ['__init__.py', 'data.py', 'fields.py', 'layout.py', 'spawn.py',
            'config_dianbozhong.py', 'engine.py', 'lookahead.py',
            'html_report.py', 'run.py', 'metainfo.py', 'plan.py', 'planui.py',
-           'ui.py', 'jobs.py', 'webbridge.py']
+           'ui.py', 'jobs.py', 'webbridge.py',
+           # ★ 2026-10-24：双语（i18n）+ 帮助页正文
+           'i18n.py', 'help_text.py']
 
 # 引擎运行时文件：mjs 是入口，asm.js/wasm 是 CPython 本体，zip 是标准库
 DIST_FILES = ['pyodide.mjs', 'pyodide.asm.js', 'pyodide.asm.wasm',

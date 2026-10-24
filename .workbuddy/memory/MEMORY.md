@@ -819,3 +819,34 @@ FE.雾四炮 慢速 seed1 修前：26100/27900 各 2 炮 → 6570cs 真空 → 3
 ### 教训（下次找 bug 用）
 "能过 vs 不能过"的对局先比对**操作时间轴**：把两边每发炮的时刻都打出来，
 找"长时间没有运算量"的空窗 —— 空窗就是崩阵的直接前兆。
+
+## 0.3.0（2026-10-24）★ 正式发布：英文界面
+用户口径：PVZ 原版用官方英文名；本来就是字母的社区术语原样保留（帮助页新增「语言说明」解释）；
+其余中文原生词按用户拍板译（轨道=Track / 运算量=Operation Count / 阵解=Solution /
+控丑=Explosion Prevention / 救场=Rescue / 垫材=Padding / 存冰=Ice bank /
+冰杀蹦极=Freeze-to-kill Bungee / 四档=Slow,Variable-speed,Fast,Very-fast / 绰号不出现）。
+
+新增 i18n.py（语言状态存 ~/.trackcheck-settings.json；localize 词典替换；glossary_html）
+新增 help_text.py（帮助页正文中/英两份）
+设置页新增「设置 · 语言」，POST /api/setlang 后整页重载
+
+### 三个必须记住的工程坑
+1. page_html 必须**先 localize 静态壳、后注入 META/MODELS** —— 植物名是回传标识符，
+   先注入会被翻译成英文发回后端，全崩。
+2. 名字表（NAMES）与界面词表（WORDS）分开；页面本地化走 localize(names=False)，
+   否则 `模仿者:` 前缀被翻掉 → 前端 /^模仿者:/ 失配 → 选卡/模仿坏掉。
+3. 短词（1~2 字）只在标签位置替换（>词< / >词 / "词"），否则 `电波钟无炮`→`电Wave钟无炮`。
+4. 下拉框显示名用 MODELS.enNames + MutationObserver（value 保持中文）。
+
+### 覆盖
+已英文化：五页签骨架、面板/按钮、设置页、帮助页正文+术语表、报告结构标签（分节/表头/KPI）、
+全部植物僵尸名（报告与下拉显示）。
+仍中文：③ 阵解编辑器 JS 动态拼的部分提示、报告里自动生成的分析长句、模型清单长注释。
+（下版继续；都是纯展示，不影响功能。）
+
+### 验证
+中英页均可生成；MODELS 数据两版逐字节一致；`模仿者:` 保持原样；
+报告侧 总览→Overview / 冰车碾压→Zomboni crushes / 小丑忧郁菇玉米炮→官方英文名。
+四档基线未变 19.519 / 15.141 / 9.853 / 8.159。
+产物：trackcheck-v0.3.html 16.61MB / trackcheck-v0.3-web.html 0.99MB / setup 22.87MB
+（build_web.SOURCES 已补 i18n.py、help_text.py —— 漏了会运行时 ImportError）

@@ -3,6 +3,57 @@
 本文件记录 **trackcheck** 的对外版本变化。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循「`0.x` 为测试版；同一发布内每处改动记 `0.x.n`」的约定（见文末）。
 
+## [0.3.0] - 2026-10-24  ★ 正式发布：英文界面
+
+### Added — 双语界面（中文 / English，设置里切换）
+- 新增 `i18n.py`：语言状态（存 `~/.trackcheck-settings.json`，重启记得）、
+  词典替换 `localize(text, names=True/False)`、术语表 `glossary_html()`。
+- 设置页新增「设置 · 语言 / Language」，切换后整页重载；后端 `POST /api/setlang`。
+- 新增 `help_text.py`：帮助页正文抽出来，中 / 英各一份，`ui.page_html()` 按语言取。
+
+### 译法口径（用户 2026-10-24 拍板）
+| 类别 | 处理 |
+|---|---|
+| PVZ 原版内容 | **一律官方英文名**。例：小丑 = **Jack-in-the-Box Zombie**（不是 "Joker"）|
+| 本来就是字母的社区术语 | **原样保留**：`P/A/A′/I/N`、`io`、`DE/NE/PE/FE/RE`、`C4io/P4/N6s/P3n/S3` |
+| 轨道理论 | 直译：Track / Operation Count / Solution |
+| 节奏 | 直译：Opening / Flag Wave / Finisher |
+| 冰杀蹦极 | **Freeze-to-kill Bungee**（表示"靠冰冻延长输出窗口再击杀"）|
+| 打法 | 控丑 = **Explosion Prevention**（阻止爆炸）、救场 = Rescue、垫材 = Padding、存冰 = Ice bank |
+| 社区绰号（曾哥/春哥/猫咪…） | **不出现**，英文界面只用官方名 |
+| 四档难度 | 直译：Slow / Variable-speed / Fast / Very-fast |
+
+### Added — 帮助页「语言说明 / Language notes」
+用表格解释为什么这些术语保留字母（轨道符号、运算量、io、场地代号、节奏名、
+波长串的"前拍到本拍"语义），中英各一份。
+
+### 工程要点（踩过的坑，写下来免得再犯）
+1. **`localize` 必须"先翻译、后注入数据"**：`META` / `MODELS` 里的植物名是
+   **回传给服务器的标识符**（选卡 deck、阵型 array 都用中文名当 key）。
+   先注入再替换的话，英文界面会把 `Gloom-shroom` 发回后端 → 全崩。
+   现在 `page_html()` 的顺序是：静态壳 + JS 文案 → localize → 再塞 JSON。
+2. **名字表与界面词表分开**：`NAMES`（植物/僵尸/垫材）只在
+   `localize(..., names=True)`（报告、纯展示）和下拉框**显示文本**里用；
+   页面本地化走 `names=False`。否则 `模仿者:` 前缀被翻掉，
+   前端 `/^模仿者:/` 正则匹配不上，选卡 / 模仿逻辑直接坏。
+3. **短词（1~2 字）只在标签位置替换**（`>词<`、`>词 `、`"词"`…），
+   否则专有名词会被吃坏：`电波钟无炮` → `电Wave钟无炮`。
+4. 下拉框显示名靠 `MODELS.enNames` + 一个 `MutationObserver`（`value` 保持中文）。
+
+### 覆盖范围（诚实交代）
+- 已英文化：界面骨架（五个页签、面板标题、按钮、设置页、帮助页正文 + 术语表）、
+  报告的结构性标签（分节标题、表头、KPI、结论口径）、全部植物 / 僵尸名（报告与下拉显示）。
+- 仍是中文：③ 阵解编辑器里 JS 动态拼的**部分提示文案**、报告里**自动生成的分析长句**
+  （如"冰车碾压 6-3 的冰瓜"这类逐条日志）、模型清单里的长注释。
+  这些下个版本继续补（都是纯展示，不影响功能）。
+
+### 验证
+- 中英页面都能生成（zh 157 KB / en 166 KB）；`MODELS` 数据在中英两版**逐字节一致**；
+  `模仿者:` 标识符在英文页面里保持原样。
+- 报告侧：`总览→Overview`、`常规波长→Regular wavelength`、
+  `冰车碾压→Zomboni crushes`、`小丑 忧郁菇 玉米炮 → Jack-in-the-Box Zombie Gloom-shroom Cob Cannon`。
+- 四档基线未变：19.519 / 15.141 / 9.853 / 8.159。
+
 ## [0.2.36] - 2026-10-24
 
 ### Fixed — **绝对时间轴只铺到 w20，尾段 6570cs 没有炮**（本版最关键）

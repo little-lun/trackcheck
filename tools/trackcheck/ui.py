@@ -51,10 +51,18 @@ def kind_meta():
 
 def meta_payload():
     from tools.trackcheck import layout as L
+    from tools.trackcheck import i18n as I18N
     return dict(
         kinds=kind_meta(),
         presets=[dict(name=t, kinds=list(CFG.TIERS[t])) for t in PRESET_ORDER],
         layout=L.catalog(),
+        # ★ 2026-10-24：界面语言（设置页用）。英文显示名通过 i18n.localize 替换，
+        #   这里的 `langs` 只是给单选按钮用的 (id, 显示名)。
+        lang=I18N.lang(),
+        langs=list(I18N.LANGS),
+        # ★ 英文界面下，下拉框的**显示文本**用官方英文名替换，
+        #   但 `value` 仍然是中文标识符（回传给服务器用）。见 ui.py 的 tcEnNames。
+        enNames=(dict(I18N.NAMES) if I18N.is_en() else {}),
         # ★ 桌面版（TrackCheck.exe）才显示"退出程序"按钮并按心跳自动退出；
         #   单文件网页版没有可退的进程。
         desktop=bool(os.environ.get('TRACKCHECK_DESKTOP')),
@@ -111,16 +119,35 @@ def pick_tier(kinds):
 
 # ------------------------------------------------------------------ 页面
 def page_html():
-    """整页 HTML（阵解栏的样式/标记/脚本从 planui.py 拼进来）"""
+    """整页 HTML（阵解栏的样式/标记/脚本从 planui.py 拼进来）
+
+    ★ 2026-10-24：英文模式下对**最终 HTML** 做一次词典替换（`i18n.localize`）。
+      只替换呈现层，不动任何内部标识符 —— 植物名 / 字段名 / 阵解 JSON 保持原样，
+      否则前后端会对不起。`<script>` 里那些"用中文串做比较"的逻辑也会被一起替换，
+      但因为**比较的两边同样被替换**，行为不变（唯一风险是跨到 Python 的标识符，
+      那些我们不翻译）。
+    """
     from tools.trackcheck import metainfo as MI
     from tools.trackcheck import planui as PU
+    from tools.trackcheck import i18n as I18N
+    from tools.trackcheck import help_text as HT
     meta = json.dumps(meta_payload(), ensure_ascii=False)
     models = json.dumps(MI.models(), ensure_ascii=False).replace('</', '<\\/')
-    return (PAGE.replace('/*__META__*/', meta)
-                .replace('/*__MODELS__*/', models)
-                .replace('__PLANPAGE__', PU.MARKUP)
+    help_body = HT.HELP_EN if I18N.is_en() else HT.HELP_ZH
+    # ★★ 2026-10-24（关键）：**先本地化、后注入数据**。
+    #   `META` / `MODELS` 里的植物名 / 僵尸名是**回传给服务器的标识符**
+    #   （选卡 deck、阵型 array 都用中文名当 key）。如果连它们一起翻译，
+    #   英文界面下前端就会把 "Gloom-shroom" 发回后端 → 对不上、全崩。
+    #   所以顺序必须是：静态壳 + JS 文案先翻译 → 再把原始 JSON 塞进去。
+    html = (PAGE.replace('__PLANPAGE__', PU.MARKUP)
+                .replace('__HELPBODY__', help_body)
+                .replace('__LANG__', I18N.lang())
+                .replace('__GLOSSARY__', I18N.glossary_html())
                 .replace('</style></head>', PU.STYLE + '</style></head>')
                 .replace('</body></html>', PU.SCRIPT + '</body></html>'))
+    html = I18N.localize(html, names=False)
+    return (html.replace('/*__META__*/', meta)
+                .replace('/*__MODELS__*/', models))
 
 
 PAGE = r'''<!DOCTYPE html>
@@ -386,6 +413,11 @@ table.lygrid td{padding:0}
 
 <div id="tab-settings" style="display:none">
   <div class="panel">
+    <div class="ptitle">设置 · 语言 / Language</div>
+    <div id="set-lang" class="row" style="gap:14px;flex-wrap:wrap"></div>
+    <div class="hint" id="set-lang-note" style="margin-top:6px"></div>
+  </div>
+  <div class="panel">
     <div class="ptitle">设置 · 节奏命名方案</div>
     <div id="set-naming" class="row" style="gap:14px;flex-wrap:wrap"></div>
     <div class="hint" id="set-naming-note" style="margin-top:6px"></div>
@@ -433,63 +465,34 @@ table.lygrid td{padding:0}
   <div id="results"></div>
 </div>
 __PLANPAGE__
-<div id="tab-help" style="display:none">
-  <div class="panel">
-    <div class="ptitle">怎么用（四步）</div>
-    <div class="helpsec">
-      <h3>① 阵容布置</h3>
-      <p>先选<b>场地</b>（PE / FE / DE / NE / RE），起一个<b>阵型名</b>
-      （格式 <code>[场地].名字</code>，<code>[场地].</code> 由 app 自动生成，只填后面的名字），
-      再点格子把植物摆上去。
-      每格可以设：主植物（含模仿者）、<b>是否套南瓜</b>、<b>是否搭梯</b>（必须先有南瓜）、
-      <b>是否有睡莲/花盆</b>（水路、屋顶有东西时会自动锁上）。
-      也可以在下面直接<b>粘贴 PvZ Tools 的阵型字符串</b>导入，或用「生成字符串」导出。</p>
-      <h3>② 出怪沙盘</h3>
-      <p>勾选这一关允许出现的僵尸，起个名字点「加入列表」。可以加多组（不同出怪组合）。</p>
-      <h3>③ 阵解编辑</h3>
-      <p>阵解 = 「节奏 + 每波做什么 + 全场判定 + 救场」。如果只想看自然输出能撑多久，
-      这一步可以跳过（不选阵解就是"什么都不做"的空轨道）。
-      所有出现 JSON 的地方都有一个小 <b>i</b>，点开能复制/下载格式说明 —— 直接交给 AI 生成阵解。</p>
-      <p><b>轨道里只有两种操作</b>：<b>P</b>（玉米炮，不指定哪一门）和
-      <b>种植物</b>（卡片）。轨道串认得
-      <code>|</code>（换波）、<code>-</code>（同一波的第二个时机）、
-      <code>/</code>（上下半场）、<code>~</code>（两套节奏摆动）；
-      右边的「波长串」写 <code>(9,9,9,9)</code>，会自动校验波长和够不够炮 / 卡的 CD 转完。</p>
-      <h3>④ 运行与报告</h3>
-      <p>点「开始模拟」。报告里有：波长、偏差、减速覆盖、存冰/阳光/补南瓜台账、
-      逐波时间轴、轨道执行表；右上角可以下载 PDF。</p>
-      <p class="hint">注意：本工具是<b>模型</b>，不是游戏本体。哪些植物/僵尸/场地建模到什么程度，
-      见右上角齿轮里的「模型清单」。</p>
-    </div>
-  </div>
-
-  <div class="panel">
-    <div class="ptitle">使用示例：PE.电波钟无炮（C4io）</div>
-    <div class="helpsec">
-      <p>下面的示例<b>不在</b>主界面里，只是给你看"一个完整配置长什么样"。
-      点按钮会把它载入到 ① 阵容布置 / ③ 阵解编辑 里，可以照着改。</p>
-      <p><b>节奏</b>：C<sub>4</sub>io —— 4 拍循环 <code>N | AA′ | I | I</code>
-      （N = 毁灭菇、A = 樱桃、A′ = 辣椒、I = 寒冰菇），常规波长 ≈ 15.4~15.9s。
-      2016 年后的写法在两套命名方案下都叫 C4io（C 系未废止，归入 P 大类）。</p>
-      <p><b>阵型要点</b>：6 行 9 列泳池；3/4 路是水路；3-2 / 3-3 / 4-3 / 5-3 是永久存冰位；
-      2-7 / 5-7 是前场临时位；5-8 是主核坑。</p>
-      <div class="row" style="margin-top:8px">
-        <button id="help-load">载入示例阵容</button>
-        <button id="help-plan">载入示例阵解</button>
-        <button id="help-classic8">载入 PE.经典八炮（炮阵样板）</button>
- <button id="help-fe4">载入 FE.雾四炮（少炮重 IO 样板）</button>
-        <span class="hint" id="help-msg"></span>
-      </div>
-      <h3>示例阵型字符串（PvZ Tools）</h3>
-      <pre id="help-str">（点「载入示例阵容」后会自动填进 ①）</pre>
-    </div>
-  </div>
-</div>
+<div id="tab-help" style="display:none">__HELPBODY__</div>
 <div class="tip" id="tip"></div>
 
 <script>
 const META = /*__META__*/;
 const MODELS = /*__MODELS__*/;
+/* ★ 2026-10-24：英文界面下把下拉框的**显示文本**换成官方英文名，
+   `value` 保持中文（那是回传给服务器的标识符）。
+   用 MutationObserver 一处搞定，不必给每个 render 加钩子。 */
+(function tcEnNames(){
+  const map = MODELS.enNames || {};
+  const keys = Object.keys(map);
+  if (!keys.length) return;
+  const fix = function () {
+    document.querySelectorAll('option').forEach(function (o) {
+      const v = map[o.value];
+      if (v && o.textContent !== v) o.textContent = v;
+    });
+    // 阵型格子里的植物名（数据是中文，这里只换显示）
+    document.querySelectorAll('.pn').forEach(function (el) {
+      const t = el.textContent || '';
+      const v = map[t];
+      if (v && el.textContent !== v) el.textContent = v;
+    });
+  };
+  fix();
+  new MutationObserver(fix).observe(document.body, {childList: true, subtree: true});
+})();
 let queue = [];
 let rendered = new Set();
 let polling = null;
@@ -1505,6 +1508,29 @@ function tcTab(which) {
   if (which === 'run' && typeof renderRunMap === 'function') renderRunMap();
 }
 function renderSettings() {
+  // ★ 2026-10-24：语言切换（写回后端，再整页刷新 —— 界面是服务端渲染的）
+  const langs = MODELS.langs || [['zh', '中文'], ['en', 'English']];
+  const curLang = MODELS.lang || 'zh';
+  document.getElementById('set-lang').innerHTML = langs.map(function (o) {
+    return '<label class="hint" style="cursor:pointer">'
+      + '<input type="radio" name="tc-lang" value="' + o[0] + '"'
+      + (o[0] === curLang ? ' checked' : '') + '> <b>' + o[1] + '</b></label>';
+  }).join('');
+  document.getElementById('set-lang-note').textContent =
+    '切换后页面会重新载入。英文界面下 PVZ 原版名用官方英文名，'
+    + '本来就是字母的社区术语（P/A/A′/I/N、io、PE/FE/RE…）保持原样，'
+    + '解释见「帮助 → 语言说明」。';
+  for (const el of document.querySelectorAll('input[name="tc-lang"]')) {
+    el.onchange = async function () {
+      try {
+        await fetch('/api/setlang', {method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({lang: el.value})});
+      } catch (e) {}
+      location.reload();
+    };
+  }
+
   const cur = tcNaming();
   document.getElementById('set-naming').innerHTML = (MODELS.naming.options || []).map(function (o) {
     return '<label class="hint" style="cursor:pointer">'
