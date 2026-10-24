@@ -103,7 +103,9 @@ def run_once(seed, rescue=None, plan=None, field=None, array=None):
               rebuild=getattr(CFG, 'REBUILD_BY_TIER', {}).get(CFG.MODE, False),
               wogua_flag=getattr(CFG, 'WOGUA_FLAG_BY_TIER', {}).get(CFG.MODE, True),
               rescue_tick=rescue_tick, globals_tick=globals_tick,
-              field=field, replant=replant)
+              field=field, replant=replant,
+              deck_names=[P.mimic_target(c) or c
+                          for c in ((plan or {}).get('deck') or [])])
     sim.plan = plan
     r = sim.run()
     # 供报告层决定卡槽显示（极速关有冰车/投篮 → 卡槽里没有大蒜）

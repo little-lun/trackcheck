@@ -302,7 +302,7 @@ class Sim:
                  rescue=True, repair=True, allow_ash=True, stall_waves=True,
                  cherry_cols=None, rebuild=False, wogua_flag=True,
                  rescue_tick=None, globals_tick=None, field='PE',
-                 replant=None):
+                 replant=None, deck_names=None):
         self.slots = slots or {}
         self.rng = random.Random(seed)
         self.skip_hp = skip_hp
@@ -392,6 +392,8 @@ class Sim:
         self.waves = []
         self.actions = []
         self.card_ready = {k: 0 for k in D.CARDS}
+        # ★ 2026-10-25 铲种炮（p）要知道选卡里有没有"炮套件"
+        self.deck_names = list(deck_names or [])
         self.broken = []                 # 轨道断裂（卡 CD / 阳光）
         self.crush = []                  # 冰车碾压
         # ★ 2026-10-23：**每一次植物死亡**都记一条（谁、在哪、杀了什么）。
@@ -928,8 +930,9 @@ class Sim:
             ev['mode'] = mode
         if extra:
             ev.update(extra)
-            if extra.get('cob') == 'D' or (trig or {}).get('kind') == 'imp':
-                # 拦截炮 = 要炸空中飞的小鬼 → 本局把小鬼实体化
+            if extra.get('cob') == 'D' or (trig or {}).get('kind') in ('imp',
+                                                                      'imp_ground'):
+                # 延迟炮 / 尾炸炮 = 要炸空中的（或刚落地的）小鬼 → 本局把小鬼实体化
                 self.imp_active = True
         if trig:
             ev['trig'] = trig
@@ -1010,7 +1013,7 @@ class Sim:
             lo, hi = D.IMP_WINDOWS.get(trig.get('when') or 'apex', (0.4, 0.6))
             grp = trig.get('group') or 'low'
             imps = [i for i in self.imp_fly
-                    if not i.get('killed')
+                    if not i.get('killed') and not i.get('ground')
                     and (grp == 'any' or _imp_group(i['row'], self.rows) == grp)]
             if not imps:
                 return 'wait'
@@ -1022,6 +1025,12 @@ class Sim:
             if all(x >= hi for x in prog):
                 return 'expire'
             return 'wait'
+        if k == 'imp_ground':
+            # ★ 2026-10-25 尾炸炮（d）：等"已经落地、但还没开始啃植物"的小鬼。
+            #   落地窗口只有 `IMP_GROUND_CS`，所以一落地就该炸。
+            g = [i for i in self.imp_fly
+                 if not i.get('killed') and i.get('ground')]
+            return 'fire' if g else 'wait'
         if k == 'not':
             r = self._eval_trig(trig.get('of') or {})
             return {'fire': 'wait', 'wait': 'fire', 'expire': 'expire'}[r]
@@ -1615,6 +1624,33 @@ class Sim:
         y1 = self.py(nxt, c)
         return y0 + (y1 - y0) * frac
 
+    def _cob_tail_col(self, row, radius, dy):
+        """**尾炸落点**（`aim = [行, "tail"]`）：炸已落地、还没开始啃植物的小鬼
+
+        与「分离炮动态落点」同一个扫法，只是目标换成 `imp_fly` 里 `ground=True` 的。
+        返回列号；没有可炸的落地小鬼 → None。
+        """
+        rows = set(self._boom_rows(row, radius, dy))
+        tg = [i for i in self.imp_fly
+              if not i.get('killed') and i.get('ground') and i['row'] in rows]
+        if not tg:
+            return None
+        lo = min(i['x'] for i in tg) - D.IMP_BOX
+        hi = max(i['x'] for i in tg) + D.IMP_BOX
+        cx_lo, cx_hi = D.cell_x(1), D.cell_x(9)
+        best, best_n = None, -1
+        cx = lo - radius
+        while cx <= hi + radius:
+            if cx_lo <= cx <= cx_hi:
+                got = sum(1 for i in tg if abs(i['x'] - cx) <= radius)
+                if got > best_n:
+                    best, best_n = cx, got
+            cx += 1.0
+        if best is None:
+            return None
+        col = (best - 40.0) / float(D.CELL_W) + 1.0
+        return max(1.0, min(9.0, round(col, 1)))
+
     def _cob_dyn_col(self, row, kinds, radius, dy):
         """**分离炮动态落点**（`aim = [行, "dyn"]`）：在列上滑动，找能全覆盖的那一点。
 
@@ -1802,13 +1838,55 @@ class Sim:
         spec = D.PLANTS['玉米炮']['cob']
         cobs = [c for c in self.cells.values()
                 if c.plant == '玉米炮' and c.plant_hp > 0]
-        if not cobs:
-            self.broken.append(dict(t=self.t, wave=ev['wave'], what='玉米炮',
-                                    why='场上没有玉米炮'))
-            self.actions.append(dict(t=self.t, wave=ev.get('wave') or 1,
-                                     name='玉米炮', ok=False))
-            return
-        ready = [c for c in cobs if c.cob_cd <= self.t]
+        # ══ ★ 2026-10-25 铲种炮（p）：铲掉再种回来**刷新冷却**
+        #   真实做法：铲掉那门炮 → 种回玉米投手 → 再升成炮（新种的炮是**满装填**的）。
+        #   模型里按**结果导向**简化：
+        #     · 要求选卡里同时有 `玉米投手` 和 `玉米炮`（"炮套件"）
+        #     · 用**玉米炮卡**的 CD 当闸门（不是每门炮的 3475cs）
+        #     · 花 100（玉米投手）+ 500（炮）阳光
+        #     · 不计铲/种动画时延（与"P 不计释放时延"同一个口径）
+        if (ev or {}).get('cob') == 'p':
+            deck = set(self.deck_names or ())
+            if not {'玉米投手', '玉米炮'} <= deck:
+                self.broken.append(dict(t=self.t, wave=ev['wave'], what='铲种炮',
+                                        why='选卡里没有炮套件（玉米投手 + 玉米炮）'))
+                self.actions.append(dict(t=self.t, wave=ev.get('wave') or 1,
+                                         name='铲种炮', ok=False))
+                return
+            if not cobs:
+                self.broken.append(dict(t=self.t, wave=ev['wave'], what='铲种炮',
+                                        why='场上没有玉米炮可铲'))
+                return
+            # 闸门用**玉米炮真卡**的 CD（不是每门炮的 3475cs 装填）
+            cd = self.card_ready.get('玉米投手', 0)
+            if cd > self.t or self.sun < D.COB_SHOVEL_SUN:
+                n = getattr(self, '_cob_cd_wait', 0)
+                if n < 24:
+                    self._cob_cd_wait = n + 1
+                    self._schedule(self.t + 100, '玉米炮', aim, ev.get('wave'),
+                                   due=ev.get('due'), bid=ev.get('bid'),
+                                   extra={'cob': 'p'})
+                    return
+                self._cob_cd_wait = 0
+                self.broken.append(dict(
+                    t=self.t, wave=ev['wave'], what='铲种炮',
+                    why='炮卡没好（%d cs）或阳光不够（%d < %d）'
+                        % (cd - self.t, self.sun, D.COB_SHOVEL_SUN)))
+                return
+            self._cob_cd_wait = 0
+            self.sun -= D.COB_SHOVEL_SUN
+            self.card_ready['玉米投手'] = self.t + D.COB_SHOVEL_CARD_CD
+            gun = min(cobs, key=lambda c: c.cob_cd)
+            gun.cob_cd = self.t + spec['cd']      # 新种的炮从满装填开始
+            ready = [gun]
+        else:
+            if not cobs:
+                self.broken.append(dict(t=self.t, wave=ev['wave'], what='玉米炮',
+                                        why='场上没有玉米炮'))
+                self.actions.append(dict(t=self.t, wave=ev.get('wave') or 1,
+                                         name='玉米炮', ok=False))
+                return
+            ready = [c for c in cobs if c.cob_cd <= self.t]
         if not ready:
             # ★ 2026-10-23（用户报的 bug）：**不要因为"一时没装填好"就判轨道断裂**。
             #   真实玩家写的是"9s 一对炮"，如果这一拍恰好赶上 4 门炮都在装填，
@@ -1853,7 +1931,27 @@ class Sim:
             #   "如果可以估算最靠前的怪是否在破坏 core 之前被 io 打死，则可以不管，
             #     否则必须炸到"。所以这里不再用固定公式反解列，而是
             #     `lookahead.best_aim()`：枚举候选爆心 → 每个候选做一次推演 → 取最优。
-            if isinstance(aim[1], str) and aim[1] == 'dyn':
+            if isinstance(aim[1], str) and aim[1] == 'tail':
+                # ★ 2026-10-25 尾炸炮（d）：炸**已经落地、还没开始啃植物**的小鬼。
+                #   落点用它们的地面坐标，行取用户给的行 + 纵向盖得到的那几行。
+                spec0 = D.PLANTS['玉米炮']['cob']
+                col = self._cob_tail_col(row, spec0['radius'], spec0['dy'])
+                if col is None:
+                    n = getattr(self, '_cob_wait', 0)
+                    if n < 6:
+                        self._cob_wait = n + 1
+                        self._schedule(self.t + 50, '玉米炮', aim, ev.get('wave'),
+                                       due=ev.get('due'), bid=ev.get('bid'),
+                                       extra={k: ev.get(k) for k in
+                                              ('cob', 'imp_group', 'imp_when',
+                                               'dyn_kinds') if ev.get(k)})
+                        return
+                    self._cob_wait = 0
+                    self._log('INFO', '尾炸炮（d）：没有刚落地的空中小鬼 → 这一发跳过',
+                              row=int(round(row)))
+                    return
+                self._cob_wait = 0
+            elif isinstance(aim[1], str) and aim[1] == 'dyn':
                 # ★ 2026-10-24 用户：「分离炮动态落点」——
                 #   炮落到这一行，**在列上滑动**，保证"这一路和相邻路上的、
                 #   这一波新刷新的、被选中的那几种僵尸"全部被炸死。
@@ -1987,21 +2085,43 @@ class Sim:
             if i.get('killed'):
                 continue
             if self.t >= i['t1']:
-                # 落地：并入本波血量（后场由 IO 负责，与旧口径一致）
-                m = self.wave_meta
-                if m is not None:
-                    m['skip_hp'] += D.ZOMB['小鬼'][0]
-                    m['skips'].append([float(D.ZOMB['小鬼'][0]),
-                                       D.SKIP_DPS.get(i['row'], 150.0)])
+                if i.get('ground'):
+                    # 已经落地过：交给下面"地面窗口"那段处理
+                    keep.append(i)
+                    continue
+                # 落地：★ 2026-10-25 给一个短暂的地面窗口（尾炸炮 d 能在这个窗口里炸掉它），
+                #   窗口过了才并入本波血量（= 老口径，后场由 IO 负责）。
+                i['land_t'] = self.t
+                i['h'] = 0.0
+                i['ground'] = True
                 self.imp_log.append(dict(wave=i['wave'], row=i['row'],
                                          res='landed', t=self.t,
                                          x=round(i['x'])))
-                self._log('WARN', '小鬼落地 %d 路 x=%.0f（拦截炮没盖到）'
-                          % (i['row'], i['x']),
-                          row=i['row'], detail='已并入本波血量，由该路 dps 清掉')
+                self._log('INFO', '小鬼落地 %d 路 x=%.0f'
+                          % (i['row'], i['x']), row=i['row'],
+                          detail='地面窗口 %dcs（尾炸炮打得到），之后并入本波血量'
+                                 % D.IMP_GROUND_CS)
+                keep.append(i)
                 continue
             keep.append(i)
-        self.imp_fly = keep
+        # 地面窗口结束 → 并入本波血量
+        still = []
+        for i in keep:
+            if not i.get('ground'):
+                still.append(i)
+                continue
+            if self.t - i.get('land_t', self.t) < D.IMP_GROUND_CS:
+                still.append(i)
+                continue
+            m = self.wave_meta
+            if m is not None:
+                m['skip_hp'] += D.ZOMB['小鬼'][0]
+                m['skips'].append([float(D.ZOMB['小鬼'][0]),
+                                   D.SKIP_DPS.get(i['row'], 150.0)])
+            self.imp_log.append(dict(wave=i['wave'], row=i['row'],
+                                     res='merged', t=self.t,
+                                     x=round(i['x'])))
+        self.imp_fly = still
 
     def _imp_kill(self, cx, cy, radius):
         """炮的爆炸判定域盖到空中的小鬼 → 炸死（拦截成功）

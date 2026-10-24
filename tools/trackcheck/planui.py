@@ -494,6 +494,8 @@ function plTrigLabel(t) {
   if (t.kind === 'time') return '波内' + (t.at || 0) + 'cs';
   if (t.kind === 'after') return '接上块+' + (t.at || 0) + 'cs';
   if (t.kind === 'card') return '等' + (t.name || '') + '好';
+  if (t.kind === 'imp') return '等空中小鬼';
+  if (t.kind === 'imp_ground') return '等刚落地的小鬼';
   if (t.kind === 'since') return '距' + (t.op || '上次') + '生效+' + (t.at || 0) + 'cs';
   if (t.kind === 'after_block') return '距 ' + (t.id || '?') + ' +' + (t.delay || 0) + 'cs';
   if (t.kind === 'dist') return '等到' + (t.zombie || '任意') + '距 ' + (t.row || '') + '-' + (t.col || '') + (t.cmp || '') + (t.value || '');
@@ -511,6 +513,8 @@ function plTrigLabel(t) {
 }
 /* 积木里的 op 是**标识符**（回传给服务器），显示时要换成官方英文名 */
 function plOp(n) { return (typeof window.tcShow === 'function') ? window.tcShow(n) : n; }
+/* ★ 2026-10-25：落点策略的 id 列表（与炮符号解耦，四种） */
+const AIM_STRATS = ['front', 'dyn', 'imp', 'tail', 'threat'];
 function plAimLabel(b) {
   const a = b.aim;
   const num = function (v) {
@@ -521,10 +525,10 @@ function plAimLabel(b) {
   if (a === 'stock') return ' · 空存冰位';
   if (a === 'temp') return ' · 前场临时冰位';
   if (Array.isArray(a)) {
-    // ★ 2026-10-24：拦截炮 / 分离炮动态落点 / 常规炮的滑动落点
-    if (a[1] === 'imp') return ' · 拦截小鬼（动态）';
+    // ★ 2026-10-25：四种落点策略（与炮符号解耦）
+    if (a[1] === 'imp') return ' · 拦截动态落点（空中小鬼）';
+    if (a[1] === 'tail') return ' · 尾炸落点（已落地小鬼）';
     if (a[1] === 'dyn') {
-      // 行号在检查器里已经能看到，chip 上只显示打了哪几种僵尸
       const ks = (b.dyn_kinds || []).map(function (k) { return plOp(k); });
       return ' · 动态落点（' + (ks.join('/') || '—') + '）';
     }
@@ -708,17 +712,16 @@ function plAimEditor(bp, b) {
   let mode = 'none';
   if (a === 'stock') mode = 'stock';
   else if (a === 'temp') mode = 'temp';
-  else if (Array.isArray(a) && a[1] === 'imp') mode = 'imp';
-  else if (Array.isArray(a) && a[1] === 'dyn') mode = 'dyn';
-  else if (Array.isArray(a) && (a[1] === 'front' || a[1] === 'threat')) mode = 'slide';
+  else if (Array.isArray(a) && AIM_STRATS.indexOf(a[1]) >= 0) mode = a[1];
   else if (Array.isArray(a)) mode = 'cell';
   const arr = Array.isArray(a) ? a : [3, 2];
   const isCob = b.op === '玉米炮';
   const opts = [['none', '不给（默认策略）']];
   if (isCob) {
-    opts.push(['slide', '滑动落点（按最靠前那只自动挑列）']);
-    opts.push(['dyn', '分离炮动态落点（按僵尸种类 + 行，滑动找点）']);
-    opts.push(['imp', '拦截动态落点（炸空中的小鬼）']);
+    // ★ 2026-10-25：落点策略与炮符号**解耦**，四种都在这里选
+    (PLAN.cat.aim_strategies || []).forEach(function (s) {
+      opts.push([s.id, s.label]);
+    });
   }
   opts.push(['cell', isCob ? '指定爆心（可带小数）' : '指定格子']);
   opts.push(['stock', '空着的永久存冰位'], ['temp', '前场临时冰位']);
@@ -776,9 +779,14 @@ function plInspector(st, sp, si) {
   //         两者之间用一个「⇄ 转成…」按钮显式切换。
   const kindSel = isCob
     ? ('<label>炮种</label>'
-       + plSel(bp, 'cob', b.cob || 'P',
-               [['P', 'P 常规炮'], ['S', 'S 分离炮'], ['D', 'D 拦截炮']])
-       + (b.cob === 'D'
+       + '<select data-cobkind="' + bp + '">'
+       + (PLAN.cat.cob_kinds || []).map(function (k) {
+           return '<option value="' + plEsc(k.id) + '"'
+             + ((b.cob || 'P') === k.id ? ' selected' : '')
+             + ' title="' + plEsc(k.note || '') + '">'
+             + plEsc(k.id + ' ' + k.label) + '</option>';
+         }).join('') + '</select>'
+       + (Array.isArray(b.aim) && b.aim[1] === 'imp'
           ? '<label style="margin-left:10px">拦截时机</label>'
             + plSel(bp, 'imp_when', b.imp_when || 'apex',
                     [['release', '投掷刚刚出手时'], ['apex', '飞行到最高点时'],
@@ -1384,25 +1392,40 @@ PL_ROOT.addEventListener('change', async function (e) {
     const bp = el.dataset.aim, b = plPath(plP(), bp);
     const v = el.value;
     if (v === 'imp') {
-      // ★ 2026-10-24 拦截炮：动态落点 + 条件触发器
-      b.cob = 'D';
+      // ★ 2026-10-25：落点策略与炮符号**解耦** —— 选策略不再改炮种
       b.aim = [2, 'imp'];
       b.imp_group = b.imp_group || 'low';
       b.imp_when = b.imp_when || 'apex';
-      b.trig = { kind: 'imp', group: b.imp_group, when: b.imp_when };
+    } else if (v === 'tail') {
+      b.aim = [2, 'tail'];
+      b.trig = { kind: 'imp_ground' };
     } else if (v === 'dyn') {
-      // ★ 2026-10-24 分离炮动态落点：炮种变 S，落点 = [行, "dyn"] + 打哪几种僵尸
-      b.cob = 'S';
       b.aim = [2, 'dyn'];
       if (!(b.dyn_kinds || []).length) b.dyn_kinds = ['冰车'];
-      delete b.imp_group; delete b.imp_when;
-    } else if (v === 'slide') {
-      b.aim = [2, 'front'];
-      if (b.cob === 'D') b.cob = 'P';
-      if (b.aim && b.aim[1] !== 'dyn') delete b.dyn_kinds;
+    } else if (v === 'front' || v === 'threat') {
+      b.aim = [2, v];
     } else {
       b.aim = (v === 'cell') ? [3, 2] : (v === 'none' ? null : v);
-      if (v !== 'dyn') delete b.dyn_kinds;
+    }
+    if (v !== 'dyn') delete b.dyn_kinds;
+    if (v !== 'imp') { delete b.imp_group; delete b.imp_when; }
+    return plRender();
+  }
+  if (el.dataset.cobkind !== undefined) {
+    // ★ 2026-10-25 炮种（P 主炮 / S 同步炮 / B 提前炮 / D 延迟炮 / d 尾炸炮 / p 铲种炮）
+    plSnap();
+    const b = plPath(plP(), el.dataset.cobkind);
+    const v = el.value;
+    if (b) {
+      b.cob = v;
+      // 切到同步炮就顺手把触发器设成 接上块+0cs（它必须和主炮同时生效）
+      if (v === 'S') b.trig = { kind: 'after', at: 0 };
+      // 切到"尾炸炮"但落点还不是尾炸 → 换成尾炸落点
+      if (v === 'd' && !(Array.isArray(b.aim) && b.aim[1] === 'tail')) {
+        b.aim = [2, 'tail'];
+        b.trig = { kind: 'imp_ground' };
+      }
+      if (v === 'p') b.cob_note_shovel = true;
     }
     return plRender();
   }

@@ -16,7 +16,13 @@ import urllib.request
 
 APP_NAME = 'TrackCheck'
 APP_TITLE = 'TrackCheck'
-APP_VER = '0.2.3'
+# ★ 2026-10-25：版本号由 `build_win.py` 生成 `desktop/_build_ver.py` 单点提供
+#   （以前这里写死过 0.2.3，打新版时忘了改，安装包里的版本号就一直是旧的）
+try:
+    from _build_ver import VERSION as _BUILD_VER       # noqa: F401
+except Exception:                                      # noqa: BLE001
+    _BUILD_VER = None
+APP_VER = _BUILD_VER or '0.3'
 PUBLISHER = 'PVZ 生存无尽研究 · trackcheck'
 EXE_NAME = 'TrackCheck.exe'
 UNINST_NAME = 'Uninstall.exe'

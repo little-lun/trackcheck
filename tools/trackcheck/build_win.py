@@ -36,7 +36,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 DESK = os.path.join(ROOT, 'tools', 'trackcheck', 'desktop')
 DIST = os.path.join(ROOT, 'tools', 'trackcheck', 'dist')
 WORK = os.path.join(ROOT, 'tools', 'trackcheck', 'build')
-APP_VER = '0.3.7'
+APP_VER = '0.3.8'
 APP_PKG = '0.3'          # 文件名只到 0.x（0.x.n 是同一发布里的改动计数）
 ICON = os.path.join(DESK, 'trackcheck.ico')
 VERFILE = os.path.join(DESK, 'version_info.txt')
@@ -123,8 +123,13 @@ def pyi(script, name, add=(), hidden=(), extra=()):
 
 
 def build_app():
-    print('① 主程序 TrackCheck.exe …', flush=True)
-    out = pyi(os.path.join(DESK, 'launcher.py'), 'TrackCheck',
+    """主程序：内部版本输出 `TrackCheck-<完整版本号>.exe`
+
+    ★ 2026-10-25 用户：内部版本用完整版本号命名；安装包只在 release 时生成、只用发布版本号。
+    """
+    print('① 主程序 TrackCheck-%s.exe …' % APP_VER, flush=True)
+    name = 'TrackCheck-%s' % APP_VER
+    out = pyi(os.path.join(DESK, 'launcher.py'), name,
               hidden=['tools.trackcheck.app', 'tools.trackcheck.jobs',
                       'tools.trackcheck.ui', 'tools.trackcheck.webbridge',
                       'tools.trackcheck.plan', 'tools.trackcheck.planui',
@@ -135,17 +140,28 @@ def build_app():
 
 
 def build_uninstaller():
-    print('② 卸载程序 Uninstall.exe …', flush=True)
-    out = pyi(os.path.join(DESK, 'uninstaller.py'), 'Uninstall',
+    print('② 卸载程序 Uninstall-%s.exe …' % APP_VER, flush=True)
+    name = 'Uninstall-%s' % APP_VER
+    out = pyi(os.path.join(DESK, 'uninstaller.py'), name,
               hidden=['winsetup'])
     print('   %.1f MB' % (os.path.getsize(out) / 1048576.0), flush=True)
     return out
 
 
 def build_installer(app_exe, un_exe):
+    """安装包：只在 release 时打，文件名只用**发布版本号**（`trackcheck-v0.3-setup.exe`）
+
+    ★ 2026-10-25：主程序/卸载程序在 dist 里是按完整版本号命名的
+      （`TrackCheck-0.3.8.exe`），但安装进去的目录里应该还是 `TrackCheck.exe` /
+      `Uninstall.exe`，所以这里先复制成标准名再喂给 installer.py。
+    """
     print('③ 安装程序 trackcheck-v%s-setup.exe …（内部版本 %s）' % (APP_PKG, APP_VER), flush=True)
+    tmp = os.path.join(WORK, 'payload')
+    os.makedirs(tmp, exist_ok=True)
+    a = shutil.copy2(app_exe, os.path.join(tmp, 'TrackCheck.exe'))
+    u = shutil.copy2(un_exe, os.path.join(tmp, 'Uninstall.exe'))
     out = pyi(os.path.join(DESK, 'installer.py'), 'trackcheck-v%s-setup' % APP_PKG,
-              add=[(app_exe, '.'), (un_exe, '.')], hidden=['winsetup'])
+              add=[(a, '.'), (u, '.')], hidden=['winsetup'])
     print('   %.1f MB' % (os.path.getsize(out) / 1048576.0), flush=True)
     return out
 
@@ -204,6 +220,9 @@ def main(argv=None):
 
     with open(VERFILE, 'w', encoding='utf-8') as f:
         f.write(version_txt())
+    # ★ 2026-10-25：把版本号单点交给 winsetup（安装器 UI / 卸载条目都用它）
+    with open(os.path.join(DESK, '_build_ver.py'), 'w', encoding='utf-8') as f:
+        f.write('# 由 build_win.py 生成，勿手改\nVERSION = %r\n' % APP_VER)
 
     if a.only == 'app':
         build_app()
@@ -235,6 +254,12 @@ def main(argv=None):
             os.remove(stale)
             print('   删掉上次 release 留下的旧安装包 %s'
                   % os.path.basename(stale), flush=True)
+        # 旧命名（无版本号）的 exe 也清掉，免得和新的版本化产物混在一起
+        for old in ('TrackCheck.exe', 'Uninstall.exe'):
+            p_old = os.path.join(DIST, old)
+            if os.path.exists(p_old):
+                os.remove(p_old)
+                print('   删掉旧命名的 %s' % old, flush=True)
         print('（内部版本：跳过 setup 安装包；要打安装包请加 --release）', flush=True)
 
     print('\n产物目录：%s' % DIST, flush=True)

@@ -522,6 +522,11 @@ JS_LITERALS = {
     '<label>动作</label>': '<label>Action</label>',
     # 这两条只以**带引号字面量**的形式出现，走 BULK 会被_clean_bulk 当整句碎片丢掉
     '动作': 'Action',
+    # ★ 2026-10-25：触发器标签里拼接的片段
+    '接上块 +': 'prev block +',
+    '>启用</label>': '>on</label>',
+    '" style="width:50px" placeholder="∞"> 次':
+        '" style="width:50px" placeholder="∞"> times',
     '冰相对谁、晚多久生效': 'what the ice is timed against, and how much later',
     '<div class="row"><label>落点</label>': '<div class="row"><label>Landing spot</label>',
     '>冰相对谁、晚多久生效<': '>what the ice is timed against, and how much later<',

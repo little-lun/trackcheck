@@ -222,6 +222,8 @@ TRIGGERS = [
     # ★ 2026-10-24 拦截炮（D）：等"巨人投出的小鬼"飞到某个阶段
     dict(kind='imp', label='等空中的小鬼（拦截炮）',
          params=['group', 'when']),
+    # ★ 2026-10-25 尾炸炮（d）：等"已落地、还没开始啃植物"的小鬼
+    dict(kind='imp_ground', label='等刚落地的小鬼（尾炸炮）', params=[]),
     dict(kind='all', label='全部满足', params=['of']),
     dict(kind='any', label='任一满足', params=['of']),
     dict(kind='not', label='取反', params=['of']),
@@ -260,7 +262,8 @@ LAYOUT_LETTERS = {
     "I'": ['模仿寒冰菇'], 'I': ['寒冰菇'],
     'W': ['窝瓜'], 'K': ['咖啡豆'],
     "C'": ['花盆'], 'C': ['小喷菇'],
-    'P': ['玉米炮'], 'S': ['玉米炮'], 'D': ['玉米炮'],
+    'P': ['玉米炮'], 'S': ['玉米炮'], 'B': ['玉米炮'],
+    'D': ['玉米炮'], 'd': ['玉米炮'], 'p': ['玉米炮'],
     '核': ['毁灭菇'], '冰': ['寒冰菇'], '樱': ['樱桃'], '辣': ['辣椒'],
     # ★ 2026-10-24 冰变奏（冰代奏）复合符号 —— 三个字符紧挨着当一个记号
     'PI1': ['寒冰菇'], 'PI2': ['寒冰菇'], 'PI3': ['寒冰菇'], 'cI4': ['寒冰菇'],
@@ -272,8 +275,36 @@ _TRACK_LENS = (3, 2, 1)
 #   `P` 常规炮（一对炮打同一点）
 #   `S` 分离炮（一对炮分开打两个点；**落点不自动填**，留给用户）
 #   `D` 延迟炮 / 拦截炮（实战多用于拦空中飞的小鬼；落点**动态**求）
-COB_LETTERS = {'P': 'P', 'S': 'S', 'D': 'D'}
-COB_KIND_LABEL = {'P': '常规炮', 'S': '分离炮', 'D': '拦截炮'}
+COB_LETTERS = {'P': 'P', 'S': 'S', 'B': 'B', 'D': 'D', 'd': 'd', 'p': 'p'}
+# ★★ 2026-10-25 用户纠正（原稿 S 当"分离炮"是错的）：
+#   炮符号是**节奏意义上的角色**，跟"用什么落点策略"是两件事（落点策略独立选）。
+#     P  主炮     逻辑和节奏上作为其它炮操作的**锚定基准**
+#     S  同步炮   与主炮**同时**生效；逻辑上必须锚定一个主炮
+#     B  提前炮   比主炮生效**早**一点；功能上往往是**分离炮** → 常用「分离炮动态落点」
+#     D  延迟炮   比主炮生效**晚**一点；功能上往往是**拦截炮** → 常用「拦截动态落点（空中小鬼）」
+#     d  尾炸炮   比 D 更晚；用于击杀**已落地但还没开始啃植物**的小鬼
+#     p  铲种炮   铲掉再种回来**刷新炮冷却**；对选卡提出"炮套件（玉米 + 炮）"要求
+COB_KIND_LABEL = {'P': '主炮', 'S': '同步炮', 'B': '提前炮',
+                  'D': '延迟炮', 'd': '尾炸炮', 'p': '铲种炮'}
+COB_KIND_NOTE = {
+    'P': '主炮：节奏的锚定基准，其它炮操作都相对它定位',
+    'S': '同步炮：与主炮同时生效（必须锚定一个主炮）',
+    'B': '提前炮：比主炮早一点，功能上往往是分离炮',
+    'D': '延迟炮：比主炮晚一点，功能上往往是拦截炮（炸空中小鬼）',
+    'd': '尾炸炮：比延迟炮更晚，击杀已落地但还没开始啃植物的小鬼',
+    'p': '铲种炮：铲掉再种回来刷新冷却（需要选卡带玉米投手 + 玉米炮）',
+}
+# 落点策略（与炮符号**解耦**）：`aim = [行, 策略]`
+AIM_STRATEGIES = [
+    dict(id='front', label='滑动落点', note='按该路最靠前那只自动挑列'),
+    dict(id='dyn', label='分离炮动态落点',
+         note='选行 + 选僵尸种类，列上滑动保证它们全被炸死（提前炮 B 常用）'),
+    dict(id='imp', label='拦截动态落点（空中小鬼）',
+         note='按"炸死空中飞的小鬼"运行时求解（延迟炮 D 常用）'),
+    dict(id='tail', label='尾炸落点（已落地的小鬼）',
+         note='炸已落地但还没开始啃植物的小鬼（尾炸炮 d 常用）'),
+]
+AIM_STRATEGY_IDS = [a['id'] for a in AIM_STRATEGIES]
 
 # ══════════════════════════════════════════════════════════════════
 # ★ 2026-10-24 用户：**冰变奏（冰代奏）复合轨道符号**
@@ -1533,6 +1564,7 @@ def auto_deck(plan, array=None, field=None, kinds=None, variants=None, gaps=None
     except Exception:                                        # noqa: BLE001
         pass
     kinds = set(kinds or [])
+    cob_letters = _cob_letters_used(plan)
     deck, notes, mimic = [], [], []
 
     def add(name, why=''):
@@ -1570,7 +1602,12 @@ def auto_deck(plan, array=None, field=None, kinds=None, variants=None, gaps=None
         else:
             add(op, '轨道要用')
 
-    # ---- ② 白天场用蘑菇 → 咖啡豆
+    # ---- ② 炮套件：用到铲种炮（p）时必须带 玉米投手 + 玉米炮
+    if 'p' in cob_letters:
+        add('玉米投手', '铲种炮（p）需要先把玉米投手种回去')
+        add('玉米炮', '铲种炮（p）需要炮卡才能重新种成炮')
+
+    # ---- ③ 白天场用蘑菇 → 咖啡豆
     day = not (fld and fld.night)
     if day and any(MUSHROOM_OPS.match(o) for o in counts):
         add('咖啡豆', '白天场唤醒蘑菇')
@@ -1742,6 +1779,9 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
     j = start_i          # ★ 当前拍号（**可变**：旗波会重置它，见下）
     n_split_cob = 0
     n_imp_cob = 0
+    n_tail_cob = 0
+    n_sync_cob = 0
+    n_shovel_cob = 0
     ice_used = {}
     for i, w in enumerate(targets):
         if j and j % len(beats) == 0:
@@ -1829,7 +1869,8 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
         #   ★ 2026-10-24 追加：**拦截炮（D）不参与定时链** —— 它是"按小鬼出手"
         #     的条件触发，钉死在时间上就没有拦截意义了。
         ops_blocks = [b_ for b_ in blocks
-                      if b_['op'] not in _NO_COUNT_OPS and b_.get('cob') != 'D']
+                      if b_['op'] not in _NO_COUNT_OPS
+                      and b_.get('cob') not in ('D', 'd')]
         if gap_in is not None and prev_anchor and ops_blocks:
             for b_ in ops_blocks:
                 b_['trig'] = {'kind': 'after_block', 'id': prev_anchor,
@@ -1854,19 +1895,30 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
             row['note'] += '　· 旗波重置到含 I 的拍（冰杀蹦极）'
         filled += 1
         j += 1
-        n_split_cob += sum(1 for b_ in blocks if b_.get('cob') == 'S')
+        n_split_cob += sum(1 for b_ in blocks if b_.get('cob') == 'B')
         n_imp_cob += sum(1 for b_ in blocks if b_.get('cob') == 'D')
+        n_tail_cob += sum(1 for b_ in blocks if b_.get('cob') == 'd')
+        n_sync_cob += sum(1 for b_ in blocks if b_.get('cob') == 'S')
+        n_shovel_cob += sum(1 for b_ in blocks if b_.get('cob') == 'p')
         for b_ in blocks:
             if b_.get('ice_var'):
                 ice_used[b_['ice_var']] = ice_used.get(b_['ice_var'], 0) + 1
 
-    if n_split_cob:
-        info['hints'].append('分离炮（S）×%d 的落点没有自动填 —— 请逐个填「填写落点」'
-                             % n_split_cob)
     if n_imp_cob:
-        info['hints'].append('拦截炮（D）×%d 的落点是**动态**的：按「炸死所有被巨人'
-                             '抛出在空中飞的小鬼」在运行时求解；时机可选'
-                             '出手 / 最高点 / 落地前' % n_imp_cob)
+        info['hints'].append('延迟炮（D）×%d 默认用「拦截动态落点（空中小鬼）」：'
+                             '时机可选出手 / 最高点 / 落地前' % n_imp_cob)
+    if n_split_cob:
+        info['hints'].append('提前炮（B）×%d 默认用「分离炮动态落点」：请确认'
+                             '「行」和「打哪几种僵尸」' % n_split_cob)
+    if n_tail_cob:
+        info['hints'].append('尾炸炮（d）×%d 用「尾炸落点」：炸已落地但还没开始'
+                             '啃植物的小鬼' % n_tail_cob)
+    if n_sync_cob:
+        info['hints'].append('同步炮（S）×%d 已复制前一个主炮的落点、触发器设成'
+                             '「接上块 +0cs」' % n_sync_cob)
+    if n_shovel_cob:
+        info['hints'].append('铲种炮（p）×%d：需要选卡里带 **玉米投手 + 玉米炮**'
+                             '（铲掉再种回来刷新冷却）' % n_shovel_cob)
     if ice_used:
         info['ice_var'] = ice_used
         parts = []
@@ -1930,64 +1982,71 @@ def _block_label(b_):
 
 
 def _assign_cob_aims(blocks, groups, lane_a, lane_b, mid_low, mid_high):
-    """给本波的炮积木分配落点（用户 2026-10-24）
+    """给本波的炮积木分配**落点策略**（★ 2026-10-25 起与炮符号解耦）
 
-    分组依据 = 轨道里的"时机组"（主时机 / 每个 `-` 组），一对炮必须在同一组里：
-
-      · 两个 `P` → 滑动落点，行分别取 `lane_a` / `lane_b`
-      · 一个 `P`（或落单）→ 视为**分离炮**：`cob='S'`，落点留空
-      · 两个 `D` → 拦截炮：一个盖 1~3 路、一个盖 4~6（5 路场地 4~5），
-                   落点写 `[行, "imp"]`，时机默认"最高点"
-      · `S` 原样保留（落点留空）
+    炮符号（P/S/B/D/d/p）说的是**节奏角色**，"用什么落点策略"是另一件事：
+      · `P` 主炮       → 一对炮滑动落点（6 行场地 2/5 路、5 行场地 2/4 路）
+      · `S` 同步炮     → **复制前一个主炮的落点**，触发器设成"接上块 +0cs"
+      · `B` 提前炮     → 默认「分离炮动态落点」（`[行,"dyn"]` + `dyn_kinds`）
+      · `D` 延迟炮     → 默认「拦截动态落点（空中小鬼）」（`[行,"imp"]`）
+      · `d` 尾炸炮     → 默认「尾炸落点（已落地的小鬼）」（`[行,"tail"]`）
+      · `p` 铲种炮     → 同 P 的滑动落点（但引擎走"铲种刷新"路径）
+    单门/落单的一律保留原符号，不再偷偷改成 S（S 现在是"同步炮"，语义不同）。
     """
     pos = 0
+    last_main_aim = None
     for is_main, kds, opsx in groups:
         seg = blocks[pos:pos + len(opsx)]
         pos += len(opsx)
         cobs = [b_ for b_ in seg if b_.get('op') == '玉米炮']
         if not cobs:
             continue
-        kinds = [b_.get('cob') or 'P' for b_ in cobs]
-        if any(k == 'D' for k in kinds):
-            d_cobs = [b_ for b_ in cobs if b_.get('cob') == 'D']
+        # ① 拦截炮（D）：一个管 1~3 路、一个管 4~6（5 路场地 4~5）
+        d_cobs = [b_ for b_ in cobs if b_.get('cob') == 'D']
+        for n, b_ in enumerate(d_cobs):
             if len(d_cobs) >= 2:
-                # 一对拦截炮：一个管 1~3 路（low），一个管 4~6（high）
-                for n, b_ in enumerate(d_cobs[:2]):
-                    b_['aim'] = [mid_low if n == 0 else mid_high, 'imp']
-                    b_['imp_group'] = 'low' if n == 0 else 'high'
-                    b_['imp_when'] = b_.get('imp_when') or 'apex'
-                    b_['trig'] = {'kind': 'imp', 'group': b_['imp_group'],
-                                  'when': b_['imp_when']}
+                b_['imp_group'] = 'low' if n == 0 else 'high'
             else:
-                # 单门拦截炮：不分组，谁在空中飞就打谁
-                b_ = d_cobs[0]
-                b_['aim'] = [mid_low, 'imp']
                 b_['imp_group'] = 'any'
-                b_['imp_when'] = b_.get('imp_when') or 'apex'
-                b_['trig'] = {'kind': 'imp', 'group': 'any',
-                              'when': b_['imp_when']}
-            rest = [b_ for b_ in cobs if b_.get('cob') != 'D']
-            if not rest:
-                continue
-            cobs = rest
-            kinds = [b_.get('cob') or 'P' for b_ in cobs]
-        # 成对的常规炮
-        pairs = [cobs[k:k + 2] for k in range(0, len(cobs) - len(cobs) % 2, 2)]
+            b_['aim'] = [mid_low if b_['imp_group'] == 'low' else
+                         (mid_high if b_['imp_group'] == 'high' else mid_low),
+                         'imp']
+            b_['imp_when'] = b_.get('imp_when') or 'apex'
+            b_['trig'] = {'kind': 'imp', 'group': b_['imp_group'],
+                          'when': b_['imp_when']}
+        # ② 提前炮（B）→ 分离炮动态落点
+        for b_ in cobs:
+            if b_.get('cob') == 'B':
+                b_['aim'] = [mid_low, 'dyn']
+                b_.setdefault('dyn_kinds', ['冰车'])
+        # ③ 尾炸炮（d）→ 尾炸落点
+        for b_ in cobs:
+            if b_.get('cob') == 'd':
+                b_['aim'] = [mid_low, 'tail']
+                b_['trig'] = {'kind': 'imp_ground'}
+        # ④ 同步炮（S）→ 复制上一个主炮的落点 + 同时生效
+        for b_ in cobs:
+            if b_.get('cob') == 'S':
+                b_['aim'] = list(last_main_aim) if last_main_aim else [mid_low, 'front']
+                b_['trig'] = {'kind': 'after', 'at': 0}
+        # ⑤ 主炮 / 铲种炮 → 成对的滑动落点
+        mains = [b_ for b_ in cobs if b_.get('cob') in (None, 'P', 'p')]
         lanes = (lane_a, lane_b)
-        for pr in pairs:
-            p0, p1 = pr
-            if 'S' in (p0.get('cob'), p1.get('cob')):
-                for b_ in pr:                 # 分离炮：留空
-                    b_['cob'] = 'S'
-                    b_['aim'] = None
-                continue
-            p0['aim'] = [lanes[0], 'front']
-            p1['aim'] = [lanes[1], 'front']
-        if len(cobs) % 2 == 1:
-            b_ = cobs[-1]
-            if b_.get('cob') != 'D':
-                b_['cob'] = 'S'
-                b_['aim'] = None
+        for n, b_ in enumerate(mains):
+            b_['aim'] = [lanes[min(n, 1)] if len(mains) > 1 else lanes[0], 'front']
+        if mains:
+            last_main_aim = list(mains[0]['aim'])
+
+
+def _cob_letters_used(p):
+    """这一份阵解里用到哪些炮符号（自动选卡要据此判断"要不要带炮套件"）"""
+    out = set()
+    for row in (p.get('waves') or []):
+        for st in (row.get('sets') or []):
+            for b_ in (st.get('ops') or []):
+                if b_.get('op') == '玉米炮' and b_.get('cob'):
+                    out.add(b_['cob'])
+    return out
 
 
 def _merge_wear_globals(existing, wear_ops, field=None):
@@ -2515,6 +2574,10 @@ def catalog():
                       note=o.get('note') or '')
                  for k, v in COB_KIND_LABEL.items()
                  for o in OPS if o['name'] == '玉米炮'],
+        # ★ 2026-10-25：炮符号（节奏角色）与落点策略（怎么算落点）是两张表
+        cob_kinds=[dict(id=k, label=COB_KIND_LABEL[k], note=COB_KIND_NOTE[k])
+                   for k in COB_LETTERS],
+        aim_strategies=AIM_STRATEGIES,
         cob_tip=dict(note=[o for o in OPS if o['name'] == '玉米炮'][0]['note']),
         card_ops=[o for o in OPS if o.get('group') != '炮'],
         # ★ 2026-10-24 冰变奏（冰代奏）

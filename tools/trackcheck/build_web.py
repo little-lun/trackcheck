@@ -35,7 +35,7 @@ if ROOT not in sys.path:
 from tools.trackcheck import ui   # noqa: E402
 
 VERSION = '0.3'
-APP_VER = '0.3.7'        # 内部版本（0.x.n = 同一发布里的第 n 处改动）
+APP_VER = '0.3.8'        # 内部版本（0.x.n = 同一发布里的第 n 处改动）
 PYODIDE = '0.29.5'
 DIST_DIR = os.path.join(ROOT, 'tools', 'trackcheck', 'dist')
 
@@ -332,9 +332,11 @@ def main(argv=None):
                                  'trackcheck-pyodide-%s' % PYODIDE)
     todo = []
     if a.only in ('offline', 'both'):
-        todo.append(('offline', 'trackcheck-v%s.html' % VERSION))
+        # ★ 2026-10-25 用户：内部版本的 html 用**完整内部版本号**命名
+        #   （setup 只在 release 出、只用发布版本号）
+        todo.append(('offline', 'trackcheck-%s.html' % APP_VER))
     if a.only in ('online', 'both'):
-        todo.append(('online', 'trackcheck-v%s-web.html' % VERSION))
+        todo.append(('online', 'trackcheck-%s-web.html' % APP_VER))
 
     for kind, name in todo:
         out, size = build(kind, os.path.join(a.out_dir, name), deps)
