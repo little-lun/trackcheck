@@ -737,31 +737,48 @@ def _fixed_timeline(p):
     rows = sorted((p.get('waves') or []), key=lambda r: int(r.get('w') or 0))
     events, waves = [], set()
     t = None
-    for row in rows:
-        w = int(row.get('w') or 0)
-        # 同一波（= 同一拍）的所有运算量**同时生效** —— 所以 delay 只看这一波的第一块
-        blocks = [b for st in (row.get('sets') or [])
-                  for b in (st.get('ops') or [])
-                  if (b.get('op') or '') not in _NO_COUNT_OPS]
-        if not blocks:
-            continue
-        trig = blocks[0].get('trig') or {}
-        k = trig.get('kind')
-        if k == 'after_block':
-            d = int(trig.get('delay') or trig.get('at') or 0)
-        elif k in (None, 'spawn'):
-            d = None                    # 起手块：自己定 t0
-        elif k == 'time':
-            d = int(trig.get('at') or 0)
-        else:
-            return None                 # 有非时间型触发器 → 不做绝对轴
-        if t is None:
-            t = d if d is not None else 0
-        else:
-            t += (0 if d is None else d)
-        for b in blocks:
-            events.append((t, b.get('op'), b.get('aim'), w, b.get('id')))
-        waves.add(w)
+    # ★★ 2026-10-24：**延续到 w20 之后**。
+    #   这条轴只铺到最后一个阵解波（N6s 的 w20 ≈ t=279s），可对局要一直打到
+    #   "20 波清干净"才算结束 —— 尾兵常常活到 340s+。实测（FE.雾四炮 慢速 seed1）
+    #   最后一个炮点 27900，崩阵 34470：中间 **6570cs 一门炮都没开**，
+    #   w19/w20 的冰车就是从这段真空里碾进 6-3 的。
+    #   真实玩家会**接着打下一轮**，所以这里把**运算量**再多铺一轮
+    #   （冰 / 咖啡豆这类不铺，避免白烧卡）。
+    for cyc in range(2):
+        only_count = (cyc > 0)
+        for row in rows:
+            w = int(row.get('w') or 0)
+            # 同一波（= 同一拍）的所有运算量**同时生效** —— delay 只看这一波的第一块
+            blocks = [b for st in (row.get('sets') or [])
+                      for b in (st.get('ops') or [])
+                      if (b.get('op') or '') not in _NO_COUNT_OPS]
+            if not blocks:
+                continue
+            if only_count:
+                blocks = [b for b in blocks
+                          if (b.get('op') or '') not in _NO_COUNT_OPS]
+            if not blocks:
+                continue
+            trig = blocks[0].get('trig') or {}
+            k = trig.get('kind')
+            if k == 'after_block':
+                d = int(trig.get('delay') or trig.get('at') or 0)
+            elif k in (None, 'spawn'):
+                d = None                # 起手块：自己定 t0
+            elif k == 'time':
+                # 第二轮不再用"绝对 at"，否则会跳回开头
+                d = (0 if cyc else int(trig.get('at') or 0))
+            else:
+                return None             # 有非时间型触发器 → 不做绝对轴
+            if t is None:
+                t = d if d is not None else 0
+            else:
+                t += (0 if d is None else d)
+            for b in blocks:
+                events.append((t, b.get('op'), b.get('aim'), w, b.get('id')))
+            waves.add(w)
+    # 第二轮的"波号"没有意义（那时已经在打下一轮了），事件表按时间排序即可
+    events.sort(key=lambda x: x[0])
     return (events, waves) if events else None
 
 
