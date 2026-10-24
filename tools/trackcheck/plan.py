@@ -448,7 +448,8 @@ def _blocks_acts(blocks, ctx):
             trig = dict(trig or {})
             trig['anchor'] = b['id']
         out.append(dict(op=op, at=at, aim=b.get('aim'), trig=(trig or None),
-                        **{k: b[k] for k in ('cob', 'imp_group', 'imp_when')
+                        **{k: b[k] for k in ('cob', 'imp_group', 'imp_when',
+                                             'dyn_kinds')
                            if b.get(k)}))
         prev_at = at
     return out
@@ -2404,6 +2405,10 @@ def catalog():
         format=FORMAT, waves=WAVES,
         ops=OPS, triggers=TRIGGERS, gates=GATES, events=EVENTS,
         zombies=ZOMBIE_FILTERS, rhythms=RHYTHM_SYSTEMS,
+        # ★ 2026-10-24：**真实僵尸种类名**（= 引擎里的 `z.kind`），
+        #   给「分离炮动态落点」选"打哪几种僵尸"用。
+        #   注意 `ZOMBIE_FILTERS` 里的「巨人」是过滤器，不是 kind。
+        kinds=[z['name'] for z in MI.ZOMBIES if z.get('level') != 'data'],
         cards=ALL_CARDS, plants=PLANT_ALL, mimic=MIMIC,
         card_key=CARD_KEY, default_deck=DEFAULT_DECK,
         engine_cards=MI.ENGINE_CARDS,

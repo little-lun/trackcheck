@@ -518,6 +518,13 @@ def _keys_desc(d):
 #   ⚠️ 只放**纯显示**的片段：`任意`（= 任意僵尸）、`旗波`（role 值）、`炮`/`特技`
 #      （group 值）、`模仿`（模仿者前缀）这些是**数据**，绝不能进来。
 JS_LITERALS = {
+    # ★ 2026-10-24：积木检查器里"分离炮动态落点"那几个短片段 + 「+ 炮」按钮
+    ' · 动态落点（': ' · dynamic landing (',
+    ' 路': ' lane',
+    '）': ')',
+    '.ops" title="直接放一块玉米炮（P 常规炮 + 滑动落点）">+ 炮</button>':
+        '.ops" title="drop a Cob Cannon block directly '
+        '(P regular cob + sliding landing spot)">+ Cob</button>',
     '上次': 'last ', '候选': 'Candidate', '全场': 'Global', '全程': 'Full',
     '即刻': 'Instant', '双轨': 'Dual', '取反': 'NOT ', '总是': 'Always',
     '打了': 'played ', '选了': 'picked ', '提示': 'Hint', '错误': 'Error',

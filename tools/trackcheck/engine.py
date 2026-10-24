@@ -84,9 +84,10 @@ def _norm_act(a):
     """积木 → (name, off, aim, trig, extra)。顺手把旧动作名换成植物名（v0.3 统一说法）
 
     ★ 2026-10-24：第 5 项 `extra` 带炮的种类与拦截炮参数
-      （`cob` = P/S/D、`imp_group` = low/high、`imp_when` = release/apex/land）。
+      （`cob` = P/S/D、`imp_group` = low/high、`imp_when` = release/apex/land、
+        `dyn_kinds` = 分离炮动态落点要打的僵尸种类）。
     """
-    keys = ('cob', 'imp_group', 'imp_when')
+    keys = ('cob', 'imp_group', 'imp_when', 'dyn_kinds')
     if isinstance(a, dict):
         extra = {k: a.get(k) for k in keys if a.get(k)}
         return (_OP_ALIAS.get(a.get('op'), a.get('op')),
@@ -1614,6 +1615,66 @@ class Sim:
         y1 = self.py(nxt, c)
         return y0 + (y1 - y0) * frac
 
+    def _cob_dyn_col(self, row, kinds, radius, dy):
+        """**分离炮动态落点**（`aim = [行, "dyn"]`）：在列上滑动，找能全覆盖的那一点。
+
+        口径（用户 2026-10-24）：
+          · 只看**这一波新刷新的**、**kind 命中 `kinds` 的**僵尸；
+          · 只看这个落点**纵向盖得到的那几行**（`_boom_rows`：本行 + 相邻行）；
+          · 在列上滑动，目标是让它们**全部**落进爆炸圆（与受击框重合即吃满 1800）。
+
+        返回 `(状态, 列号)`：
+          `('none', None)` 本波根本没有这种僵尸 → 这一发不该打（省炮 + 省 3475cs）
+          `('wait', None)` 有这种僵尸，但**还没走进炮的火力范围**（x 太大）→ 等它走近
+          `('fire', col)`  找到列号（1~9，一位小数）
+        """
+        if not kinds:
+            return ('none', None)
+        rows = set(self._boom_rows(row, radius, dy))
+        wave = self.cur_wave
+        tg = [z for z in self.zombies
+              if z.alive and z.row in rows and z.kind in kinds
+              and (wave is None or z.wave == wave)]
+        if not tg:
+            return ('none', None)
+        box = [(z, D.DEFENSE_BOX.get(z.kind, D.DEFENSE_BOX['默认'])) for z in tg]
+        lo = min(z.x - b[0] for z, b in box)
+        hi = max(z.x + b[1] for z, b in box)
+        # 炮能打到的爆心范围：第 1 列 ~ 第 9 列
+        cx_lo, cx_hi = D.cell_x(1), D.cell_x(9)
+        mid = (lo + hi) / 2.0
+        # 候选爆心：从"最靠左那只的左边"扫到"最靠右那只的右边"，步长 1px
+        best, best_n, best_c = None, -1, None
+        cx = lo - radius
+        while cx <= hi + radius:
+            if cx_lo <= cx <= cx_hi:
+                got, miss = 0, []
+                for z, b in box:
+                    if (z.x - b[0]) - cx <= radius and (cx - (z.x + b[1])) <= radius:
+                        got += 1
+                    else:
+                        miss.append(z)
+                if got > best_n or (got == best_n and best is not None
+                                    and abs(cx - mid) < abs(best - mid)):
+                    best, best_n, best_c = cx, got, miss
+            cx += 1.0
+        if best is None:
+            # 一个可用爆心都没有 → 目标还在炮的射程外
+            return ('wait', None)
+        # 漏掉的那些如果只是"还在炮口右边、还没走进来"，就别急着放这一发 ——
+        # 等它走进来就能全覆盖（不然就白炸一半）
+        if best_c and any((z.x - b[0]) - best > radius and z.x > cx_hi
+                          for z, b in box if z in best_c):
+            return ('wait', None)
+        if best_c:
+            self._log('WARN', '分离炮（动态落点）：%d 路还有 %d 只没盖到（本波目标 %d 只）'
+                      % (int(round(row)), len(best_c), len(tg)),
+                      row=int(round(row)),
+                      detail='张得太开（或已经在炮口内侧），一门炮盖不全；'
+                             '已取覆盖最多的那一点')
+        col = (best - 40.0) / float(D.CELL_W) + 1.0
+        return ('fire', max(1.0, min(9.0, round(col, 1))))
+
     def _boom_rows(self, row, radius, dy):
         """这个落点**纵向**能盖到哪几行（圆心 y = 该行植物 y + dy，与受击框最近点距 ≤ R）"""
         cy = self._aim_py(row, 1) + dy
@@ -1792,7 +1853,38 @@ class Sim:
             #   "如果可以估算最靠前的怪是否在破坏 core 之前被 io 打死，则可以不管，
             #     否则必须炸到"。所以这里不再用固定公式反解列，而是
             #     `lookahead.best_aim()`：枚举候选爆心 → 每个候选做一次推演 → 取最优。
-            if isinstance(aim[1], str):
+            if isinstance(aim[1], str) and aim[1] == 'dyn':
+                # ★ 2026-10-24 用户：「分离炮动态落点」——
+                #   炮落到这一行，**在列上滑动**，保证"这一路和相邻路上的、
+                #   这一波新刷新的、被选中的那几种僵尸"全部被炸死。
+                spec0 = D.PLANTS['玉米炮']['cob']
+                st, col = self._cob_dyn_col(row, (ev or {}).get('dyn_kinds') or [],
+                                            spec0['radius'], spec0['dy'])
+                if st != 'fire':
+                    n = getattr(self, '_cob_wait', 0)
+                    # 'none' 只给 0.3s 宽限（同一个 tick 里刷怪）；
+                    # 'wait' 最多等 2s，等它走进炮的火力范围
+                    limit = 6 if st == 'none' else 40
+                    if n < limit:
+                        self._cob_wait = n + 1
+                        self._schedule(self.t + 50, '玉米炮', aim,
+                                       ev.get('wave'), due=ev.get('due'),
+                                       bid=ev.get('bid'),
+                                       extra={k: ev.get(k) for k in
+                                              ('cob', 'imp_group', 'imp_when',
+                                               'dyn_kinds') if ev.get(k)})
+                        return
+                    # ★ 2026-10-24：等完还是没有目标 → **这一发直接不打**
+                    #   （"分离炮动态落点"是"专门打某几种僵尸"用的；
+                    #     本波没出这种僵尸就不该白搭一发炮 + 3475cs 装填）
+                    self._cob_wait = 0
+                    self._log('INFO',
+                              '分离炮（动态落点）：本波没有目标僵尸 → 这一发跳过',
+                              row=int(round(row)),
+                              detail='种类：%s' % '、'.join(ev.get('dyn_kinds') or []))
+                    return
+                self._cob_wait = 0
+            elif isinstance(aim[1], str):
                 from tools.trackcheck import lookahead as LA
                 spec0 = D.PLANTS['玉米炮']['cob']
                 tabs = {r: LA.dps_by_cell(self, r)

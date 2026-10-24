@@ -1274,5 +1274,17 @@ BULK = {
     "**不走路** —— 血量并入本波总血按路 dps 扣；三叶草可一键清光（见植物侧）；**飞行是匀速** → 减速只减位移（×0.4）": "**Does not walk** - its HP joins the wave total and is drained by lane dps; Blover clears them all at once (see the plant side); **flying is uniform** -> chill only reduces movement (x0.4)",
         "**完整模型**：216cs/格 步行；生成 473cs 就绪 + 74cs 首投，之后每 300cs 一发；篮球 199cs 后落地砸本路最靠左的植物（75 伤害），落地那一刻有伞就挡下；投掷前击杀即无效；**车是匀速** → 减速只减位移（×0.4），投掷间隔不变（用户 2026-10-24 确认）": "**Full model**: walks at 216cs/cell; ready 473cs after spawning + 74cs to the first throw, then one every 300cs; a basketball lands 199cs later and hits the left-most plant of that lane (75 damage), blocked at the instant of landing if an Umbrella Leaf is there; killing it before the throw cancels it; **the cart is uniform** -> chill only reduces movement (x0.4) and the throw interval is unchanged (confirmed by the user, 2026-10-24)",
         "落地后按步行者走（0.23~0.37），会真的啃植物；**不计入阵线**。**飞行段完整建模**（仅在阵解用了拦截炮 D 时启用）：巨人血量 ≤ 50% 投出，标准斜抛（起抛高度 88px、横向 3.07px/cs、滞空 110~125cs、最高点 127~146px），落点取 [精]「巨人坐标与小鬼落点坐标」实测表；**高度走的是 y 轴**（游戏没有 z 轴，行轴与高度轴复用同一个 y）→ 拦截炮在最高点也炸得到": "Walks as a walker after landing (0.23~0.37) and really eats plants; **excluded from the front line**. **The flight is fully modelled** (only enabled when the solution uses interception cobs D): thrown when the Gargantuar's HP <= 50%, a standard projectile (release height 88px, horizontal 3.07px/cs, 110~125cs airborne, apex 127~146px); the landing spot comes from the measured [precise] table “Gargantuar coordinate vs. Imp landing coordinate”; **altitude runs along the y axis** (the game has no z axis - the lane axis and the altitude axis share one y) -> interception cobs also hit it at the apex",
+    "分离炮动态落点（按僵尸种类 + 行，滑动找点）": "separated-cob dynamic landing (pick zombie kinds + a row; the column slides)",
+    "直接放一块玉米炮（P 常规炮 + 滑动落点）": "drop a Cob Cannon block directly (P regular cob + sliding landing spot)",
+    "↑ 前移": "↑ Move earlier",
+    "↓ 后移": "↓ Move later",
+    "⎘ 复制": "⎘ Copy",
+    "⎗ 粘贴到此块后": "⎗ Paste after this block",
+    "剪贴板是空的（先点一块积木「复制」）": "the clipboard is empty (click a block and press Copy first)",
+    "可多选（Ctrl / Shift）": "multi-select (Ctrl / Shift)",
+    " · 动态落点（": " · dynamic landing (",
+    "）": ")",
+    "路": "lane",
+    ">行<": ">row<",
+    ">打<": ">hit<",
 }
-

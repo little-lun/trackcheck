@@ -236,6 +236,7 @@ SCRIPT = r"""
 /* ═══════════════════════════ 阵解栏 v0.3 ═══════════════════════════ */
 const PLAN = {
   cat: null, bank: [], active: 0, undo: [], clip: null, spec: null,
+  bclip: null,
   sel: { wave: 1, set: -1, block: -1, rule: -1, g: -1 },
   marks: new Set(),
 };
@@ -507,18 +508,23 @@ function plTrigLabel(t) {
 function plOp(n) { return (typeof window.tcShow === 'function') ? window.tcShow(n) : n; }
 function plAimLabel(b) {
   const a = b.aim;
+  const num = function (v) {
+    const f = parseFloat(v);
+    return isNaN(f) ? String(v) : ((f === Math.round(f)) ? String(Math.round(f))
+                                                         : f.toFixed(1));
+  };
   if (a === 'stock') return ' · 空存冰位';
   if (a === 'temp') return ' · 前场临时冰位';
   if (Array.isArray(a)) {
-    // ★ 2026-10-24：拦截炮的动态落点 / 常规炮的滑动落点
+    // ★ 2026-10-24：拦截炮 / 分离炮动态落点 / 常规炮的滑动落点
     if (a[1] === 'imp') return ' · 拦截小鬼（动态）';
+    if (a[1] === 'dyn') {
+      // 行号在检查器里已经能看到，chip 上只显示打了哪几种僵尸
+      const ks = (b.dyn_kinds || []).map(function (k) { return plOp(k); });
+      return ' · 动态落点（' + (ks.join('/') || '—') + '）';
+    }
     if (a[1] === 'front') return ' · 滑动落点';
     if (a[1] === 'threat') return ' · 滑动落点（优先威胁）';
-    const num = function (v) {
-      const f = parseFloat(v);
-      return isNaN(f) ? String(v) : ((f === Math.round(f)) ? String(Math.round(f))
-                                                           : f.toFixed(1));
-    };
     return ' ' + num(a[0]) + '-' + num(a[1]);
   }
   return '';
@@ -636,6 +642,22 @@ function plMove(path, d) {
   if (j < 0 || j >= arr.length) return;
   const t = arr[i]; arr[i] = arr[j]; arr[j] = t;
 }
+/* ★ 2026-10-24：候选**里面**的积木也能前后移动 / 复制粘贴 */
+function plMoveBlock(path, d) {
+  const p = plP();
+  const arr = plPath(p, path.replace(/\.[^.]+$/, ''));
+  const i = +path.split('.').pop(), j = i + d;
+  if (j < 0 || j >= arr.length) return;
+  const t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+  PLAN.sel.block = j;
+}
+function plRenumber(arr) {
+  // ★ 2026-10-24：结构一变（增删 / 前后移 / 粘贴）就**整组重排** ID。
+  //   ID 的语义就是波数-候选-序号，按位置重排最不容易出重名；
+  //   不重排的话粘贴出来的块会和被复制的块撞名（after_block 就指错了）。
+  const w = PLAN.sel.wave, si = Math.max(0, PLAN.sel.set);
+  (arr || []).forEach(function (b, i) { b.id = plAutoBlockId(w, si, i); });
+}
 
 /* ---------------- 渲染：某一波 ---------------- */
 function plRenderWave() {
@@ -662,6 +684,7 @@ function plRenderWave() {
       + '<button class="ghost mini2" data-act="delSet" data-path="' + sp + '">✕</button></div>'
       + '<div class="chain">' + chain
       + '<button class="ghost mini2" data-act="addBlock" data-path="' + sp + '.ops">+ 积木</button>'
+      + '<button class="ghost mini2" data-act="addCob" data-path="' + sp + '.ops" title="直接放一块玉米炮（P 常规炮 + 滑动落点）">+ 炮</button>'
       + '<span class="hint" style="margin-left:8px">条件不成立就整组跳过、试下一个候选</span></div>'
       + plInspector(st, sp, si) + '</div>';
   }).join('');
@@ -680,6 +703,7 @@ function plAimEditor(bp, b) {
   if (a === 'stock') mode = 'stock';
   else if (a === 'temp') mode = 'temp';
   else if (Array.isArray(a) && a[1] === 'imp') mode = 'imp';
+  else if (Array.isArray(a) && a[1] === 'dyn') mode = 'dyn';
   else if (Array.isArray(a) && (a[1] === 'front' || a[1] === 'threat')) mode = 'slide';
   else if (Array.isArray(a)) mode = 'cell';
   const arr = Array.isArray(a) ? a : [3, 2];
@@ -687,16 +711,38 @@ function plAimEditor(bp, b) {
   const opts = [['none', '不给（默认策略）']];
   if (isCob) {
     opts.push(['slide', '滑动落点（按最靠前那只自动挑列）']);
+    opts.push(['dyn', '分离炮动态落点（按僵尸种类 + 行，滑动找点）']);
     opts.push(['imp', '拦截动态落点（炸空中的小鬼）']);
   }
   opts.push(['cell', isCob ? '指定爆心（可带小数）' : '指定格子']);
   opts.push(['stock', '空着的永久存冰位'], ['temp', '前场临时冰位']);
+  // 「分离炮动态落点」要选：行 + 打哪几种僵尸
+  const dynRows = [1, 2, 3, 4, 5, 6].map(function (r) {
+    return [String(r), String(r) + ' 路'];
+  });
+  const kinds = (PLAN.cat.kinds || []).map(function (k) { return [k, k]; });
+  const picked = (b.dyn_kinds || []);
   return '<span data-aimmode="' + bp + '">'
     + '<select data-aim="' + bp + '">'
     + opts.map(function (o) {
         return '<option value="' + o[0] + '"' + (o[0] === mode ? ' selected' : '') + '>' + o[1] + '</option>';
       }).join('')
     + '</select> '
+    + (mode === 'dyn'
+      ? '<label style="margin-left:6px">行</label>'
+        + '<select data-dynrow="' + bp + '">'
+        + dynRows.map(function (o) {
+            return '<option value="' + o[0] + '"'
+              + (String(arr[0]) === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
+          }).join('') + '</select>'
+        + '<label style="margin-left:6px">打</label>'
+        + '<select data-dynkind="' + bp + '" multiple size="1" '
+        + 'style="min-width:96px;height:44px" title="可多选（Ctrl / Shift）">'
+        + kinds.map(function (o) {
+            return '<option value="' + plEsc(o[0]) + '"'
+              + (picked.indexOf(o[0]) >= 0 ? ' selected' : '') + '>' + plEsc(o[1]) + '</option>';
+          }).join('') + '</select>'
+      : '')
     + (mode === 'cell'
       ? ('<input type="number" step="0.1" data-aimrc="' + bp + '" data-k="0" value="' + arr[0]
         + '" style="width:56px" title="行（可带一位小数）"> - '
@@ -747,6 +793,10 @@ function plInspector(st, sp, si) {
     + ' 共 <input type="number" id="pl-rep-times" value="' + (rep && rep.times != null ? rep.times : '') + '" style="width:50px" placeholder="∞"> 次'
     + '<span class="hint">（留空 = 一直循环）</span></div>'
     + '<div class="row"><button class="ghost mini2" data-act="delBlock" data-path="' + bp + '">删除这块</button>'
+    + '<button class="ghost mini2" data-act="upBlock" data-path="' + bp + '">↑ 前移</button>'
+    + '<button class="ghost mini2" data-act="downBlock" data-path="' + bp + '">↓ 后移</button>'
+    + '<button class="ghost mini2" data-act="copyBlock" data-path="' + bp + '">⎘ 复制</button>'
+    + '<button class="ghost mini2" data-act="pasteBlock" data-path="' + bp + '">⎗ 粘贴到此块后</button>'
     + '<button class="ghost mini2" data-act="selBlock" data-set="' + si + '" data-block="-1">收起</button></div></div>';
 }
 
@@ -1063,16 +1113,62 @@ PL_ROOT.addEventListener('click', async function (e) {
     downSet: function () { plSnap(); plMove(path, +1); },
     addBlock: function () {
       plSnap();
-      const deck = p.deck || [];
-      const first = deck.find(function (c) { return PLAN.cat.card_key[c]; }) || '寒冰菇';
+      // ★ 2026-10-24：默认动作必须**是下拉里真的能选到的**那个 ——
+      //   以前选卡为空时会塞一块"寒冰菇"，但下拉里根本没有这一项（选卡外的植物不列出），
+      //   于是这块积木的动作显示为空。
+      const list = plOps();
+      const pick = list.find(function (o) { return o.group !== '炮'; }) || list[0]
+        || { name: '寒冰菇' };
+      const arr = plPath(p, path);
+      const first = pick.name;
+      const si = +(path.split('.')[3]) || 0;
+      arr.push({ op: first, aim: null, trig: { kind: 'spawn' } });
+      plRenumber(arr);
+    },
+    // ★ 2026-10-24 用户报的 bug：炮操作类以前只能靠「快捷布置阵解」生成，手放不了。
+    //   这里给一个专门的「+ 炮」按钮：直接放一块正常的 P（常规炮、滑动落点）。
+    addCob: function () {
+      plSnap();
       const arr = plPath(p, path);
       const si = +(path.split('.')[3]) || 0;
-      arr.push({ op: first, aim: null, trig: { kind: 'spawn' },
-                 id: plAutoBlockId(PLAN.sel.wave, si, arr.length) });
+      arr.push({ op: '玉米炮', cob: 'P', aim: [2, 'front'],
+                 trig: { kind: 'spawn' } });
+      plRenumber(arr);
+      PLAN.sel.set = si;
+      PLAN.sel.block = arr.length - 1;
+    },
+    // ★ 2026-10-24：积木的**前后移动 / 复制 / 粘贴**（和候选的 ↑↓ / 复制粘贴对齐）
+    upBlock: function () {
+      plSnap(); plMoveBlock(path, -1);
+      plRenumber(plPath(p, path.replace(/\.[^.]+$/, '')));
+    },
+    downBlock: function () {
+      plSnap(); plMoveBlock(path, +1);
+      plRenumber(plPath(p, path.replace(/\.[^.]+$/, '')));
+    },
+    copyBlock: function () {
+      const b = plPath(p, path);
+      PLAN.bclip = JSON.parse(JSON.stringify(b || {}));
+      delete PLAN.bclip.id;                       // 粘贴时重新分配唯一 ID
+      plRender();
+    },
+    pasteBlock: function () {
+      if (!PLAN.bclip) { alert('剪贴板是空的（先点一块积木「复制」）'); return; }
+      plSnap();
+      const arr = plPath(p, path.replace(/\.[^.]+$/, ''));
+      const at = +path.split('.').pop();
+      const nb = JSON.parse(JSON.stringify(PLAN.bclip));
+      delete nb.id;
+      arr.splice(at + 1, 0, nb);
+      plRenumber(arr);
+      PLAN.sel.block = at + 1;
+      plRender();
     },
     delBlock: function () {
       plSnap();
-      plPath(p, path.replace(/\.[^.]+$/, '')).splice(+path.split('.').pop(), 1);
+      const arr = plPath(p, path.replace(/\.[^.]+$/, ''));
+      arr.splice(+path.split('.').pop(), 1);
+      plRenumber(arr);
       PLAN.sel.block = -1;
     },
     addCond: function () {
@@ -1236,11 +1332,34 @@ PL_ROOT.addEventListener('change', async function (e) {
       b.imp_group = b.imp_group || 'low';
       b.imp_when = b.imp_when || 'apex';
       b.trig = { kind: 'imp', group: b.imp_group, when: b.imp_when };
+    } else if (v === 'dyn') {
+      // ★ 2026-10-24 分离炮动态落点：炮种变 S，落点 = [行, "dyn"] + 打哪几种僵尸
+      b.cob = 'S';
+      b.aim = [2, 'dyn'];
+      if (!(b.dyn_kinds || []).length) b.dyn_kinds = ['冰车'];
+      delete b.imp_group; delete b.imp_when;
     } else if (v === 'slide') {
       b.aim = [2, 'front'];
+      if (b.cob === 'D') b.cob = 'P';
+      if (b.aim && b.aim[1] !== 'dyn') delete b.dyn_kinds;
     } else {
       b.aim = (v === 'cell') ? [3, 2] : (v === 'none' ? null : v);
+      if (v !== 'dyn') delete b.dyn_kinds;
     }
+    return plRender();
+  }
+  if (el.dataset.dynrow !== undefined) {
+    plSnap();
+    const b = plPath(plP(), el.dataset.dynrow);
+    if (!Array.isArray(b.aim)) b.aim = [2, 'dyn'];
+    b.aim[0] = +el.value;
+    return plRender();
+  }
+  if (el.dataset.dynkind !== undefined) {
+    plSnap();
+    const b = plPath(plP(), el.dataset.dynkind);
+    b.dyn_kinds = Array.from(el.selectedOptions || [])
+      .map(function (o) { return o.value; });
     return plRender();
   }
   if (el.dataset.aimrc !== undefined) {
@@ -1303,6 +1422,21 @@ PL_ROOT.addEventListener('change', async function (e) {
     if (el.dataset.key === 'kind') plSnap();
     plSet(p, el.dataset.path + (el.dataset.key ? '.' + el.dataset.key : ''), v);
     if (el.dataset.key === 'kind') plFill(plPath(p, el.dataset.path), v);
+    // ★ 2026-10-24：**手放炮积木**——动作切成玉米炮时，给它一套能直接用的默认值
+    //   （炮种 P、滑动落点）。切走时把炮专用字段清掉，免得留在卡上被当成炮。
+    if (el.dataset.key === 'op') {
+      const b = plPath(p, el.dataset.path);
+      if (b) {
+        if (b.op === '玉米炮') {
+          b.cob = b.cob || 'P';
+          if (!Array.isArray(b.aim)) b.aim = [2, 'front'];
+        } else {
+          delete b.cob; delete b.imp_group; delete b.imp_when;
+          delete b.dyn_kinds;
+        }
+      }
+      return plRender();
+    }
     // ★ 2026-10-24 炮种 / 拦截参数改动 → 同步触发器（拦截炮是条件触发，不是定时）
     if (['cob', 'imp_when', 'imp_group'].includes(el.dataset.key)) {
       const b = plPath(p, el.dataset.path);
