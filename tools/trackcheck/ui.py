@@ -1557,7 +1557,10 @@ function tcTab(which) {
 function renderSettings() {
   // ★ 2026-10-24：语言切换（写回后端，再整页刷新 —— 界面是服务端渲染的）
   const langs = MODELS.langs || [['zh', '中文'], ['en', 'English']];
-  const curLang = MODELS.lang || 'zh';
+  // ★ 2026-10-24：以**浏览器存的语言**为准 —— 网页版会先用 localStorage 里的值
+  //   去 /api/setlang，但那份 HTML 是打包时烘出来的，MODELS.lang 可能还是旧的。
+  let curLang = MODELS.lang || 'zh';
+  try { curLang = localStorage.getItem('tc-lang') || curLang; } catch (e) {}
   document.getElementById('set-lang').innerHTML = langs.map(function (o) {
     return '<label class="hint" style="cursor:pointer">'
       + '<input type="radio" name="tc-lang" value="' + o[0] + '"'

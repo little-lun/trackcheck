@@ -1873,18 +1873,25 @@ class Sim:
             if z.hp > z.hp0 * D.IMP_THROW_HP_RATIO:
                 continue
             z.imp_out = True
-            x1 = max(40.0, z.x - D.IMP_LAND_GAP_PX)
+            lo, hi = D.imp_landing(z.x, self.fld.family)
+            land_x = self.rng.uniform(lo, hi)
+            T = self.rng.uniform(*D.IMP_FLIGHT_CS)
             self.imp_fly.append(dict(
-                row=z.row, t0=self.t, t1=self.t + D.IMP_FLIGHT_CS,
-                x0=z.x, x1=x1, x=z.x, killed=False, wave=z.wave,
-                from_kind=z.kind))
-            self._log('INFO', '%s 投出小鬼（%d 路，飞向 x=%d）'
-                      % (z.kind, z.row, int(x1)), row=z.row,
+                row=z.row, t0=self.t, t1=self.t + T, T=T,
+                x0=z.x - D.IMP_RELEASE_DX, x1=land_x, x=z.x,
+                h=D.IMP_RELEASE_DY,
+                v0=(0.5 * D.IMP_G * T * T - D.IMP_RELEASE_DY) / T,
+                killed=False, wave=z.wave, from_kind=z.kind))
+            self._log('INFO', '%s 投出小鬼（%d 路，落点 x=%.0f，滞空 %.0fcs）'
+                      % (z.kind, z.row, land_x, T), row=z.row,
                       detail='血量 %.0f / %.0f ≤ 50%%' % (z.hp, z.hp0))
         keep = []
         for i in self.imp_fly:
-            p = (self.t - i['t0']) / float(max(1, i['t1'] - i['t0']))
-            i['x'] = i['x0'] + (i['x1'] - i['x0']) * min(1.0, max(0.0, p))
+            dt = self.t - i['t0']
+            p = min(1.0, max(0.0, dt / float(max(1, i['T']))))
+            i['x'] = i['x0'] + (i['x1'] - i['x0']) * p
+            i['h'] = max(0.0, D.IMP_RELEASE_DY + i['v0'] * dt
+                         - 0.5 * D.IMP_G * dt * dt)
             if i.get('killed'):
                 continue
             if self.t >= i['t1']:
@@ -1895,29 +1902,44 @@ class Sim:
                     m['skips'].append([float(D.ZOMB['小鬼'][0]),
                                        D.SKIP_DPS.get(i['row'], 150.0)])
                 self.imp_log.append(dict(wave=i['wave'], row=i['row'],
-                                         res='landed', t=self.t))
-                self._log('WARN', '小鬼落地 %d 路（拦截炮没盖到）' % i['row'],
+                                         res='landed', t=self.t,
+                                         x=round(i['x'])))
+                self._log('WARN', '小鬼落地 %d 路 x=%.0f（拦截炮没盖到）'
+                          % (i['row'], i['x']),
                           row=i['row'], detail='已并入本波血量，由该路 dps 清掉')
                 continue
             keep.append(i)
         self.imp_fly = keep
 
     def _imp_kill(self, cx, cy, radius):
-        """炮的爆炸判定域盖到空中的小鬼 → 炸死（拦截成功）"""
+        """炮的爆炸判定域盖到空中的小鬼 → 炸死（拦截成功）
+
+        判定用**柱面**近似（横向 + 高度上限）：
+          · 横向：`|小鬼x − 爆心x| ≤ R`
+          · 高度：小鬼离地 ≤ `R + IMP_BOX`（爆炸球在竖直方向够得着它 + 小鬼自身厚度）
+        为什么不用严格的二维球：玉米炮在游戏里只能瞄"某一格"，爆心落在地面高度；
+        如果按二维球算，小鬼在最高点（离地 146px）就永远炸不到 ——
+        而实战里"投掷出手 / 最高点 / 落地前"三种拦截都成立（用户 2026-10-24 明确
+        把这三种都列为可选）。所以竖直方向按"爆炸域的竖直覆盖 + 小鬼体厚"放宽。
+        """
         if not self.imp_fly:
             return 0
         n = 0
         for i in self.imp_fly:
             if i.get('killed'):
                 continue
-            zy = self.zy(i['row'])
-            if (i['x'] - cx) ** 2 + (zy + 20 - cy) ** 2 <= radius ** 2:
-                i['killed'] = True
-                n += 1
-                self.imp_log.append(dict(wave=i['wave'], row=i['row'],
-                                         res='killed', t=self.t))
-                self._log('ASH', '拦截成功：炸死 %d 路空中的小鬼' % i['row'],
-                          row=i['row'], detail='x=%.0f' % i['x'])
+            if abs(i['x'] - cx) > radius:
+                continue
+            if i['h'] > radius + D.IMP_BOX:
+                continue
+            i['killed'] = True
+            n += 1
+            self.imp_log.append(dict(wave=i['wave'], row=i['row'],
+                                     res='killed', t=self.t,
+                                     x=round(i['x']), h=round(i['h'])))
+            self._log('ASH', '拦截成功：炸死 %d 路空中的小鬼（h=%.0f）'
+                      % (i['row'], i['h']),
+                      row=i['row'], detail='x=%.0f' % i['x'])
         self.imp_fly = [i for i in self.imp_fly if not i.get('killed')]
         return n
 
@@ -2411,11 +2433,20 @@ class Sim:
             return D.ice_car_speed(z.x)      # 冰车免疫减速
         # ★ 2026-10-22：分阶段速度。撑杆跳完之后回落"慢速"档（用户：一般的快速僵尸，
         #   飞跃第一个植物）—— 这里用 spd_alt（init 时按「慢速」档抽好）
-        s = z.spd_alt if (getattr(z, 'phase', 'walk') == 'walk'
-                          and z.spd_alt) else z.spd
+        ph = getattr(z, 'phase', 'walk')
+        s = z.spd_alt if (ph == 'walk' and z.spd_alt) else z.spd
         if z.slowed_until > self.t:
-            s *= (D.SLOW_UNIFORM if z.uniform else D.SLOW_ANIM)
+            # ★ 2026-10-24 用户口径：匀速（没有腿部动画）×0.4、两条腿走的 ×0.5
+            s *= (D.SLOW_UNIFORM if D.is_uniform_move(z.kind, ph)
+                  else D.SLOW_ANIM)
         return s
+
+    def _anim_rate(self, z):
+        """僵尸的**动画进度**倍率（非匀速被减速 → 0.5）。吃东西/举锤/开盒都用它"""
+        return D.anim_rate(z.kind, getattr(z, 'phase', 'walk'),
+                           slowed=z.slowed_until > self.t,
+                           frozen=z.frozen_until > self.t)
+
 
     def _ice_trail(self, z):
         """
@@ -2836,14 +2867,16 @@ class Sim:
                 continue
             if z.frozen_until > self.t:
                 continue                      # 冻住 → 计时停
+            # ★ 2026-10-24：小丑两条腿走 → 减速时开盒 / 引信倒计时都只走 0.5 倍速
+            tick = D.TICK * self._anim_rate(z)
             if z.fuse_in < 0:
-                z.box_in -= D.TICK
+                z.box_in -= tick
                 if z.box_in <= 0:
                     z.fuse_in = D.JOKER_FUSE
                     self._log('JOKER', '小丑开盒（%.1f 列）x=%d'
                               % ((z.x - 40) / 80.0 + 1, z.x), row=z.row)
             else:
-                z.fuse_in -= D.TICK
+                z.fuse_in -= tick
                 if z.fuse_in <= 0:
                     self._joker_blast(z)
 
@@ -2928,11 +2961,13 @@ class Sim:
                 if not (-40 <= z.x - c.x <= 100):
                     continue
                 if z.smash_at <= 0:
-                    z.smash_at = self.t + D.SMASH_INTERVAL
+                    z.smash_at = self.t + D.SMASH_INTERVAL / \
+                        max(0.1, self._anim_rate(z))
                     continue
                 if self.t < z.smash_at:
                     continue
-                z.smash_at = self.t + D.SMASH_INTERVAL
+                z.smash_at = self.t + D.SMASH_INTERVAL / \
+                    max(0.1, self._anim_rate(z))
                 self._spike_pop(c, '巨人砸')
 
     def _tick_icecar(self):
@@ -3065,7 +3100,8 @@ class Sim:
                 break
             if target is not None and z.x + D.EAT_OFFSET >= target.x:
                 had = target.plant
-                broke = target.take_damage(D.EAT_DPS * D.TICK / 100.0)
+                broke = target.take_damage(
+                    D.EAT_DPS * D.TICK / 100.0 * self._anim_rate(z))
                 if broke == 'plant':
                     self._plant_lost(target, had, z)
                 elif broke == 'pumpkin':
@@ -3191,7 +3227,10 @@ class Sim:
                         had = target.plant
                         had_ladder = target.ladder
                         broke = target.take_damage(D.SMASH_DMG)
-                        z.smash_at = self.t + D.SMASH_INTERVAL
+                        # ★ 2026-10-24：巨人两条腿走 → 减速时动作只剩 0.5 倍速，
+                        #   举锤周期同步拉长（330 → 660cs）
+                        z.smash_at = self.t + D.SMASH_INTERVAL / \
+                            max(0.1, self._anim_rate(z))
                         if broke == 'plant':
                             self._plant_lost(target, had, z)
                         elif broke == 'pumpkin':
@@ -3199,9 +3238,7 @@ class Sim:
                                       % (z.kind, target.row, target.col),
                                       row=target.row, col=target.col, detail='南瓜 125 可补')
                     continue
-                loss = z.dmg * D.TICK / 100.0
-                if z.slowed_until > self.t:
-                    loss *= 0.5
+                loss = z.dmg * D.TICK / 100.0 * self._anim_rate(z)
                 had = target.plant
                 had_ladder = target.ladder
                 broke = target.take_damage(loss)
@@ -4540,6 +4577,8 @@ class Sim:
             ),
             bungee=self.bungee_risk,
             bungee_detail=self.bungee_log,
+            # ★ 2026-10-24：拦截炮的小鬼明细（投出 / 拦截成功 / 落地）
+            imp_log=self.imp_log,
             wave_ctrl={str(k): v for k, v in self.wave_ctrl.items()},
             rebuilds=self.rebuilds,
             avg_gap=round((self.waves[-1]['t'] - self.waves[0]['t']) /
