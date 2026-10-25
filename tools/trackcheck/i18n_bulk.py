@@ -1323,7 +1323,9 @@ BULK = {
     "波长串按 **cs** 读入：%s → %s 秒":
         "the wavelength list was read in **centiseconds**: %s → %s s",
     "延迟炮（D）×%d 按「延迟补刀」处理（轨道里一点冰都没有 → 不做拦截）：主炮之后 100cs 打同一片前排":
-        "delayed cobs (D) ×%d are treated as **late follow-up shots** (there is no ice anywhere in the track, so no interception): they hit the same front area 100cs after the main cob",    "主炮：节奏的锚定基准，其它炮操作都相对它定位": "main cob: the rhythmic anchor that every other cob operation is positioned against",
+        "delayed cobs (D) ×%d are treated as **late follow-up shots** (there is no ice anywhere in the track, so no interception): they hit the same front area 100cs after the main cob",
+    "已挂「收尾」全场判定：最后一波之后按 %s → 最后用 P 清尾兵":
+        "a **tail-cleanup** global rule was added: after the last wave it spends %s and finally the cobs (P) to clear the leftovers",    "主炮：节奏的锚定基准，其它炮操作都相对它定位": "main cob: the rhythmic anchor that every other cob operation is positioned against",
     "同步炮：与主炮同时生效（必须锚定一个主炮）": "synchronised cob: fires at the same instant as the main cob (it must anchor one)",
     "提前炮：比主炮早一点，功能上往往是分离炮": "early cob: a little earlier than the main cob; in practice it is usually the separated cob",
     "延迟炮：比主炮晚一点，功能上往往是拦截炮（炸空中小鬼）": "delayed cob: a little later than the main cob; in practice it is usually the interception cob (kills Imps in mid-air)",

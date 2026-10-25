@@ -1,2 +1,2 @@
 # 由 build_win.py 生成，勿手改
-VERSION = '0.3.11'
+VERSION = '0.3.12'

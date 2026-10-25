@@ -260,11 +260,14 @@ LAYOUT_LETTERS = {
     'N': ['毁灭菇'], "N'": ['模仿毁灭菇'],
     "A'": ['辣椒'], 'A': ['樱桃'],
     "I'": ['模仿寒冰菇'], 'I': ['寒冰菇'],
-    'W': ['窝瓜'], 'K': ['咖啡豆'],
-    "C'": ['花盆'], 'C': ['小喷菇'],
+    # ★ 2026-10-25 用户更正符号：**窝瓜记为 `a`**（原来写 W）、**垫材记为 `c`**（原来写 C）
+    'a': ['窝瓜'], 'W': ['窝瓜'],
+    'c': ['小喷菇'], 'C': ['小喷菇'], "C'": ['花盆'],
+    'K': ['咖啡豆'],
     'P': ['玉米炮'], 'S': ['玉米炮'], 'B': ['玉米炮'],
     'D': ['玉米炮'], 'd': ['玉米炮'], 'p': ['玉米炮'],
     '核': ['毁灭菇'], '冰': ['寒冰菇'], '樱': ['樱桃'], '辣': ['辣椒'],
+    '窝': ['窝瓜'], '垫': ['小喷菇'],
 }
 # ★ 2026-10-25：冰变奏复合符号 = **一个炮操作 + 一个冰操作**（`cI4` 只有冰）。
 #   `PI2` 不是"P"也不是"I2"，它是一个整体记号，展开成两块积木。
@@ -571,6 +574,13 @@ def run_plan_op(sim, op, aim=None):
     return any(a.get('ok') for a in sim.actions[before:])
 
 
+def _gate_ok_sim(sim, gate):
+    """全场判定的条件求值 —— 需要"场上状态"的条件（如 `tail`）交给 `_event_fired`"""
+    if (gate or {}).get('kind') == 'tail':
+        return _event_fired(sim, gate)
+    return gate_ok(gate, sim.plan_ctx(), sim.cur_wave)
+
+
 def tick_globals(sim, rules):
     """全场判定层：每 tick 看一遍规则，条件成立就把积木做掉"""
     if not rules:
@@ -586,7 +596,7 @@ def tick_globals(sim, rules):
         every = int(r.get('every') or 0)
         if every and sim.t - last.get(rid, -10 ** 9) < every:
             continue
-        if not gate_ok(r.get('when'), sim.plan_ctx(), sim.cur_wave):
+        if not _gate_ok_sim(sim, r.get('when')):
             continue
         ok = True
         for b in (r.get('ops') or []):
@@ -946,6 +956,17 @@ def _event_fired(sim, ev):
         return True
     if k == 'wave':
         return int(ev.get('from') or 1) <= sim.cur_wave <= int(ev.get('to') or WAVES)
+    if k == 'tail':
+        # ★ 2026-10-25 用户：「收尾 = 根据其血量，用所有救场卡、最后是 P 消灭所有尾兵」
+        #   → 判定 = **最后一波已经刷出来了**，且场上还活着僵尸。
+        #   （再往后不会再有新波，剩下的都是"尾兵"，可以放心把卡全砸掉。）
+        if int(sim.cur_wave or 0) < WAVES:
+            return False
+        for rs in (sim.by_row or {}).values():
+            for z in rs:
+                if z.alive and z.hp > 0:
+                    return True
+        return False
     if k == 'plant_count':
         return gate_ok(dict(kind='plant_count', plant=ev.get('plant'),
                             cmp=ev.get('cmp'), value=ev.get('value')), sim.plan_ctx())
@@ -2128,6 +2149,17 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
             p['globals'] = _merge_wear_globals(p.get('globals'), dk['wear'],
                                                field=field)
             info['hints'].append('已给「常磨损」植物挂上全场判定：随时准备补种')
+        # ★ 2026-10-25 用户：**收尾** = 最后一波刷出后，按尾兵血量
+        #   「用所有救场卡，最后是 P」把它们全部清掉。
+        #   每条卡**各自一条规则**（`tick_globals` 遇到第一块失败就 break，
+        #   若塞在一条规则里，辣椒进 CD 就会挡住后面的樱桃 / 窝瓜）。
+        tail = _merge_tail_globals(p.get('globals'), p['deck'], n_cob,
+                                   lane_a, lane_b)
+        if tail:
+            p['globals'] = tail
+            info['hints'].append(
+                '已挂「收尾」全场判定：最后一波之后按 %s → 最后用 P 清尾兵'
+                % _lst([x for x in ('辣椒', '樱桃', '窝瓜') if x in p['deck']]))
 
     p['waves'].sort(key=lambda r: int(r['w']))
     return p, filled, info
@@ -2241,6 +2273,41 @@ def _cob_letters_used(p):
                 if b_.get('op') == '玉米炮' and b_.get('cob'):
                     out.add(b_['cob'])
     return out
+
+
+def _merge_tail_globals(existing, deck, n_cob, lane_a, lane_b):
+    """★ 2026-10-25 用户口径：**收尾**
+
+    「根据其血量，用所有救场卡、最后是 P 消灭所有尾兵。」
+
+    最后一波刷出之后（`when.kind = 'tail'`），按"一次性伤害越大越先用"的顺序
+    把灰烬卡一张张打完，最后用炮（P）补 —— 每一张卡**各自一条规则**：
+    `tick_globals` 遇到第一块失败就 `break`，塞在一条里的话
+    辣椒一进 CD 就把后面的樱桃 / 窝瓜全挡住了。
+    """
+    out = [r for r in (existing or []) if isinstance(r, dict)]
+    have = {r.get('id') for r in out}
+    deck = list(deck or [])
+    # 灰烬按"范围 / 单体"排：辣椒（整行）→ 樱桃（3×3）→ 窝瓜（单体 1800）
+    for op, every in (('辣椒', 200), ('樱桃', 200), ('窝瓜', 200)):
+        if op not in deck:
+            continue
+        rid = '收尾-%s' % op
+        if rid in have:
+            continue
+        out.append(dict(id=rid, enabled=True, every=every, cooldown=0,
+                        when=dict(kind='tail'),
+                        ops=[dict(op=op, aim=None, trig={'kind': 'spawn'})]))
+    if n_cob:
+        for tag, lane in (('低路', lane_a), ('高路', lane_b)):
+            rid = '收尾-P-%s' % tag
+            if rid in have:
+                continue
+            out.append(dict(id=rid, enabled=True, every=300, cooldown=0,
+                            when=dict(kind='tail'),
+                            ops=[dict(op='玉米炮', aim=[lane, 'front'],
+                                      trig={'kind': 'spawn'})]))
+    return out if out != [r for r in (existing or [])] else out
 
 
 def _merge_wear_globals(existing, wear_ops, field=None):

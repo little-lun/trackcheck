@@ -46,7 +46,7 @@ HELP_ZH = '''<div class="panel">__GLOSSARY__</div>
       <p>下面的示例<b>不在</b>主界面里，只是给你看"一个完整配置长什么样"。
       点按钮会把它载入到 ① 阵容布置 / ③ 阵解编辑 里，可以照着改。</p>
       <p><b>节奏</b>：C<sub>4</sub>io —— 4 拍循环 <code>N | AA′ | I | I</code>
-      （N = 毁灭菇、A = 樱桃、A′ = 辣椒、I = 寒冰菇），常规波长 ≈ 15.4~15.9s。
+      （N = 毁灭菇、A = 樱桃、A′ = 辣椒、I = 寒冰菇、a = 窝瓜、c = 垫材），常规波长 ≈ 15.4~15.9s。
       2016 年后的写法在两套命名方案下都叫 C4io（C 系未废止，归入 P 大类）。</p>
       <p><b>阵型要点</b>：6 行 9 列泳池；3/4 路是水路；3-2 / 3-3 / 4-3 / 5-3 是永久存冰位；
       2-7 / 5-7 是前场临时位；5-8 是主核坑。</p>
@@ -113,7 +113,7 @@ HELP_EN = '''<div class="panel">__GLOSSARY__</div>
       ① Formation / ③ Solution editor so you can edit from there.</p>
       <p><b>Rhythm</b>: C<sub>4</sub>io — a 4-beat cycle
       <code>N | AA′ | I | I</code> (N = Doom-shroom, A = Cherry Bomb,
-      A′ = Jalapeno, I = Ice-shroom); regular wavelength ≈ 15.4–15.9 s.
+      A′ = Jalapeno, I = Ice-shroom, a = Squash, c = padding plant); regular wavelength ≈ 15.4–15.9 s.
       Under both naming schemes the post-2016 name is still C4io
       (the C series is not obsolete; it belongs to the P family).</p>
       <p><b>Formation notes</b>: 6 rows × 9 columns pool; lanes 3/4 are water;
