@@ -550,7 +550,7 @@ def _blocks_acts(blocks, ctx):
             trig['anchor'] = b['id']
         out.append(dict(op=op, at=at, aim=b.get('aim'), trig=(trig or None),
                         **{k: b[k] for k in ('cob', 'imp_group', 'imp_when',
-                                             'dyn_kinds', 'late_shot')
+                                             'dyn_kinds', 'spawn_shot')
                            if b.get(k)}))
         prev_at = at
     return out
@@ -862,7 +862,7 @@ def compile_plan(plan):
             acts = [a for a in acts
                     if (a.get('op') or '') in _NO_COUNT_OPS
                     or a.get('cob') in ('D', 'd')
-                    or a.get('late_shot')
+                    or a.get('spawn_shot')
                     or (a.get('trig') or {}).get('kind') in ('imp', 'imp_ground')]
         return acts
 
@@ -926,11 +926,16 @@ def _fixed_timeline(p):
         for row in rows:
             w = int(row.get('w') or 0)
             # 同一波（= 同一拍）的所有运算量**同时生效** —— delay 只看这一波的第一块
+            # ★★ 2026-10-25 用户报的 bug：「主运算量操作的时序没有锚定上一个主运算量
+            #   操作，导致节奏出错」。
+            #   正确模型：`-` **前**那一组是"刷新即刻"（不能进绝对轴，它跟刷怪走），
+            #   `-` **后**那一组才是**主运算量**，必须锚在上一个主运算量上
+            #   → 它要留在轴里，并且是这一拍的"锚"。
             blocks = [b for st in (row.get('sets') or [])
                       for b in (st.get('ops') or [])
                       if (b.get('op') or '') not in _NO_COUNT_OPS
                       and b.get('cob') != 'D'
-                      and not b.get('late_shot')]
+                      and not b.get('spawn_shot')]
             if not blocks:
                 continue
             if only_count:
@@ -954,14 +959,9 @@ def _fixed_timeline(p):
                 t = int(getattr(_D, 'R0_FIRST', 600)) + (d or 0)
             else:
                 t += (0 if d is None else d)
-            # ★ 2026-10-25 用户：`-` **前**那一组是"刷新即刻生效"、不能进绝对轴
-            #   （进了就成了绝对时刻）。这种拍整个交给运行期：
-            #   前半段 = 刷怪即刻，后半段 = 锚在上一个锚定波长的运算量上。
-            #   时间照样往前走（这一拍的长度不变）。
-            _all = [b for st in (row.get('sets') or [])
-                    for b in (st.get('ops') or [])]
-            if any(b.get('late_shot') for b in _all):
-                continue
+            # ★ 2026-10-25：`-` **前**那一组是"刷新即刻生效"、**不进绝对轴**
+            #   （进了就成了绝对时刻）；它由 `track()` 在刷怪那一刻排期。
+            #   时间照样往前走（这一拍的长度不变），所以这里**不能** `continue`。
             for b in blocks:
                 events.append((t, b.get('op'), b.get('aim'), w, b.get('id')))
             waves.add(w)
@@ -2093,10 +2093,9 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
                 if not is_main:
                     # ★★ 2026-10-25 用户（FE.二十四炮 无花 / C9u）：
                     #   「`-` 表示前者是**刷怪立即**操作，而后者是**稍等至波长**操作」
-                    #   → `-` 后面那一组不是"紧接着上一块"，而是**等这一拍走完**
-                    #     （也就是它才是把这一波清掉、触发刷新的那一组）。
-                    #   具体延时要等积木 id 分配完才能挂 `after_block`，
-                    #   所以先打标记 `late_shot`，下面统一改写。
+                    #   → `-` 后面那一组锚定"上一个有运算量的操作"（= 下面那条定时链），
+                    #     它才是**主运算量**，要留在绝对时间轴里。
+                    #   `-` 前面那一组是"刷新即刻"，跟刷怪走 → 下面统一打 `spawn_shot`。
                     blk['late_shot'] = True
                 if op == '玉米炮':
                     blk['cob'] = COB_LETTERS.get(letter, 'P')
@@ -2106,6 +2105,16 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
                     blk['ice_var'] = ic['id']
                     blk['trig'] = _ice_trig(ic)
                 blocks.append(blk)
+
+        # ★ 2026-10-25：`-` **前**那一组里的"运算量"才是"刷新即刻"的 ——
+        #   给它打 `spawn_shot`，绝对时间轴跳过它（由 `track()` 在刷怪那一刻排期）。
+        #   `-` **后**那一组保持正常（走定时链、进绝对轴），它就是主运算量。
+        if any(not is_main for is_main, _k, _o in groups):
+            for b_ in blocks:
+                if (b_['op'] not in _NO_COUNT_OPS
+                        and b_.get('cob') not in ('D', 'd')
+                        and not b_.get('late_shot')):
+                    b_['spawn_shot'] = True
 
         # ---- 落点（用户 2026-10-24）
         #   · 一对常规炮（P）→ 滑动落点，6 路场地 2/5 路、5 路场地 2/4 路
@@ -2158,15 +2167,14 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
         #   case 里实测是 900/900/1800/1800，正好是 `gaps[(b+1)%4]`。
         #   ★ 2026-10-24 追加：**拦截炮（D）不参与定时链** —— 它是"按小鬼出手"
         #     的条件触发，钉死在时间上就没有拦截意义了。
-        # ★ 2026-10-25 用户：`-` 后面那一组**不用**额外改写触发器 ——
-        #   它和"整拍"一样锚在上一个锚定波长的那块运算量上（= 下面的定时链）。
-        #   而 `-` **前**那一组是"刷新即刻生效"，所以它要留在 `spawn`，
+        # ★ 2026-10-25 用户：`-` 后面那一组**就是主运算量** ——
+        #   它锚在"上一个锚定波长的运算量"上（= 下面的定时链），并且是这一拍的新锚点。
+        #   而 `-` **前**那一组是"刷新即刻生效"（`spawn_shot`），要留在 `spawn`，
         #   不能在下面的定时链里被覆盖。
-        _has_late = any(b_.get('late_shot') for b_ in blocks)
         ops_blocks = [b_ for b_ in blocks
                       if b_['op'] not in _NO_COUNT_OPS
                       and b_.get('cob') not in ('D', 'd')
-                      and not (b_.get('late_shot') is None and _has_late)]
+                      and not b_.get('spawn_shot')]
         if gap_in is not None and prev_anchor and ops_blocks:
             for b_ in ops_blocks:
                 b_['trig'] = {'kind': 'after_block', 'id': prev_anchor,
