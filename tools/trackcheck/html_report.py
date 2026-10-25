@@ -66,7 +66,7 @@ def _card_label(entry):
 VIDEO = {}
 CARD_COLOR = {
     '核': '#dc2626', '模仿核': '#f87171',
-    '冰': '#2563eb', '模仿冰': '#60a5fa', '存冰': '#93c5fd',
+    '冰': '#2563eb', '模仿冰': '#60a5fa',
     '樱桃': '#ea580c', '辣椒': '#991b1b',
     '窝瓜': '#65a30d',
     '垫材': '#94a3b8', '垫材2': '#cbd5e1',
@@ -84,7 +84,7 @@ ABBR = {
     '核': 'N', '模仿核': 'N',
     '樱桃': 'A',
     '辣椒': "A'",
-    '冰': 'I', '模仿冰': 'I', '存冰': 'I',
+    '冰': 'I', '模仿冰': 'I',
     '窝瓜': 'a', '窝瓜压车': 'a',
     '垫材': 'c', '垫材2': 'c',
     '种大喷': 'F', '大喷菇': 'F', '种冰': '·', '种冰2': '·', '种临时冰': '·',
@@ -233,8 +233,8 @@ def svg_for(r, W=1180):
                       if float(rc[1]).is_integer() else
                       '%.0f-%.1f' % (float(rc[0]), float(rc[1])))
         if ab == '·':
-            # 维护性动作（补存冰 / 补大蒜）：只画一个小点，不占字母空间（不算轨迹）
-            # 大蒜用棕色、半径略大，跟补存冰区分开
+            # 维护性动作（补种睡着的蘑菇 / 补大蒜）：只画一个小点，不占字母空间（不算轨迹）
+            # 大蒜用棕色、半径略大，跟补种睡着的蘑菇区分开
             r0 = 2.2 if nm == '大蒜' else 1.3
             add('<circle cx="%.1f" cy="%d" r="%.1f" fill="%s"/>'
                 % (x, y + hgt - 3, r0, '#a16207' if nm == '大蒜' else col))
@@ -325,7 +325,7 @@ CARD_ABBR = {'核': 'N', '模仿核': 'N', '冰': 'I', '模仿冰': 'I',
              '樱桃': 'A', '辣椒': "A'", '窝瓜': 'a', '垫材': 'c', '垫材2': 'c',
              '咖啡豆': '咖', '大喷菇': '喷'}
 PLANT_SHORT = {'忧郁菇': '曾', '冰瓜': '瓜', '大喷菇': '喷', '保护伞': '伞',
-               '双子花': '花', '存冰': '冰', '香蒲': '猫', '荷叶': '叶'}
+               '双子花': '花', '香蒲': '猫', '荷叶': '叶'}
 # ★★ 2026-10-20 用户："卡槽显示具体一点……南瓜、曾哥套件（荷叶、大喷、曾哥）、咖啡豆
 #   等等，也写进卡槽栏，但是不用简写了，使用社区通用名即可。"
 #   所以卡槽栏按**该档真实选卡**逐张列 —— 有社区简记的用简记（N / A / A′ / I / W / C / C′），
@@ -373,7 +373,7 @@ def hover_json(r):
     """
     每一波的 hover 明细（序列化成 JSON 放进页面，前端 JS 负责弹窗）。
 
-    内容按用户点名的清单：阳光 / 存冰 / 各卡槽 CD / 本波计划操作
+    内容按用户点名的清单：阳光 / 睡着的冰 / 各卡槽 CD / 本波计划操作
     （临场减压冰、垫材**不算**计划内，单独列"临场"）/ 僵尸推进阵线 / 场上植物。
     """
     snap = r.get('wave_snap', {}) or {}
@@ -391,11 +391,9 @@ def hover_json(r):
 
     out = {}
     used_by_w = _chill_hint(r)
-    # ★ 2026-10-22：阵上到底有没有存冰 —— 没有就整段不显示，
-    #   有的话分母也用**阵图里的实际存冰位数**（不再是写死的 4）。
-    ice_cap = (r.get('end_state') or {}).get('ice_cap')
-    if ice_cap is None:
-        ice_cap = (r.get('end_state') or {}).get('ice_stock_perm', 0)
+    # ★ 阵图里到底有没有「装着睡着的冰」的格子 —— 没有就整段不显示，
+    #   有的话分母用**阵图里那几格的数量**。
+    ice_cap = (r.get('end_state') or {}).get('ice_cap') or 0
     for k, wv in enumerate(waves):
         w = wv['w']
         t0 = wv['t']
@@ -513,7 +511,7 @@ def hover_json(r):
                         % (sn.get('sun', '—'),
                            sn.get('sun_end', sn.get('sun', '—'))))
         if ice_cap:
-            body.append('<div><span class="k2">存冰</span> %s → %s / %d</div>'
+            body.append('<div><span class="k2">睡着的冰</span> %s → %s / %d</div>'
                         % (sn.get('ice', '—'),
                            sn.get('ice_end', sn.get('ice', '—')), ice_cap))
         body += ['<div><span class="k2">卡槽</span> %s</div>'
@@ -544,15 +542,15 @@ def _squeeze(r, w):
     所以这里要回答的是"原因能不能被阻止"，而不是"结果严重不严重"。
     判据（按人类实际会做的事排优先级）：
 
-      ① 手上还有存冰 → 直接点，能阻止
+      ① 场上还有睡着的冰 → 直接点，能阻止
       ② 某张卡 3s 内就好 → 等两秒、把上一波的操作挪一下，能挤出来
       ③ 某张卡当时是"好"的（=0）却没被排上 → 纯粹忘了，能阻止
-      ④ 存冰 0 且冰 / 樱桃 / 辣椒 / 核 全在 CD 深处 → 人力不可及
+      ④ 睡着的冰 0 且冰 / 樱桃 / 辣椒 / 核 全在 CD 深处 → 人力不可及
     """
     sn = (r.get('wave_snap') or {}).get(str(w)) or {}
     ice = sn.get('ice', 0)
     if ice and ice >= 1:
-        return True, '波首还有 %d 个存冰没点' % ice
+        return True, '波首还有 %d 个睡着的冰没点' % ice
 
     cards = sn.get('cards', {}) or {}
     ready = []
@@ -573,7 +571,7 @@ def _squeeze(r, w):
 
     worst = sorted(((cards.get(k, 0), CARD_ABBR.get(k, k))
                     for k in ('冰', '樱桃', '辣椒', '核')), reverse=True)
-    return False, '存冰 0，且 %s 分别在 %.1fs / %.1fs / %.1fs / %.1fs 后' % (
+    return False, '睡着的冰 0，且 %s 分别在 %.1fs / %.1fs / %.1fs / %.1fs 后' % (
         '、'.join(x[1] for x in worst), worst[0][0] / 100.0, worst[1][0] / 100.0,
         worst[2][0] / 100.0, worst[3][0] / 100.0)
 
@@ -756,15 +754,13 @@ def classify(r, dev=None):
             '设计者就是靠选卡带南瓜来吸收这份损耗',
             '不用管，算进日常开销')
 
-    # ★ 2026-10-22 用户：「对于没有存冰的阵不要进行存冰量警告，不过有存冰的阵也一定要警告」
-    #   → 判据是**阵型里到底有没有寒冰菇**，不是"引擎默认的存冰位有没有填满"。
-    ice_cap = es.get('ice_cap')
-    if ice_cap is None:                      # 老报告没这个字段 → 退回旧行为
-        ice_cap = es.get('ice_stock_perm', 0)
-    if ice_cap and es.get('ice_stock_perm', 0) == 0 and tier != '极速':
-        add('L2', '结束存冰 0（阵上共 %d 个存冰位）' % ice_cap,
+    # ★ 用户：「对于不带冰的阵不要做冰量警告，带冰的阵一定要警告」
+    #   → 判据是**阵图里有没有装着睡着的冰的格子**。
+    ice_cap = es.get('ice_cap') or 0
+    if ice_cap and (es.get('ice_stock') or 0) == 0 and tier != '极速':
+        add('L2', '结束时 0 个睡着的冰（阵图里共 %d 格）' % ice_cap,
             '没有植物被僵尸杀死；只是卡槽要重新现补',
-            '选卡带满存冰 / 收尾少点一次')
+            '选卡带满冰 / 收尾少点一次')
 
     if dev is not None and abs(dev) >= 10:
         add('L4', '波长偏差 %+.0f%%' % dev,
@@ -871,7 +867,7 @@ def wave_table(r):
                        '%.1fs' % (v.get('gap') or 0) if v.get('gap') else '—'))
     return '''
   <table class="mini wide">
-    <tr><th>波</th><th>角色</th><th>操作（不含补存冰）</th><th>生效时刻</th>
+    <tr><th>波</th><th>角色</th><th>操作（不含补种）</th><th>生效时刻</th>
         <th>出怪</th><th>波长</th></tr>
     %s
   </table>''' % ''.join(rows)
@@ -1242,13 +1238,13 @@ def field_map_html(r):
 def legend_html():
     """时间轴图例：字母为主，颜色为辅"""
     items = [('P', '玉米炮'), ('N', '核弹'), ('A', '樱桃'), ("A'", '辣椒'),
-             ('I', '冰 / 存冰'), ('a', '窝瓜'), ('c', '垫材'), ('F', '补大喷')]
+             ('I', '冰'), ('a', '窝瓜'), ('c', '垫材'), ('F', '补大喷')]
     out = ['<div class="legend big">', '<span class="lg-t">时间轴字母</span>']
     for ab, name in items:
         out.append('<span><b style="color:%s">%s</b> %s</span>'
                    % (ABBR_COLOR[ab], ab, name))
     out.append('<span><b style="color:#a16207">·</b> 补大蒜</span>')
-    out.append('<span><b style="color:#cbd5e1">·</b> 补存冰</span>')
+    out.append('<span><b style="color:#cbd5e1">·</b> 补种</span>')
     out.append('<span style="margin-left:10px" class="dim">'
                '（P / N / A / A′ 各占一行，不会叠在一起；'
                '点状标记是维护性动作，不算轨迹。鼠标悬停任一波可看该波明细）</span></div>')
@@ -1332,9 +1328,9 @@ def card_html(r, dev=None):
         ('__SUNCLS__', 'warn' if r.get('sun_capped') else ''),
         ('__SUNPEAK__', ('%d ⚠触顶（经济溢出）' % r.get('sun_peak', 0))
          if r.get('sun_capped') else '%d' % r.get('sun_peak', 0)),
-        ('__ICECLS__', 'bad' if es.get('ice_stock_perm', 0) == 0 else 'ok'),
-        ('__ICE__', str(es.get('ice_stock_perm', 0))),
-        ('__ICEMAX__', str(len(es.get('ice_slots') or {}) or 4)),
+        ('__ICECLS__', 'bad' if (es.get('ice_stock') or 0) == 0 else 'ok'),
+        ('__ICE__', str(es.get('ice_stock') or 0)),
+        ('__ICEMAX__', str(es.get('ice_cap') or 0)),
         ('__ICETMP__', ''),
         ('__PK__', str(es.get('pumpkins_alive', 0))),
         ('__PK0__', str(es.get('pumpkins_init', 0))),
@@ -1401,8 +1397,8 @@ def main():
                 sunmax[0] = r.get('sun_peak', 0)
             pumps.append(r['pumpkin_lost'])
             _es = r.get('end_state', {}) or {}
-            ices.append(_es.get('ice_stock_perm', 0))
-            temps.append(_es.get('ice_stock_temp', 0))
+            ices.append(_es.get('ice_stock', 0))
+            temps.append(_es.get('ice_cap', 0))
             crushes.append(_es.get('cars_crushed', 0))
             refills.append(_es.get('ice_refill', 0))
             uses.append(_es.get('ice_used', 0))
@@ -1527,12 +1523,12 @@ def main():
            margin-right:4px;vertical-align:-1px}
          ''', '</style></head><body>',
          '<h1>trackcheck · 运阵报告</h1>',
-         '<div class="sub">模拟器 tools/trackcheck ｜ 阵型：15曾 / 7冰瓜 / 4大喷 / 6双花 / 4存冰 / 2伞 / 2香蒲 ｜ 24南瓜（4梯）</div>',
+         '<div class="sub">模拟器 tools/trackcheck ｜ 阵型：15曾 / 7冰瓜 / 4大喷 / 6双花 / 4格睡着的冰 / 2伞 / 2香蒲 ｜ 24南瓜（4梯）</div>',
          '<h2>总览</h2><table>',
          '<tr><th>档</th><th>录像</th><th>常规波长</th><th>偏差</th>'
          '<th>含收尾段</th><th>跑完</th>'
          '<th>减速覆盖</th><th>输出</th><th>阳光结余（8k 起）</th><th>南瓜损耗</th>'
-         '<th>存冰结余</th><th>冰车碾压</th><th>核/局</th>'
+         '<th>睡着的冰结余</th><th>冰车碾压</th><th>核/局</th>'
          '<th>炸率(2/5路)</th><th>最高等级</th></tr>']
     for r in rows:
         h.append('<tr><td><b>%s</b></td><td>%.2fs</td><td>%.2fs</td>'
@@ -1617,7 +1613,7 @@ def main():
               <b>这同时解释了"为什么窝瓜能 100% 保住 5-9"</b>：
               车头进 [640,720] 就爆，而车尾（冰道前沿，+80）还在 720~800，9 列还没被铺。</td></tr>
       <tr><td><b>变速"冰不够"</b><br>
-          <span class="dim">"变速关最后存冰结余这么多，你说冰不够我不信"</span></td>
+          <span class="dim">"变速关最后睡着的冰结余这么多，你说冰不够我不信"</span></td>
           <td>用户质疑得对。<b>冰一直是够的</b>，账能平（慢速 121 供 / 97 消 / 剩 24；
               变速 114 / 92 / 剩 22）。真正的原因是三条叠加：
               ① <code>_kernel_slack</code> 要求"必须和下个固定核复用同一个坑"，
@@ -1626,7 +1622,7 @@ def main():
               其余全退化成冰；③ w19 救急把最后一个冰点掉，w20 冰杀蹦极没冰。</td>
           <td>① <code>_kernel_slack</code> 改成按<b>坑位数</b>判定（9 个坑、2-9/5-9 只留给锚点），
               核从 2 → 4 次；② <b>AA' 独立化</b>（不再依附核），樱桃辣椒 50s CD 各 4 次都用上；
-              ③ 救急层在 w19/w20 保住最后一个冰。结果：<b>空窗 0</b>，存冰 3.8。</td></tr>
+              ③ 救急层在 w19/w20 保住最后一个冰。结果：<b>空窗 0</b>，睡着的冰 3.8。</td></tr>
       <tr><td><b>波长口径</b></td>
           <td>刷怪改成同刻后，四档波长整体偏快 19~24%（极速只差 6%）。
               极速是"纯 IO、不操作"，它准 → IO 模型准；其余档偏快 → 灰烬+冰的等效清血被高估约 1.25 倍。</td>
@@ -1672,10 +1668,10 @@ def main():
     h.append('<div class="sub" style="margin-top:26px">'
              '时间轴读法：顶部数字是波号（红色=旗帜波，竖线贯穿）。'
              '泳道自上而下是 <b>N</b>（核）/ <b>A</b>（樱桃）/ <b>A′</b>（辣椒）/ '
-             '<b>I</b>（冰·存冰）/ <b>C·W·F</b>（垫材·窝瓜·补大喷）—— '
-             'N / A / A′ 各占一行，不会叠在一起。补存冰只画淡色小点（不算轨迹）。'
+             '<b>I</b>（冰）/ <b>C·W·F</b>（垫材·窝瓜·补大喷）—— '
+             'N / A / A′ 各占一行，不会叠在一起。补种睡着的蘑菇只画淡色小点（不算轨迹）。'
              '两个折线区是「僵尸数(黑)与减速数(蓝)」「阳光」。'
-             '<b>鼠标悬停任一波</b>可看该波明细（阳光 / 存冰 / 卡槽 CD / 计划与临场操作 / '
+             '<b>鼠标悬停任一波</b>可看该波明细（阳光 / 睡着的冰 / 卡槽 CD / 计划与临场操作 / '
              '僵尸阵线 / 场上植物）。'
              '</div>')
     h.append('''<script>
@@ -1724,9 +1720,9 @@ def main():
     print('-> %s' % out)
     for r in rows:
         print('%s  跑完 %d/%d  波长 %.2fs (%+.0f%%)  减速 %.0f%%  阳光 %.0f  '
-              '存冰 %.1f/4（补 %.1f / 点 %.1f）  冰车碾压 %d'
+              '睡着的冰 %.1f/%d（补 %.1f / 点 %.1f）  冰车碾压 %d'
               % (r['tier'], r['ok'], n, r['avg'], r['dev'], r['cov'], r['sun'],
-                 r['ice'], r['refill'], r['use'], r['crush']))
+                 r['ice'], r['temp'] or 0, r['refill'], r['use'], r['crush']))
 
 
 if __name__ == '__main__':

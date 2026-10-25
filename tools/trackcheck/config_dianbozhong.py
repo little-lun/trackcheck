@@ -3,22 +3,26 @@
 config_dianbozhong.py —— PE.电波钟无炮 的验证配置
 
 阵型数据来自 `练习/PE.电波钟无炮/研讨笔记.md` §一，已与统计数对齐：
-曾 15｜冰瓜 7｜大喷 4｜双花 6｜存冰 4｜伞 2｜香蒲 2｜荷叶 16｜南瓜 24
+曾 15｜冰瓜 7｜大喷 4｜双花 6｜睡着的冰 4｜伞 2｜香蒲 2｜荷叶 16｜南瓜 24
 
 ★ 2026-10-18 按四档实战视频 + 用户口述补的三条"阵的知识"：
   ① **5-8 核坑位会被冰道覆盖** → 中概率，被盖就**退到 5-7** 点核
   ② **1 路有樱桃、6 路没有其它灰烬运算量** → 核尽量点 **5 路**
-  ③ **5-3 的存冰故意不补** → 那一格要留作**辣椒位**
+  ③ **5-3 那格睡着的冰不给它补** → 那一格要留作**辣椒位**
 """
 
+# 阵图上「装着睡着的寒冰菇」的格子数（3-2 / 3-3 / 4-3 / 5-3 四格）
+MAX_SLEEP_ICE = 4
+
 # ------------------------------------------------------------------ 阵型
-from . import data as D      # noqa: E402  （_ice_ops 要用 MAX_ICE_STOCK / CARDS）
+from . import data as D      # noqa: E402  （_ice_ops 要用 CARDS）
 
 ARRAY = {}
 
 
-def _p(r, c, plant=None, pumpkin=False, ladder=False):
-    ARRAY[(r, c)] = dict(plant=plant, pumpkin=pumpkin, ladder=ladder)
+def _p(r, c, plant=None, pumpkin=False, ladder=False, awake=True):
+    ARRAY[(r, c)] = dict(plant=plant, pumpkin=pumpkin, ladder=ladder,
+                         awake=awake)
 
 
 # ★ 依据 `练习/PE.电波钟无炮/研讨笔记.md` §一「阵型总表」逐格重建
@@ -42,8 +46,8 @@ _p(2, 6, '忧郁菇', False, False)
 
 # 3 路（水路）
 _p(3, 1, '双子花', False, False)
-_p(3, 2, '存冰',   False, False)
-_p(3, 3, '存冰',   False, False)
+_p(3, 2, '寒冰菇', False, False, False)
+_p(3, 3, '寒冰菇', False, False, False)
 _p(3, 4, '香蒲',   False, False)
 _p(3, 5, '双子花', False, False)
 _p(3, 6, '忧郁菇', True,  False)
@@ -54,7 +58,7 @@ _p(3, 9, '忧郁菇', True,  False)
 # 4 路（水路）
 _p(4, 1, '双子花', False, False)
 _p(4, 2, '双子花', False, False)
-_p(4, 3, '存冰',   False, False)
+_p(4, 3, '寒冰菇', False, False, False)
 _p(4, 4, '双子花', False, False)
 _p(4, 5, '双子花', False, False)
 _p(4, 6, '香蒲',   True,  False)
@@ -62,10 +66,10 @@ _p(4, 7, '忧郁菇', True,  False)
 _p(4, 8, '忧郁菇', True,  False)
 _p(4, 9, '忧郁菇', True,  False)
 
-# 5 路（岸路）—— 5-3 是存冰位，用掉后留作【辣椒位】
+# 5 路（岸路）—— 5-3 躺着睡着的冰，用掉后留作【辣椒位】
 _p(5, 1, '保护伞', True,  False)
 _p(5, 2, '忧郁菇', True,  False)
-_p(5, 3, '存冰',   True,  False)
+_p(5, 3, '寒冰菇', True,  False, False)
 _p(5, 4, '冰瓜',   True,  False)
 _p(5, 5, '忧郁菇', False, False)
 _p(5, 6, '忧郁菇', False, False)
@@ -134,11 +138,6 @@ def struct_fog_slots(tier=None, kinds=None):
 # 快速关 w9 长间隔补种的大喷位置（先 5-7，其次 2-7）
 FAST_LUNGBU_SPOTS = [(5, 7), (2, 7), (5, 8)]
 
-# ★ 用户 SOP（慢速关 w1）："2-7、5-7 两个临时存冰"。
-#   这是**前场的临时位**，不是永久位：用得快、也最容易被冰车/核坑占掉，
-#   但它给了开局 +2 的冰量。w1 时两张冰卡正好闲着（永久 4 位全满，补不了），
-#   拿来种它们**零机会成本** —— 这也是"存冰收尾不够"的最后一块拼图。
-TEMP_ICE_SLOTS = [(2, 7), (5, 7)]
 CHILI_SLOT = (5, 3)
 CHERRY_ROW = 2          # [你] w2/w7 的樱桃在 **2-8**（不是 1 路）
 CHERRY_COLS = [8, 9, 7, 6]   # 2-8 有冰道就顺延，玩家不会硬种
@@ -299,8 +298,8 @@ def track(w, ctx=None):
     └ 收尾（w9 / w19 / w20）…… w9/w19 拖时间，w20 清账
         ★ "w9、w19、w20 共计使用 1~2 次冰减压"
 
-    **补存冰与点冰的优先关系**（这一版新修的坑）：
-      原来"补存冰"排在前面，会把冰卡吃掉，导致同一波真正要冻时 `冰` 卡在 CD
+    **补种与点冰的优先关系**（这一版新修的坑）：
+      原来"补种睡着的冰"排在前面，会把冰卡吃掉，导致同一波真正要冻时 `冰` 卡在 CD
       → w10 冰杀蹦极直接 FAIL。现在改成：**本波要冻，就先冻，再用剩下的那张卡补**。
     """
     ctx = ctx or {}
@@ -356,7 +355,7 @@ def track(w, ctx=None):
         if w >= 10:
             # ★ 用户 2026-10-19："快速关 2 路是有限控丑、**5 路是严谨控丑**"。
             #   所以下半场不是全放羊：2 路放弃，但 5 路要继续控。
-            #   顺序：灰烬（核 > 樱桃 > 辣椒，全砸 5 路）→ 冰（有存冰就点）。
+            #   顺序：灰烬（核 > 樱桃 > 辣椒，全砸 5 路）→ 冰（有睡着的冰就点）。
             #   这也是《研讨笔记》§7.4「上 f 严谨控丑、下 f 放羊」的更准确版本——
             #   放的是 **2 路**，5 路不放。
             if ok('核'):
@@ -365,7 +364,7 @@ def track(w, ctx=None):
                 main.append(('樱桃', 0, (5, 8)))
             elif ok('辣椒'):
                 main.append(('辣椒', 0, None))
-            elif ctx.get('ice_stock', D.MAX_ICE_STOCK) >= 1:
+            elif ctx.get('ice_stock', MAX_SLEEP_ICE) >= 1:
                 freeze = True
         else:
             if _LAST['owe_chili']:
@@ -413,7 +412,7 @@ def track(w, ctx=None):
         #   为什么必须在这里禁核：
         #     核卡 50s CD。若 w9 点核，核一路锁到 w13~w14，
         #     于是 w13~w18 六波全部退化成 I（早冰），
-        #     冰需求直接翻倍 → 变速 w15~w18 存冰耗尽、空窗。
+        #     冰需求直接翻倍 → 变速 w15~w18 睡着的冰耗尽、空窗。
         #     这正是用户上一轮说的"变速 w15~w18 空窗"的根因 ——
         #     不是冰不够，是**核被 w9 偷走了**。
         #   w19 同理：w19 点核会让下一个 2F 的 w1（固定核）卡 CD。
@@ -424,14 +423,14 @@ def track(w, ctx=None):
                 main += _aa_ops(ok)
             if not main:
                 # ★ 下一波是旗波，**必须留一手冰给它**（w10/w20 的冰杀蹦极是硬要求）。
-                #   实测变速偶发 w20 空窗就是这个：w19 把最后一个存冰点掉了。
+                #   实测变速偶发 w20 空窗就是这个：w19 把最后一个睡着的冰点掉了。
                 #   w9→w10 因为 w9 有 45s 拖时间 + 7.2s 红字，冰卡能转好；
-                #   w19→w20 同理，但存冰先见底就没得救，所以这里设个下限。
-                freeze = (ctx.get('ice_stock', D.MAX_ICE_STOCK) >= 2
+                #   w19→w20 同理，但睡着的冰先见底就没得救，所以这里设个下限。
+                freeze = (ctx.get('ice_stock', MAX_SLEEP_ICE) >= 2
                           or ok('冰') or ok('模仿冰'))
 
         elif 5 <= w <= 8 or 13 <= w <= 18:
-            if w >= 13 and ctx.get('ice_stock', D.MAX_ICE_STOCK) <= 1:
+            if w >= 13 and ctx.get('ice_stock', MAX_SLEEP_ICE) <= 1:
                 _LAST['split'] = True
             if _LAST['owe_aa']:
                 _LAST['owe_aa'] = False
@@ -459,7 +458,7 @@ def track(w, ctx=None):
                     #   核转不过来时（波长 10s < 核 CD 50s，20 波最多 4 次核），
                     #   完全可以直接打 AA' 做灰烬控丑，不必退化成冰。
                     #   上一版把 AA' 写成"点核后的下一波"，等于每 4 波只肯用 1 次灰烬，
-                    #   剩下的波全去点冰 —— 这才是"存冰枯竭"的真正源头。
+                    #   剩下的波全去点冰 —— 这才是"睡着的冰枯竭"的真正源头。
                     main += _aa_ops(ok)
                 elif ok('樱桃') or ok('辣椒'):
                     # 只剩一张 → 按用户口径"拆开分两波用，全放 5 路"（像快速关那样）
@@ -471,15 +470,12 @@ def track(w, ctx=None):
     # ==================================================== 组装：先冻，再补
     fz = _freeze_ops(ctx, ok) if freeze else []
     avoid = None
-    if freeze and ctx.get('ice_stock', D.MAX_ICE_STOCK) == 0:
-        # 手上没存冰 → 这一次冰冻要花掉一张冰卡，补种只能用另一张
+    if freeze and ctx.get('ice_stock', MAX_SLEEP_ICE) == 0:
+        # 场上没有睡着的冰 → 这一次冰冻要花掉一张冰卡
         avoid = '冰' if ok('冰') else '模仿冰'
     acts = fz + main + _refill_ops(ctx, ok, avoid=avoid)
-    if w == 1 and MODE in ('慢速', '变速'):
-        # 用户 SOP："w1 … 2-7、5-7 两个临时存冰"
-        # ★ 快速/极速不种：快速关下半场放羊、存冰本来就满（4/4），
-        #   而且 2-7 / 5-7 要留给 w9 长间隔补的大喷。
-        acts = [('种临时冰', 0, None), ('种临时冰', 400, None)] + acts
+    # ★ 2026-10-25：不再有"前场临时位"——w1 额外种两个冰这条取消了。
+    #   冰量只来自「阵图上装着睡着的冰的那几格」，用掉后由引擎持续判定补回。
     return acts
 
 
@@ -521,7 +517,7 @@ def _aa_ops(ok):
     """
     AA' = 2-8 樱桃 + 5 路辣椒。
     ★ 用户："快速关…樱桃辣椒分两w使用且都砸 5 路"；
-      变速后半场存冰枯竭时也可以这样拆（`_LAST['split']`）。
+      变速后半场睡着的冰枯竭时也可以这样拆（`_LAST['split']`）。
     """
     if _LAST.get('split'):
         # 拆开：这一波先樱桃（5 路），下一波再辣椒
@@ -540,23 +536,17 @@ def _aa_ops(ok):
 
 
 def _refill_ops(ctx, ok, avoid=None):
-    """补存冰：位子空着 + 卡槽里的冰（含复制冰）转好 → 补一格。
-    avoid = 本波已经被"直接冰冻"花掉的那张卡，补种不许再抢它。"""
-    stock = ctx.get('ice_stock', D.MAX_ICE_STOCK)
-    acts = []
-    if stock < D.MAX_ICE_STOCK:
-        if ok('冰') and avoid != '冰':
-            acts.append(('种冰', 0, None))
-        elif ok('模仿冰') and avoid != '模仿冰':
-            acts.append(('种冰2', 0, None))
-    return acts
+    """补种睡着的冰：★ 2026-10-25 起这一层**由引擎内置**
+    （`Sim._tick_day_mushroom_refill` 持续判定"睡眠格空了就补"），
+    所以这里恒返回空 —— 保留函数只为不动调用点。"""
+    return []
 
 
 def _freeze_ops(ctx, ok):
     """点冰一次：优先用阵上的预置冰，没有才拿卡直接冻"""
-    stock = ctx.get('ice_stock', D.MAX_ICE_STOCK)
+    stock = ctx.get('ice_stock', MAX_SLEEP_ICE)
     if stock > 0:
-        return [('存冰', 0, None)]
+        return [('咖啡豆', 0, None)]
     if ok('冰'):
         return [('冰', 0, None)]
     if ok('模仿冰'):

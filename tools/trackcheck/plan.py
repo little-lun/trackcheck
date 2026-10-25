@@ -10,14 +10,15 @@ plan.py —— **阵解栏**的数据模型：可编辑的阵解 / 编译成引�
      ├ 表层（轨道）每波一行；行内 = 若干"候选"（兜底链），候选里是"积木"序列
      │    · 行首积木 = 刷怪即刻（或很短延时）生效
      │    · 后面的积木要挂**触发器**：时间 / 卡片 CD / 距离 / 场况，可循环
-     ├ 全场判定  持续判一个条件，成立就做（例：冰卡一好就补在永久存冰位）
+     ├ 全场判定  持续判一个条件，成立就做（例：某个睡眠格空了就补种）
      └ 救场      简化栏（交资源 + 排优先级，内部决定打什么）
                   详细栏（事件 → 多层兜底，逐条写死）
 
 统一说法（v0.3 最重要的一条）：**阵解里只写植物名**。
-    「点存冰」  → 在某个格子**种咖啡豆**（唤醒那格睡着的寒冰菇）
-    「补存冰」  → 在某个格子**种寒冰菇**
-    「查存冰数」→ 查**场上某植物数量** / 某格子**上面是什么植物**
+    「种寒冰菇」→ 白天场这一块自己点咖啡豆（卡没好就用场上睡着的那个）
+    「种咖啡豆」→ 唤醒某一格**睡着的蘑菇**
+    「睡着的蘑菇」= 白天场阵图里那些写着 `awake: false` 的蘑菇格子；
+                      它们被用掉变空之后，引擎会持续判定用卡片补回去
 """
 
 import json
@@ -125,7 +126,7 @@ def engine_card(op):
 LEGACY_OP = {
     '核': '毁灭菇', '模仿核': '模仿毁灭菇',
     '冰': '寒冰菇', '模仿冰': '模仿寒冰菇',
-    '存冰': '咖啡豆', '救急冰': '咖啡豆',
+    '存冰': '咖啡豆', '救急冰': '咖啡豆',   # 旧阵解兼容：点冰 = 种咖啡豆
     '种冰': '寒冰菇', '种冰2': '模仿寒冰菇', '种临时冰': '寒冰菇',
     '垫材': '小喷菇', '垫材2': '花盆',
     '垫材3': '阳光菇', '垫材4': '胆小菇', '种大喷': '大喷菇',
@@ -147,8 +148,7 @@ OPS = [
     dict(name='辣椒', group='灰烬', need_aim=False, aim_kind='row',
          note='整行 1800；不给落点则自动挑最密的一行'),
     dict(name='寒冰菇', group='冰', need_aim=False, aim_kind='cell',
-         note='白天场：这一块自己完成「种下 + 点咖啡豆」；冰卡没好就点场上睡着的那个。'
-              '落点是存冰位 → 就是"补存冰"'),
+         note='白天场：这一块自己完成「种下 + 点咖啡豆」；冰卡没好就点场上睡着的那个'),
     dict(name='模仿寒冰菇', group='冰', need_aim=False, aim_kind='cell',
          note='同上，用模仿者那张冰卡'),
     dict(name='咖啡豆', group='冰', need_aim=True, aim_kind='cell', auto=True,
@@ -772,14 +772,12 @@ def _run_rescue_resource(sim, res, row=None, target_rc=None):
         if aim is None:
             if sim._reserved('咖啡豆', within=800):
                 return False          # 轨道马上要用这张卡，救场别抢
-            return run_plan_op(sim, op, None)     # 自动挑一格装满的存冰
-        if not (sim.ice_slots.get(aim) or sim.temp_ice.get(aim)):
+            return run_plan_op(sim, op, None)     # 自动挑一格装着睡着蘑菇的格子
+        if not sim._holds_sleeping(aim):
             return False
         if not sim._try_card('咖啡豆'):
             return False
-        sim.activate_ice(aim)
-        sim.actions.append(dict(t=sim.t, wave=max(1, sim.cur_wave),
-                                name='咖啡豆', ok=True))
+        sim._wake_cell(aim, consume=True)
         return True
     return run_plan_op(sim, op, res.get('aim'))
 
@@ -1520,7 +1518,7 @@ def check_spectrum(beats, gaps, n_cob=None, deck=None):
             copies[name] = copies.get(name, 0) + 1
         if L < C_MIN:
             # ★ 2026-10-22：54s 这条是"**同一张卡**要复用"的下限。
-            #   如果每张长 CD 卡都配了模仿者（或者冰能靠存冰顶），
+            #   如果每张长 CD 卡都配了模仿者（或者冰能靠阵图上睡着的那个顶），
             #   复用不靠"等 CD" → 这条警告没意义，不报。
             bases = sorted({(n.split(':', 1)[1] if n.startswith('模仿者:') else n)
                             for n in longs})
@@ -1530,13 +1528,13 @@ def check_spectrum(beats, gaps, n_cob=None, deck=None):
             if not covered:
                 out.append(dict(level='warn',
                                 msg='含长 CD 卡（%s）但波长和 %.2fs < 54s：'
-                                    '同一张卡的复用要靠模仿者或存冰顶'
+                                    '同一张卡的复用要靠模仿者或阵图上睡着的那个顶'
                                     % ('/'.join(bases), L / 100.0)))
         per = max(1, int(L // LONG_CARD_CD))
         for name, u in sorted(copies.items()):
             base = name.split(':', 1)[1] if name.startswith('模仿者:') else name
             have = 1 + (1 if (deck and ('模仿者:' + base) in deck) else 0)
-            # ★ 寒冰菇另有「存冰」这条免费路径（预置好、只需咖啡豆唤醒），
+            # ★ 寒冰菇另有"阵图上躺着睡着的那个"这条路径（预置好、只需咖啡豆唤醒），
             #   所以只提示不判死
             if u > have * per:
                 lvl = 'warn' if base in ('寒冰菇',) else 'bad'
@@ -1544,7 +1542,7 @@ def check_spectrum(beats, gaps, n_cob=None, deck=None):
                                 msg='%s 一个循环要用 %d 次，但只有 %d 张卡 × '
                                     '%d 次冷却 = %d 次%s'
                                     % (name, u, have, per, have * per,
-                                       '（冰还能靠存冰顶）' if lvl == 'warn' else '')))
+                                       '（冰还能靠阵图上睡着的那个顶）' if lvl == 'warn' else '')))
 
     # ---- ③ 首操作可行性
     first = ops[0]
@@ -1609,13 +1607,13 @@ def spectrum_report(plan=None, track=None, gaps=None, n_cob=None, pair=None,
 
 # ★ 2026-10-23：「没有运算量」的操作 —— 起手那一拍不打它们
 #   （冰 / 咖啡豆 / 垫材 / 南瓜这类都不是"运算量"，起手打出去等于白打）
-_NO_COUNT_OPS = {'寒冰菇', '模仿寒冰菇', '冰', '模仿冰', '咖啡豆', '存冰',
+_NO_COUNT_OPS = {'寒冰菇', '模仿寒冰菇', '冰', '模仿冰', '咖啡豆',
                  '小喷菇', '花盆', '阳光菇', '胆小菇', '南瓜',
                  '垫材', '垫材2', '垫材3', '垫材4', '荷叶', '花盆',
                  '地刺', '地刺王'}
 
 # 冰类操作（旗波"冰杀蹦极"要挑含它的那一拍）
-_ICE_OPS = {'寒冰菇', '模仿寒冰菇', '冰', '模仿冰', '存冰'}
+_ICE_OPS = {'寒冰菇', '模仿寒冰菇', '冰', '模仿冰'}
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -2027,7 +2025,7 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
     #   ★★ 2026-10-25 修 bug：`variants` 的元素是**拍（dict）**不是操作名，
     #      原来直接 `b_.get('op')` 永远拿不到东西 → `has_ice` 恒为 False。
     has_ice = any(
-        o in ('寒冰菇', '模仿寒冰菇', '冰', '模仿冰', '存冰')
+        o in ('寒冰菇', '模仿寒冰菇', '冰', '模仿冰')
         or any(o in ICE_COMPOSITE for o in (bt.get('ops') or []))
         for v in variants for bt in v
         for o in (bt.get('ops') or []))
@@ -3049,8 +3047,6 @@ ANY_ASH = {'kind': 'any', 'of': [{'kind': 'card_ready', 'card': '樱桃'},
 ICE1 = {'kind': 'plant_count', 'plant': '寒冰菇', 'cmp': '>=', 'value': 1}
 ICE0 = {'kind': 'plant_count', 'plant': '寒冰菇', 'cmp': '<=', 'value': 0}
 
-STOCK = [(3, 2), (3, 3), (4, 3), (5, 3)]
-TEMP = [(2, 7), (5, 7)]
 
 
 def default_dianbozhong():
@@ -3065,7 +3061,7 @@ def default_dianbozhong():
                  _b('模仿寒冰菇', [5, 7], trig={'kind': 'time', 'at': 400})),
             _set(ICE1, _b('咖啡豆')),
             _set(None, _b('寒冰菇', [2, 7]))],
-        'C4io 锚点：2-9 反应核 + 两个前场临时存冰（I / I′ 各一张）')
+        'C4io 锚点：2-9 反应核 + 阵图上睡着的两格冰（I / I′ 各一张）')
 
     def regular(w, note):
         row(w, [
@@ -3111,18 +3107,9 @@ def default_dianbozhong():
         rhythm=dict(system='C', id='C4io', name='C4io', beats=['N', "AA'", 'I', 'I'],
                     note='4 拍循环；N=毁灭菇、A=樱桃、A′=辣椒、I=寒冰菇'),
         waves=rows,
-        # 全场判定：冰卡一好就补在空着的永久存冰位
-        globals=[
-            dict(id='补存冰', enabled=True, every=50, cooldown=0,
-                 note='冰卡一好就补：3-2 / 3-3 / 4-3 里第一格空着的',
-                 when={'kind': 'all', 'of': [
-                     {'kind': 'card_ready', 'card': '寒冰菇'},
-                     {'kind': 'any', 'of': [
-                         {'kind': 'cell_is', 'row': 3, 'col': 2, 'plant': ''},
-                         {'kind': 'cell_is', 'row': 3, 'col': 3, 'plant': ''},
-                         {'kind': 'cell_is', 'row': 4, 'col': 3, 'plant': ''}]}]},
-                 ops=[_b('寒冰菇', 'stock')]),
-        ],
+        # 全场判定：★ 2026-10-25 起「睡眠格空了就补种」由引擎内置
+        #   （`Sim._tick_day_mushroom_refill`），阵解里不用再写。
+        globals=[],
         rescue_simple=dict(
             enabled=True,
             note=('岸路 2-6 的曾哥优先级最高，但可以等僵尸贴脸（急迫级 0 格）；'
@@ -3154,8 +3141,7 @@ def default_dianbozhong():
                  levels=[[_b('咖啡豆')]]),
         ],
         slots=dict(kernel=list(CFG.KERNEL_SLOTS),
-                   stock=STOCK, temp_ice=TEMP,
-                   chili=list(CFG.CHILI_SLOT), cherry_row=CFG.CHERRY_ROW,
+                              chili=list(CFG.CHILI_SLOT), cherry_row=CFG.CHERRY_ROW,
                    cherry_cols=list(CFG.CHERRY_COLS),
                    fast_fog=list(CFG.FAST_LUNGBU_SPOTS)),
         params=dict(skip_hp=CFG.SKIP_HP, stall_hp=CFG.STALL_HP,
@@ -3206,7 +3192,7 @@ FE4_STR = (
     '1E 6 3 0 0 1,30 6 3 0 0 0,A 6 4 1 0 0,1E 6 4 0 0 0,A 6 5 1 0 0')
 
 # 夜场：蘑菇免唤醒 → 咖啡豆没用；冰/核的落点必须是**陆路空格**（水路要荷叶，
-# 而夜场又没有存冰位）。荷叶留在卡组里给"7~9 列核坑"用。
+# 而夜场蘑菇种下就醒）。荷叶留在卡组里给"7~9 列核坑"用。
 _FE4_DECK = ['寒冰菇', '模仿寒冰菇', '毁灭菇', '荷叶',
              '樱桃', '三叶草', '窝瓜', '南瓜', '小喷菇', '大喷菇']
 
@@ -3337,8 +3323,8 @@ def example_fe4(rid='N6s'):
 
     阵型（原阵，8 曾口径）：4 门炮在**水路 1~4 列**（两两并排、各占 1×2）、
           水路 5/6 列双曾、陆路 1~3 列「曾 / 伞 / 冰瓜」三件套、4~5 列大喷 ×2。
-    场地：**FE（雾夜）** —— 夜场蘑菇种下就醒，**没有存冰、没有存核**
-      （所以寒冰菇/毁灭菇的落点必须是**场上任意空格**，不是存冰位）。
+    场地：**FE（雾夜）** —— 夜场蘑菇种下就醒，没有"睡眠格"这回事
+      （所以寒冰菇/毁灭菇的落点必须是**场上任意空格**）。
 
     阵解（`rid` 可选，见《练习/FE.雾四炮/研讨笔记.md》§五）：
       · `N6s`  `I-PP|I-PP|N|PP(18,18,9,9)`  54s 循环，双冰单核（wiki 的 c6u）
@@ -3381,7 +3367,7 @@ def example_fe4(rid='N6s'):
     p, _n, _info = quick_layout(p, '|'.join(conf['beats']), pair='full',
                                 start=conf.get('start', 0))
 
-    # ★ 落点：炮按列滑动；冰种在**陆路空格**（夜场没有存冰位、水路要荷叶）；
+    # ★ 落点：炮按列滑动；冰种在**陆路空格**（夜场没有睡眠格、水路要荷叶）；
     #   **毁灭菇要种在水路前排空格** —— 只有水路前排才能同时盖住
     #   上下两条水路 + 相邻陆路，凑够 **2 个运算量**（用户 2026-10-23 点名）。
     #   冰/核的格子逐波轮换：冰车压过留冰道、核留弹坑，同一格会被卡死。
@@ -3606,7 +3592,7 @@ _SPEC_LAYOUT = """# TrackCheck 阵容布置 说明
 - `name` 是**阵型名的裸名**（不带 `[PE].`），全名 = `[` + `field` + `].` + `name`
 - 键是 `"行-列"`，行 1 在最上面、列 1 最靠近家门
 - `plant` 为 `null` 表示这一格没有主植物（但可能只有南瓜 / 基座 / 墓碑）
-- `awake: false` 只是"睡着"的标记，`寒冰菇 + awake:false` ≡ 引擎内部的「存冰」
+- `awake: false` = 这一格装着**睡着的蘑菇**（白天场才能这么写，夜场无效）
 - **底座规则**（`base`）：水上只能是 `睡莲`、屋顶/草地只能是 `花盆`；
   空地可以不写 `base`；写了植物 / `pumpkin` / `ladder` 或 `plant == "玉米炮"` 时，
   水上与屋顶的格子**必须**有 `base`（写文件时会自动补）
@@ -3665,15 +3651,14 @@ _SPEC_PLAN = """# TrackCheck 阵解 JSON 格式说明（format = {fmt}）
 - `rhythm.id` 是节奏型的**规范 id**（`C4io` / `N4` / `D5` / `I6` …）。
   显示名按「设置 → 节奏命名方案」在 **2021 传统 / 2026 新版 / 双轨**之间切换，
   所以 JSON 只存 id，不存显示名。
-- 后文所有"种什么"都写**植物名**，不写"点存冰 / 补存冰"：
-  - 唤醒存冰 = 在那一格**种咖啡豆**
-  - 补存冰   = 在那一格**种寒冰菇**
-  - 查存冰   = 查**场上寒冰菇数量**（plant_count）或**某格是什么植物**（cell_is）
+- 后文所有"种什么"都写**植物名**：
+  - 唤醒某格睡着的蘑菇 = 在那一格**种咖啡豆**
+  - 查场上还剩几个睡着的冰 = 查**场上寒冰菇数量**（`plant_count`）
 
 ## 蘑菇的睡眠（2026-10-22 用户口径）
 
 - **阵图里本来就是醒的，永远醒着**：忧郁菇 / 大喷菇 / 磁力菇 … 这些常驻蘑菇照常工作。
-- **阵图里的寒冰菇是睡着的**（这就是"存冰"）。
+- **只有阵图里显式写 `awake: false` 的蘑菇才是睡着的**；写 `awake: true` 或不写就是醒的。
 - **新种下的蘑菇一定是睡着的** —— 不管白天还是晚上；想让它干活，必须在**同一格**
   再种一颗 `咖啡豆`（`咖啡豆` 积木 + `aim` = 那一格）。
 - **已经唤醒的蘑菇永远醒着**，不会到点又睡回去。
@@ -3764,7 +3749,7 @@ _SPEC_PLAN = """# TrackCheck 阵解 JSON 格式说明（format = {fmt}）
 ## 全场判定（globals[]）
 
 ```json
-{{"id":"补存冰","enabled":true,"every":50,"cooldown":0,
+{{"id":"补一个睡着的冰","enabled":true,"every":50,"cooldown":0,
   "when": {{"kind":"card_ready","card":"寒冰菇"}},
   "ops":  [{{"op":"寒冰菇","aim":[3,2]}}]}}
 ```
@@ -3797,7 +3782,7 @@ _SPEC_PLAN = """# TrackCheck 阵解 JSON 格式说明（format = {fmt}）
 
 ## 自然语言 → JSON（给 AI 用）
 
-> 「w5：核好、樱桃辣椒都好的话先点核到 5-8；否则樱桃辣椒一起打；都不行就点存冰」
+> 「w5：核好、樱桃辣椒都好的话先点核到 5-8；否则樱桃辣椒一起打；都不行就单点冰（场上那个睡着的）」
 ```json
 {{"w":5,"sets":[
   {{"when":{{"kind":"all","of":[{{"kind":"card_ready","card":"毁灭菇"}},

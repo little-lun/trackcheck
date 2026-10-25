@@ -36,7 +36,7 @@ HELP_ZH = '''<div class="panel">__GLOSSARY__</div>
       明显是 <b>cs</b> 的数量级也会自动按 cs 读（= 8.75 / 8.75 / 8.75 / 8.5 秒）。
       想写死单位就带后缀：<code>875cs</code> / <code>8.75s</code>。</p>
       <h3>④ 运行与报告</h3>
-      <p>点「开始模拟」。报告里有：波长、偏差、减速覆盖、存冰/阳光/补南瓜台账、
+      <p>点「开始模拟」。报告里有：波长、偏差、减速覆盖、睡着的冰/阳光/补南瓜台账、
       逐波时间轴、轨道执行表；右上角可以下载 PDF。</p>
       <p class="hint">注意：本工具是<b>模型</b>，不是游戏本体。哪些植物/僵尸/场地建模到什么程度，
       见右上角齿轮里的「模型清单」。</p>
@@ -51,8 +51,8 @@ HELP_ZH = '''<div class="panel">__GLOSSARY__</div>
       <p><b>节奏</b>：C<sub>4</sub>io —— 4 拍循环 <code>N | AA′ | I | I</code>
       （N = 毁灭菇、A = 樱桃、A′ = 辣椒、I = 寒冰菇、a = 窝瓜、c = 垫材、C = 地刺），常规波长 ≈ 15.4~15.9s。
       2016 年后的写法在两套命名方案下都叫 C4io（C 系未废止，归入 P 大类）。</p>
-      <p><b>阵型要点</b>：6 行 9 列泳池；3/4 路是水路；3-2 / 3-3 / 4-3 / 5-3 是永久存冰位；
-      2-7 / 5-7 是前场临时位；5-8 是主核坑。</p>
+      <p><b>阵型要点</b>：6 行 9 列泳池；3/4 路是水路；3-2 / 3-3 / 4-3 / 5-3 这四格
+      在阵图上写着「睡着的寒冰菇」；5-8 是主核坑。</p>
       <div class="row" style="margin-top:8px">
         <button id="help-load">载入示例阵容</button>
         <button id="help-plan">载入示例阵解</button>
@@ -106,7 +106,7 @@ HELP_EN = '''<div class="panel">__GLOSSARY__</div>
       <code>875cs</code> / <code>8.75s</code>.</p>
       <h3>④ Run &amp; report</h3>
       <p>Click “Start”. The report contains: wavelength, deviation, slow coverage,
-      ice-bank / sun / pumpkin ledgers, a per-wave timeline and the track execution
+      sleeping-ice / sun / pumpkin ledgers, a per-wave timeline and the track execution
       table; the PDF can be downloaded from the top right.</p>
       <p class="hint">Note: this is a <b>model</b>, not the game itself. See
       “Model list” in the gear menu for how deeply each plant / zombie / field
@@ -126,8 +126,8 @@ HELP_EN = '''<div class="panel">__GLOSSARY__</div>
       Under both naming schemes the post-2016 name is still C4io
       (the C series is not obsolete; it belongs to the P family).</p>
       <p><b>Formation notes</b>: 6 rows × 9 columns pool; lanes 3/4 are water;
-      3-2 / 3-3 / 4-3 / 5-3 are permanent ice slots; 2-7 / 5-7 are temporary front
-      slots; 5-8 is the main Doom crater.</p>
+      those four cells 3-2 / 3-3 / 4-3 / 5-3 hold a sleeping Ice-shroom in the
+      formation; 5-8 is the main Doom crater.</p>
       <div class="row" style="margin-top:8px">
         <button id="help-load">Load example formation</button>
         <button id="help-plan">Load example solution</button>

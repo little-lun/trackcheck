@@ -199,7 +199,7 @@ def normalize(array):
         cell = dict(cell or {})
         if cell.get('plant'):
             cell['plant'] = D.canon(cell['plant'])
-            # ★ 引擎内部的「存冰」= 睡着的寒冰菇，阵型里要写成 寒冰菇 + 睡着
+            # 旧阵型里的「存冰」= 睡着的寒冰菇（只做导入兼容）
             if cell['plant'] == '存冰':
                 cell['plant'] = '寒冰菇'
                 cell['awake'] = False
@@ -373,7 +373,7 @@ def fix_bases(array, field_code='PE'):
 #   · `1E` = 30 = 南瓜壳，单独占一条，跟在主植物后面
 #   · `30` = 48 = **梯子**（不是模仿者！破译依据：电波钟的 `30` 恰好只出现在
 #     1-2 / 1-3 / 2-2 / 2-3 这四格，正好是四个梯子南瓜的位置）
-#   · `awake` = 1/0，只对蘑菇有意义（忧郁菇/大喷菇 = 1，寒冰菇存冰 = 0）
+#   · `awake` = 1/0，只对蘑菇有意义（忧郁菇/大喷菇 = 1，睡着的寒冰菇 = 0）
 #   · f5 / f6 在样本里恒为 0（未知位，保留原样以便往返）
 #   · 条目顺序 = 「睡莲/花盆 → 主植物 → 南瓜 → 梯子」（= RFC1437 §7 的推荐种植顺序）
 #
@@ -534,15 +534,15 @@ def catalog():
 def to_engine(array):
     """内部 array → 引擎 `Sim(array=...)` 的格式（key 用元组、值用 plant/pumpkin/ladder）
 
-    ★ 「睡着的寒冰菇」在引擎里有个内部名 `存冰`（它占一格、不冻、等咖啡豆唤醒），
-      写在阵图上就是"寒冰菇 + 没醒"。这里翻回去，这样两边的语义能对上。
+    ★ 「装着睡着的蘑菇的格子」在引擎里就是 `plant + awake=False`，
+      阵图上写 `{"plant": "寒冰菇", "awake": false}` 即可。
     """
     out = {}
     for rc, cell in normalize(array).items():
         name = cell.get('plant')
-        if name == '寒冰菇' and cell.get('awake') is False:
-            name = '存冰'
         out[rc] = dict(plant=name,
+                       awake=(None if cell.get('awake') is None
+                              else bool(cell.get('awake'))),
                        pumpkin=bool(cell.get('pumpkin')),
                        ladder=bool(cell.get('ladder')),
                        # ★ 2026-10-23 用户：阵容布置可以给格子**贴 core 标签**

@@ -15,7 +15,7 @@ metainfo.py —— 全局元信息：命名方案、节奏表、**模型清单**
    `note` 一律用自然语言写"简化模型等价于什么"，供设置页展示、也供回答"做了什么"。
 """
 
-VERSION = '0.3.23'
+VERSION = '0.3.24'
 SCHEMA = 'trackcheck-plan/3'
 
 from . import fields as _fl
@@ -379,7 +379,6 @@ PLANTS_MODEL = [
          note='只作为 **CORE** 记入崩阵判定（占一格、可被啃）；'
               '**不产生任何输出**（防空与对地都没模拟）'),
     dict(name='双子花', level='full', note='每 2400cs +50 阳光；阳光封顶 9990'),
-    dict(name='存冰', level='full', note='= 睡着的寒冰菇：占一格、有 300 血，被咖啡豆唤醒即全场冰冻'),
     dict(name='睡莲', level='part',
          note='占格；**水路基座** —— PE / FE 的水上空地必须先种睡莲才能种别的'
               '（用户 2026-10-22）'),
@@ -401,13 +400,14 @@ PLANTS_MODEL = [
          note='独立 4000 血的一层壳，先扣南瓜再扣植物；补种消耗 125 阳光；'
               '**挂梯子的南瓜（梯子南瓜）会被巨人/车以外的僵尸直接无视**'),
     dict(name='咖啡豆', level='action',
-         note='一次性：唤醒**所在格睡着的蘑菇**（不止存冰位）；白天场蘑菇是睡着的'),
+         note='一次性：唤醒**所在格睡着的蘑菇**；白天场蘑菇种下就是睡着的'),
     dict(name='毁灭菇', level='action', note='一次性：圆形 R=250 炸 1800，留下弹坑（一段时间不能种）'),
     dict(name='樱桃', level='action', note='一次性：圆形 R=115 炸 1800'),
     dict(name='辣椒', level='action', note='一次性：整行 1800，并烧掉该行冰道'),
     dict(name='窝瓜', level='action', note='一次性：1 格宽 1800，可指定落点（压冰车就是用这个）'),
     dict(name='寒冰菇', level='action',
-         note='种下即"睡着"（白天场），被咖啡豆唤醒后全场冰冻 2000cs（含减速）'),
+         note='种下即"睡着"（白天场），被咖啡豆唤醒后全场冰冻 2000cs（含减速）。'
+              '阵图里写 `awake: false` 就是「装着睡着的冰的格子」'),
     dict(name='墓碑吞噬者', level='action',
          note='简化：**直接清除目标格的墓碑**（[精 三] 吞碑 448~471cs）'),
     dict(name='火炬树桩', level='part',

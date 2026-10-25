@@ -30,12 +30,10 @@ def _plan_slots(plan):
 
     ps = (plan or {}).get('slots') or {}
     kernel = ps.get('kernel')
-    temp_ice = ps.get('temp_ice')
     fast_fog = ps.get('fast_fog')
     return dict(kernel=_rcs(kernel) or getattr(CFG, 'KERNEL_SLOTS', None),
                 chili_slot=_rc(ps.get('chili')) or getattr(CFG, 'CHILI_SLOT', None),
                 cherry_row=ps.get('cherry_row') or getattr(CFG, 'CHERRY_ROW', None),
-                temp_ice=_rcs(temp_ice) or getattr(CFG, 'TEMP_ICE_SLOTS', None),
                 fast_fog=_rcs(fast_fog) or getattr(CFG, 'FAST_LUNGBU_SPOTS', None),
                 garlic=(_rcs(ps.get('garlic')) if 'garlic' in ps
                         else CFG.garlic_slots()),
@@ -74,7 +72,6 @@ def run_once(seed, rescue=None, plan=None, field=None, array=None):
         kernel=getattr(CFG, 'KERNEL_SLOTS', None),
         chili_slot=getattr(CFG, 'CHILI_SLOT', None),
         cherry_row=getattr(CFG, 'CHERRY_ROW', None),
-        temp_ice=getattr(CFG, 'TEMP_ICE_SLOTS', None),
         fast_fog=getattr(CFG, 'FAST_LUNGBU_SPOTS', None),
         garlic=CFG.garlic_slots(),
         struct_fog=CFG.struct_fog_slots())

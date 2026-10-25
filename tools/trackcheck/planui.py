@@ -153,8 +153,8 @@ MARKUP = r"""
     <div class="ptitle">选卡 · 10 个卡槽<i class="info" data-spec="plan"></i></div>
     <div class="deck" id="pl-deck"></div>
     <div class="hint" style="margin-top:6px">
-      下面所有"种什么"的选项都只从这 10 张里出。唤醒存冰 = 在某格<b>种咖啡豆</b>；
-      补存冰 = 在某格<b>种寒冰菇</b>。
+      下面所有"种什么"的选项都只从这 10 张里出。唤醒某格睡着的蘑菇 = 在某格
+      <b>种咖啡豆</b>；种下会睡的蘑菇（白天场）这一块会自己点咖啡豆。
     </div>
   </div>
 
@@ -186,7 +186,7 @@ MARKUP = r"""
   <div class="panel">
     <div class="ptitle">全场判定
       <span class="hint" style="font-weight:400">（持续判一个条件，成立就做。
-        例：冰卡一好就补在空着的永久存冰位）</span><i class="info" data-spec="plan"></i></div>
+        例：阵图里那格睡着的冰被用掉、空了就补种）</span><i class="info" data-spec="plan"></i></div>
     <div id="pl-globals"></div>
     <button class="ghost" data-act="addGlobal">+ 加一条全场判定</button>
   </div>
@@ -370,7 +370,7 @@ function plPresetLabel(q) {
 }
 
 const PL_CMP = ['>=', '<=', '>', '<', '=='];
-const PL_STATE = [['ice_stock', '存冰数（场上有几颗寒冰菇）'], ['sun', '阳光'],
+const PL_STATE = [['ice_stock', '睡着的冰（场上有几格）'], ['sun', '阳光'],
                   ['zombies_in_row', '本路僵尸数'], ['zombies_total', '场上僵尸数'],
                   ['wave_hp', '本波剩余血量'],
                   ['cobs_ready', '已装填完毕的玉米炮门数'],
@@ -403,7 +403,7 @@ function plFill(node, kind) {
 function plCond(c, path, kinds) {
   c = c || { kind: (kinds[0] || {}).kind || 'always' };
   const k = c.kind || 'always';
-  const plants = PLAN.cat.cards.concat(['寒冰菇', '存冰', '忧郁菇', '冰瓜', '大喷菇']);
+  const plants = PLAN.cat.cards.concat(['寒冰菇', '忧郁菇', '冰瓜', '大喷菇']);
   let extra = '';
   if (k === 'card_ready' || k === 'card' || k === 'card_ready_within') {
     extra = plSel(path, 'card', c.card || c.name || '寒冰菇', plCardOpts())
@@ -502,7 +502,7 @@ function plTrigLabel(t) {
   if (t.kind === 'state') {
     const nm = { cobs_ready: '炮已装填门数', front_x: '本路最靠前 x',
                  zombies_in_row: '本路僵尸数', zombies_total: '场上僵尸数',
-                 wave_hp: '本波剩余血量', ice_stock: '存冰数', sun: '阳光' };
+                 wave_hp: '本波剩余血量', ice_stock: '睡着的冰', sun: '阳光' };
     return '等到' + (nm[t.what] || t.what || '') + (t.row ? ('(' + t.row + '路)') : '')
       + (t.cmp || '>=') + (t.value === undefined ? '' : t.value);
   }
@@ -522,7 +522,7 @@ function plAimLabel(b) {
     return isNaN(f) ? String(v) : ((f === Math.round(f)) ? String(Math.round(f))
                                                          : f.toFixed(1));
   };
-  if (a === 'stock') return ' · 空存冰位';
+  if (a === 'stock') return ' · 自动挑一格';
   if (a === 'temp') return ' · 前场临时冰位';
   if (Array.isArray(a)) {
     // ★ 2026-10-25：四种落点策略（与炮符号解耦）
@@ -724,7 +724,6 @@ function plAimEditor(bp, b) {
     });
   }
   opts.push(['cell', isCob ? '指定爆心（可带小数）' : '指定格子']);
-  opts.push(['stock', '空着的永久存冰位'], ['temp', '前场临时冰位']);
   // 「分离炮动态落点」要选：行 + 打哪几种僵尸
   const dynRows = [1, 2, 3, 4, 5, 6].map(function (r) {
     return [String(r), String(r) + ' 路'];

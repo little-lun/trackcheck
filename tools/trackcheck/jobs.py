@@ -156,7 +156,7 @@ def _finalize(job):
     job['summary'] = dict(
         n=n, ok=ok, avg=avg, dev=dev, ref=ref,
         sun=sum(r['sun_end'] for r in reports) / n,
-        ice=sum(r['end_state']['ice_stock_perm'] for r in reports) / n,
+        ice=sum(r['end_state']['ice_stock'] for r in reports) / n,
         icecap=sum((r['end_state'].get('ice_cap') or 0) for r in reports) / n,
         rep=sum(r['end_state']['repairs'] for r in reports) / n,
         kn=sum(len(r['end_state']['kernel_log']) for r in reports) / n,
@@ -168,7 +168,7 @@ def _finalize(job):
     )
     job['seed_rows'] = [
         dict(seed=i, span=_span(r), fail=bool(r.get('fail')),
-             ice=r['end_state']['ice_stock_perm'],
+             ice=r['end_state']['ice_stock'],
              rep=r['end_state']['repairs'],
              lost=len(r['end_state']['plants_lost']),
              crush=r['end_state']['cars_crushed'],
@@ -275,9 +275,9 @@ def render_job(job, rep, dev):
 
     kinds_txt = '、'.join(job['kinds'])
     card = ''
-    ice_txt = ('存冰 <b>%.1f</b>/%d' % (s['ice'], round(s.get('icecap') or 0))
+    ice_txt = ('睡着的冰 <b>%.1f</b>/%d' % (s['ice'], round(s.get('icecap') or 0))
                if s.get('icecap')
-               else '存冰 <b class="dim">—</b><span class="dim">（夜场不存冰）</span>')
+               else '睡着的冰 <b class="dim">—</b><span class="dim">（夜场蘑菇种下就醒）</span>')
 
     struct_txt = ''
     if s.get('fog'):
@@ -326,7 +326,7 @@ def render_job(job, rep, dev):
             '</div>'
             '<details class="seedbox"><summary>逐种子明细（%d 局，点一行看那一局的详情）</summary>'
             '<table class="mini"><tr><th>种子</th><th>常规波长</th><th>结果</th>'
-            '<th>存冰</th><th>补南瓜</th><th>植物损失</th><th>冰车碾压</th><th>等级</th></tr>'
+            '<th>睡着的冰</th><th>补南瓜</th><th>植物损失</th><th>冰车碾压</th><th>等级</th></tr>'
             '%s</table></details>'
             '%s'
             '%s'

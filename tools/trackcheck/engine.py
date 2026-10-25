@@ -13,7 +13,7 @@ v0.7 新增的两层结构：
   · **救场层**：僵尸推进到 4.5 列内 → 用垫材/窝瓜救。这是无炮阵真正活着的原因，
                也是"边路大喷被啃 ≠ 破阵"的机制依据。
   · **分级报错**：CORE（曾/冰瓜/炮/香蒲）被毁 = 崩阵；
-               大喷/南瓜/伞/存冰/花被毁 = 磨损，只记 WARN，不终止。
+               大喷/南瓜/伞/花被毁 = 磨损，只记 WARN，不终止。
 
 结论可信度：
   L1 静态层（卡 CD / 运算量 / 阳光）= 零假设、零误差。
@@ -44,7 +44,6 @@ _TRIG_TTL = 2400          # 触发器最多等这么久（cs），超时记"断�
 _OP_ALIAS = {
     '核': '毁灭菇', '模仿核': '模仿毁灭菇',
     '冰': '寒冰菇', '模仿冰': '模仿寒冰菇',
-    '存冰': '咖啡豆',
     '垫材': '小喷菇', '垫材2': '花盆', '垫材3': '阳光菇', '垫材4': '胆小菇',
     '种大喷': '大喷菇',
 }
@@ -119,7 +118,8 @@ class Cell:
                  'cob_cd', 'awake', 'magnet_t', 'base', 'pops', 'grown',
                  'sun_born')
 
-    def __init__(self, row, col, plant=None, pumpkin=False, ladder=False):
+    def __init__(self, row, col, plant=None, pumpkin=False, ladder=False,
+                 awake=None):
         self.row = row
         self.col = col
         self.x = D.cell_x(col)
@@ -139,10 +139,12 @@ class Cell:
         self.grave = False
         # ★ 玉米炮的装填计时（下一个可开炮的时刻）
         self.cob_cd = 0
-        # ★ 蘑菇的"睡着"状态（用户 2026-10-22）：
-        #   阵图预置的格子里，只有寒冰菇/存冰 是睡的；其余（曾哥/大喷…）本来就是醒的。
-        #   静夜里的"新种下的蘑菇一律睡"由 engine._plant_into 负责。
-        self.awake = plant not in D.SLEEPING_AT_START
+        # ★ 蘑菇的"睡着"状态（用户 2026-10-22 / 2026-10-25）：
+        #   阵图里**写着 `awake: false` 的蘑菇**就是睡着的（这就是玩家说的"存着的冰"）；
+        #   其余（曾哥 / 大喷 / 预置的醒冰）本来就是醒的。
+        #   运行时新种下的蘑菇一律先睡，由 engine._plant_into 负责。
+        self.awake = (plant not in D.SLEEPING_AT_START) if awake is None \
+            else bool(awake)
         self.magnet_t = 0
         # ★ 基座（水上=荷叶 / 屋顶=花盆）：阵型里预置的水上格子视为已有基座
         self.base = False
@@ -324,7 +326,8 @@ class Sim:
                 continue
             self.cells[(r, c)] = Cell(r, c, spec.get('plant'),
                                       spec.get('pumpkin', False),
-                                      spec.get('ladder', False))
+                                      spec.get('ladder', False),
+                                      awake=spec.get('awake'))
         # ★ v0.2.1：阵型里预置的格子视为**已有基座**（水上已种荷叶 / 屋顶已放花盆）；
         #   玉米炮占 1×2 → 尾格标 tail（占位、不能种）
         for (r, c), cell in list(self.cells.items()):
@@ -342,7 +345,7 @@ class Sim:
                 tcell.base = cell.base
         # ★★ 2026-10-22 用户：「FE 是夜场，蘑菇种植就醒着，不能存冰存核弹」
         #   夜场里**阵图预置的蘑菇全是醒的** —— 不存在"存冰"这种状态。
-        #   （存冰位的记账在下面建好之后立刻清空，见 `ice_slots`。）
+        #   （所以下面 `sleep_cells` 在夜场是空的。）
         if self.fld.night:
             for cc in self.cells.values():
                 cc.awake = True
@@ -383,7 +386,7 @@ class Sim:
         self.last_rescue = {}        # 每路最后一次被救的时刻（喂给饥饿修正）
         self.series = []              # 每秒采样：阳光/僵尸数/减速数/本波剩余
         # ★ 2026-10-20：逐波快照 —— 供 HTML 报告做 hover 明细
-        #   （阳光 / 存冰 / 各卡 CD / 计划操作 / 僵尸阵线 / 场上植物）
+        #   （阳光 / 睡着的冰 / 各卡 CD / 计划操作 / 僵尸阵线 / 场上植物）
         self.wave_snap = {}
         self.allow_ash = allow_ash
         self.stall_waves = stall_waves
@@ -424,30 +427,26 @@ class Sim:
         self.wave_meta = None
         self.done = False
         self.n_kill = 0
-        # ★ 2026-10-19：存冰从"计数器"改成"逐格记账"。
-        #   原来一个整数 ice_stock 只能表达"还剩几个"，无法表达
-        #   「5-3 这一格要和辣椒共用」这条规则（用户点名要的）。
-        #   现在每个存冰位记 满/空，5-3 的复用、优先补哪一格都能落地。
-        self.ice_slots = {}
+        # ★★ 2026-10-25 用户：**不再有「前场临时位」「永久存冰位」这种东西**。
+        #   唯一的概念是「白天场阵图里装着睡着的某种蘑菇的格子」——
+        #   它们有两个用途：
+        #     ① 轨道要用这种蘑菇、而卡还没好时，点咖啡豆把这一格的用掉（补充）；
+        #     ② 一旦这一格**因为被使用而变空**，持续判定用这种蘑菇（及其模仿）的卡补上。
+        #   所以这里只记"阵图规定哪几格应该躺着哪种蘑菇"（静态，补种用），
+        #   当前是不是睡着看 `self.cells[rc].plant / .awake`。
+        self.sleep_cells = {}
         for (r, c), spec in array.items():
             if r > self.rows:
                 continue
-            if spec.get('plant') == '存冰':
-                self.ice_slots[(r, c)] = True
-        # ★ 2026-10-22：夜场没有"存冰"这回事（蘑菇种下就醒，核弹也不能存）
-        if self.fld.night:
-            self.ice_slots.clear()
-        # 前场临时存冰位（2-7 / 5-7）：开局空着，w1 用冰卡种上，不再补种
-        self.temp_ice = {}
-        for rc in (self.slots.get('temp_ice') or []):
-            self.temp_ice[tuple(rc)] = False
+            nm = spec.get('plant')
+            cell = self.cells.get((r, c))
+            if nm in D.MUSHROOMS and cell is not None and not cell.awake:
+                self.sleep_cells[(r, c)] = nm
         self.ice_refill_n = 0
-        self.ice_temp_n = 0
-        self.ice_refill_skip = 0
         self.ice_emerg_n = 0
         self.ice_emerg_cd = -1
         self.last_freeze_t = -99999
-        self.ice_chili_reuse = 0
+
         self.joker_boom = []          # 真正炸了的小丑（含炸掉了什么）
         self.kernel_log = []          # 每次点核用的坑位（坑位记账）
         self.car_trails = {}          # id(冰车) → 它铺过的格子（车死则冰道消失）
@@ -456,7 +455,6 @@ class Sim:
         self.bungee_risk = []         # 本波有蹦极却没点冰
         self.bungee_log = []          # ★ 2026-10-22：蹦极的逐波判定明细（保护伞/炮/冰/被偷）
         self._bungee_cur = None
-        self._chili_freed_at = -1
         self.wogua_pending = None     # 窝瓜：种下待命 → 判定域命中即刻生效
         self.garlic_slots = [tuple(rc) for rc in (self.slots.get('garlic') or [])]
         self.garlic_swaps = []        # 大蒜换行记录（供报告）
@@ -492,67 +490,38 @@ class Sim:
     def _land(self):
         return self.fld.land
 
-    # ------------------------------------------------ 存冰记账
+    # ------------------------------------------------ 睡着的蘑菇（阵图里那些格子）
     @property
     def ice_stock(self):
-        """阵上还剩几个预置寒冰菇（含 2-7/5-7 两个前场临时位）"""
-        return (sum(1 for v in self.ice_slots.values() if v)
-                + sum(1 for v in self.temp_ice.values() if v))
+        """场上还躺着几个**睡着的寒冰菇**（阵图里那些睡眠格还满着的数量）
+
+        ★ 2026-10-25：不再有"存冰位 / 前场临时位"—— 就是数一数场上睡着的寒冰菇。
+        """
+        return len(self._sleeping_rcs('寒冰菇'))
 
     def _chili_slot(self):
         return self.slots.get('chili_slot')
 
-    def _refill_ice(self):
-        """
-        用**冰卡**补一格预置冰。
-        返回 ('ok', rc) / ('full', None) / ('reserve', rc)
+    def _holds_sleeping(self, rc):
+        """这一格是不是「装着睡着的蘑菇」的格子（那是存着的资源，别拿去当核坑）"""
+        c = self.cells.get(tuple(rc))
+        return bool(c is not None and c.plant in D.MUSHROOMS and not c.awake)
 
-        ★ 用户 2026-10-19 原话：
-          「如果存冰位没有满，卡槽的冰一好就拿它补存冰
-            （5-3 存冰位如果在下一波要复用辣椒，辣椒用了再补存冰）」
-        → 所以 5-3 永远**最后**才补；如果只剩 5-3 空着、而辣椒又快好了，
-          就这一波先不补，等辣椒打出去再补。
-        """
-        empty = [rc for rc, full in self.ice_slots.items() if not full]
-        if not empty:
-            return ('full', None)
-        chili = self._chili_slot()
-        empty.sort(key=lambda rc: (rc == chili, rc[0], rc[1]))
-        rc = empty[0]
-        if rc == chili and len(empty) == 1:
-            cd = self.card_ready.get('辣椒', 0) - self.t
-            if cd <= D.CHILI_RESERVE_CS:
-                self.ice_refill_skip += 1
-                return ('reserve', rc)
-        self.ice_slots[rc] = True
-        self.ice_refill_n += 1
-        return ('ok', rc)
+    def _use_sleeping_ice(self, why=''):
+        """点掉场上一个睡着的寒冰菇（= 在那一格种咖啡豆）→ 立即全场冰冻。
 
-    def _use_stock_ice(self, why=''):
+        优先点**不是辣椒位**的那几格，把辣椒位尽量留给辣椒。
         """
-        点掉一个预置寒冰菇 → 立即冰冻。
-        优先点**不是 5-3** 的那几个，把 5-3 尽量留给辣椒。
-        """
-        # 先烧**前场临时位**（2-7/5-7）：它最容易被冰车压、被核坑占，
-        # 留着不用就是浪费；再烧永久位里不是 5-3 的那几个。
-        temp = [rc for rc, f in self.temp_ice.items() if f]
-        if temp:
-            rc = temp[0]
-            self.temp_ice[rc] = False
-            self._log('ICE', '点存冰 %d-%d（前场临时位 · 剩 %d 个）'
-                      % (rc[0], rc[1], self.ice_stock))
-            self._freeze()
-            return True
-        full = [rc for rc, f in self.ice_slots.items() if f]
-        if not full:
+        rcs = self._sleeping_rcs('寒冰菇')
+        if not rcs:
             return False
         chili = self._chili_slot()
-        full.sort(key=lambda rc: (rc == chili, rc[0], rc[1]))
-        rc = full[0]
-        self.ice_slots[rc] = False
-        self._log('ICE', '点存冰 %d-%d（剩 %d 个）%s'
-                  % (rc[0], rc[1], self.ice_stock, ('· ' + why) if why else ''))
-        self._freeze()
+        rcs.sort(key=lambda rc: (rc == chili, rc[0], rc[1]))
+        rc = rcs[0]
+        if not self._try_card('咖啡豆'):
+            return False
+        self._wake_cell(rc, consume=True,
+                        why='点掉睡着的寒冰菇' + (('· ' + why) if why else ''))
         return True
 
     # ------------------------------------------------ 事件记录
@@ -728,10 +697,9 @@ class Sim:
         # ★ 2026-10-23：上一波没执行完的**循环**事件直接放弃（普通定时事件不受影响）
         self.events = [e for e in self.events
                        if e.get('rep_n') is None or e.get('wave') == w]
-        # [你] 每 5 波补一次临时存冰（w1 种 2-7/5-7 两个，w7 补一次）
-        # ★ 2026-10-19：删掉"每 5 波自动 +2"——
-        #   用户的口径是「存冰位没满、卡槽的冰一好就拿它补存冰」，
-        #   自动补会让这条永远不触发（存冰恒满，等于白送）。
+        # ★ 2026-10-25：不再有"每 5 波补一次临时存冰"这回事 ——
+        #   阵图里"装着睡着的蘑菇"的格子一旦变空，`_tick_day_mushroom_refill`
+        #   会持续判定用卡片补回去。
         # ★★ 2026-10-20：**w9 整波锁死窝瓜**。
         #   实测（慢速 seed2）：w9 期间救场用窝瓜砸了 2 路红眼（159.3s），
         #   于是 w10 开场窝瓜在 CD，压车推迟到 191.7s ——
@@ -833,7 +801,7 @@ class Sim:
             self._schedule(self.t + off, name, aim, w, trig=trig, extra=extra)
 
         # ---- 波角色 + 控制手段（控丑报告要用）
-        ice_names = ('寒冰菇', '模仿寒冰菇', '咖啡豆', '冰', '模仿冰', '存冰')
+        ice_names = ('寒冰菇', '模仿寒冰菇', '咖啡豆', '冰', '模仿冰')
         ash_names = ('毁灭菇', '模仿毁灭菇', '樱桃', '辣椒', '核', '模仿核')
         role = ('起手' if w == 1 else
                 '旗波' if w in (10, 20) else
@@ -860,7 +828,7 @@ class Sim:
 
         # ---- hover 快照：计划内 / 机会性 分开记
         #   计划内 = N / A / A' / I / 窝瓜压车 / 种大喷（轨道明确排的动作）
-        #   机会性 = 补存冰（卡一好就补）、垫材、救急窝瓜（临场反应，不算轨迹）
+        #   机会性 = 睡眠格补种、垫材、救急窝瓜（临场反应，不算轨迹）
         opportunistic = {'寒冰菇', '模仿寒冰菇', '小喷菇', '花盆', '阳光菇', '胆小菇',
                          '窝瓜'}
         plan = [nm for nm, _o, _a, _t, _x in acts if nm not in opportunistic]
@@ -963,7 +931,7 @@ class Sim:
         支持的类型（和阵解栏 UI 一一对应）：
           card   某张卡 CD 转好（+offset）          ← "卡片 cd"
           dist   某类僵尸与某参照的距离              ← "距离"
-          state  场上状态（存冰数 / 本路僵尸数 / 本波剩余血量）
+          state  场上状态（睡着的冰数 / 本路僵尸数 / 本波剩余血量）
           all / any / not   组合
           after  依赖前一块（由编译期折成 time，不走这里）
         """
@@ -1240,32 +1208,21 @@ class Sim:
         return False
 
     def _sleeping_rcs(self, plant=None):
-        """场上**睡着的蘑菇**的落点，按"最该先点掉的"排序。
+        """场上**睡着的蘑菇**所在的格子。
 
         `plant=None` = 任意蘑菇（显式「咖啡豆」积木没写落点时用）。
 
-        ★★ 2026-10-25 修 bug：以前只扫 `cells` 里 `plant == '寒冰菇'` 的格子，
-          而**存冰位的格子里 plant 记的是 `'存冰'`** —— 于是"场上明明有存冰"
-          和"认不认得出有存冰"完全是两回事：白天冰卡一没好就报卡手，
-          哪怕场上有两三个睡着的存冰。现在三处来源合在一起认：
-            ① 前场临时存冰位（`temp_ice`，满的那个）
-            ② 永久存冰位（`ice_slots`，满的那个；5-3 让给辣椒，排最后）
-            ③ 普通格子上种下没唤醒的蘑菇
+        ★★ 2026-10-25 用户：只剩这一个概念 ——
+          「白天场阵图中包含着睡着的某种蘑菇的格子」。
+          不再有"前场临时位 / 永久存冰位"这种记账，就看格子本身睡没睡。
         """
-        if plant is None:
-            names = set(D.MUSHROOMS) | {'存冰'}
-        else:
-            names = {'寒冰菇', '存冰'} if plant == '寒冰菇' else {plant}
-        chili = self._chili_slot()
-        out = [rc for rc, full in self.temp_ice.items() if full]
-        out += [rc for rc, full in sorted(self.ice_slots.items(),
-                                          key=lambda kv: (kv[0] == chili, kv[0]))
-                if full]
+        out = []
         for rc, c in sorted(self.cells.items()):
-            if rc in self.ice_slots or rc in self.temp_ice:
-                continue                      # 这两种位的"满/空"看上面
-            if c.plant in names and not c.awake:
-                out.append(rc)
+            if not c.plant or c.awake or c.plant not in D.MUSHROOMS:
+                continue
+            if plant is not None and c.plant != plant:
+                continue
+            out.append(rc)
         return out
 
     def _wake_sleeping(self, plant, ev):
@@ -1283,7 +1240,7 @@ class Sim:
             return False
         rc = cand[0]
         self.actions[-1]['rc'] = rc         # `_try_card` 已经把"种咖啡豆"记下了
-        self.activate_ice(rc)
+        self._wake_cell(rc, consume=True)
         self._log('ICE', '咖啡豆唤醒场上睡着的 %s %d-%d（%s 卡没好）'
                   % (plant, rc[0], rc[1], plant), row=rc[0], col=rc[1],
                   detail='白天场：蘑菇卡没好 → 用现成睡着的那个')
@@ -1314,14 +1271,13 @@ class Sim:
                   detail='白天场：种下即点豆（同一块内完成）')
         return True
 
-    def _plant_ice(self, ev, aim, name, stock_only=False, temp_only=False):
+    def _plant_ice(self, ev, aim, name):
         """
         种寒冰菇（I / I′）—— v0.3 的统一写法。
 
-        · 落点是**存冰位**（睡眠位）→ 就是"补存冰"：种下去不冻，留着以后用咖啡豆唤醒
-        · 落点是普通格子 / 没给落点 → 当场种下即冻（冰卡本来的用法）
-        · `stock_only` / `temp_only`：老动作名（种冰 / 种临时冰）走自动挑位，
-          只为兼容 v0.2 及更早的阵解，新阵解请直接写落点。
+        · 给了落点 → 种在那格；白天场这一块自己点咖啡豆（豆没好就睡在那儿，不生效）
+        · 没给落点 → 白天场同样要"点豆才有冰"，夜场种下即冻
+        · 冰卡真没好 → 白天场退到"用场上睡着的那个"（`_wake_sleeping`）
         """
         card = '冰' if name == '寒冰菇' else '模仿冰'
         # ★ 2026-10-25：**真卡没好就换模仿者**（自动选卡既然带了模仿冰，就得真用它）。
@@ -1338,56 +1294,15 @@ class Sim:
             if not self.fld.night:
                 why = ('蘑菇卡没好，咖啡豆也没好（场上有睡着的冰，但叫不醒）'
                        if self._sleeping_rcs('寒冰菇') else
-                       '蘑菇卡没好，场上也没有睡着的寒冰菇 / 存冰')
+                       '蘑菇卡没好，场上也没有睡着的寒冰菇')
             self.broken.append(dict(t=self.t, wave=ev['wave'], what=name,
                                     why=why))
             return
         card = _pick
         pos = None
-        if aim in ('stock', 'temp'):
-            stock_only = (aim == 'stock')
-            temp_only = (aim == 'temp')
-        elif isinstance(aim, (tuple, list)) and len(aim) == 2:
+        if isinstance(aim, (tuple, list)) and len(aim) == 2:
             pos = (int(aim[0]), int(aim[1]))
-        if pos is None and (stock_only or temp_only):
-            stock_rcs = [rc for rc, f in self.ice_slots.items() if not f]
-            temp_rcs = [rc for rc, f in self.temp_ice.items() if not f]
-            if stock_only and stock_rcs:
-                chili = self._chili_slot()
-                stock_rcs.sort(key=lambda rc: (rc == chili, rc[0], rc[1]))
-                pos = stock_rcs[0]
-                if pos == chili and len(stock_rcs) == 1:
-                    cd = self.card_ready.get('辣椒', 0) - self.t
-                    if cd <= D.CHILI_RESERVE_CS:
-                        self.ice_refill_skip += 1
-                        self._log('INFO', '5-3 暂不补存冰（留给辣椒）',
-                                  row=pos[0], col=pos[1],
-                                  detail='辣椒 CD 剩 %.1fs，等它打出去再补' % (cd / 100.0))
-                        return
-            elif temp_rcs:
-                pos = temp_rcs[0]
-            elif stock_rcs:
-                pos = stock_rcs[0]
-            if pos is None:
-                # ★ 2026-10-22 夜场（FE / NE）：蘑菇种下就醒 → **没有"存冰"这回事**，
-                #   所以夜场写"补存冰"是阵解本身写错了，要明确告诉用户。
-                why = ('夜场没有存冰位（蘑菇种下就醒、蘑菇阵不能存冰/存核）'
-                       if self.fld.night else '没有空着的存冰位')
-                self.broken.append(dict(t=self.t, wave=ev['wave'], what=name,
-                                        why=why))
-                return
-
-        is_stock = pos is not None and pos in self.ice_slots
-        is_temp = pos is not None and pos in self.temp_ice
-        if is_stock and self.ice_slots[pos]:
-            self.broken.append(dict(t=self.t, wave=ev['wave'], what=name,
-                                    why='%d-%d 已经有寒冰菇了' % pos))
-            return
-        if is_temp and self.temp_ice[pos]:
-            self.broken.append(dict(t=self.t, wave=ev['wave'], what=name,
-                                    why='%d-%d 已经有寒冰菇了' % pos))
-            return
-        if pos is not None and not (is_stock or is_temp):
+        if pos is not None:
             cell = self.cells.get(pos)
             if cell is not None and (cell.iced or cell.crater_until > self.t):
                 self.broken.append(dict(t=self.t, wave=ev['wave'], what=name,
@@ -1398,23 +1313,14 @@ class Sim:
         self.card_ready[card] = self.t + D.CARDS[card]['cd']
         self.actions.append(dict(t=self.t, wave=ev['wave'], name=name, ok=True,
                                  rc=pos))
-        if is_stock:
-            self.ice_slots[pos] = True
-            self.ice_refill_n += 1
-            self._log('REPAIR', '补存冰 %d-%d（%s · 现有 %d 个）'
-                      % (pos[0], pos[1], card, self.ice_stock), row=pos[0], col=pos[1],
-                      detail='种一格寒冰菇留着以后唤醒')
-            return
-        if is_temp:
-            self.temp_ice[pos] = True
-            self.ice_temp_n += 1
-            self._log('REPAIR', '前场临时存冰 %d-%d（%s）' % (pos[0], pos[1], card),
-                      row=pos[0], col=pos[1], detail='现有 %d 个' % self.ice_stock)
-            return
         if pos is not None:
             cell = self.cells.get(pos)
             if cell is None:
                 cell = self.cells[pos] = Cell(pos[0], pos[1])
+            if cell.plant:
+                self.broken.append(dict(t=self.t, wave=ev['wave'], what=name,
+                                        why='%d-%d 已经有植物了' % pos))
+                return
             if not self._base_ok(pos):
                 if not self._seed_base(pos):
                     self.broken.append(dict(t=self.t, wave=ev['wave'], what=name,
@@ -1450,34 +1356,34 @@ class Sim:
                       detail='白天场没给落点：种下即点豆')
             self._freeze()
             return
-        self._log('ICE', '种寒冰菇（%s）→ 全场冰冻' % card,
-                  row=pos[0] if pos else None, col=pos[1] if pos else None)
+        self._log('ICE', '种寒冰菇（%s）→ 全场冰冻' % card)
         self._freeze()
 
     def _tick_day_mushroom_refill(self):
-        """★ 2026-10-25 用户：**白天场如果有睡着的蘑菇，一旦被使用，
-        需要全场持续判定卡片补种睡着的蘑菇。**
+        """★ 2026-10-25 用户：**白天场阵图里装着睡着的某种蘑菇的格子**，
+        一旦因为被使用而**变空**，就持续判定用这种蘑菇（及其模仿）的卡片把它填回去。
 
-        判据：阵型里（`self.array`）放着蘑菇、而那一格现在**空了**（或植物没了）
-        → 用对应的蘑菇卡把它种回去（白天种下就是睡着的，留着以后点豆）。
-        每 50cs 判一次，同一格有冷却，避免刷屏。
+        这是"睡眠格"唯一的存在形式 —— 不再有"存冰位 / 前场临时位"的分层记账。
+        填回去的蘑菇**是睡着的**（留着以后点咖啡豆）。
+        同一格 300cs 冷却，避免刷屏。
         """
         cd = self.__dict__.setdefault('_mush_refill_cd', {})
-        for (r, c), spec in (self.array or {}).items():
-            plant = spec.get('plant')
-            if plant not in D.MUSHROOMS:
-                continue
+        for (r, c), plant in (self.sleep_cells or {}).items():
             if cd.get((r, c), -1) > self.t:
                 continue
             cell = self.cells.get((r, c))
             if cell is not None and cell.plant:
                 continue
-            if plant not in D.CARDS:
-                continue
-            # ★★ 2026-10-25 用户：**解除"不许和轨道抢卡"的限制** ——
-            #   「因为补种的睡着的蘑菇本身就在轨道中，而补种只是把这些蘑菇**存起来**了，
-            #     所以一律认为其不与轨道发生抢卡的矛盾」。
-            if self.card_ready.get(plant, 0) > self.t or self.sun < D.CARDS[plant]['cost']:
+            # 模仿卡也算这一格能用的卡（用户口径：「及其模仿」）
+            #   ★ 坑：`D.CARDS` 的键是**卡片名**（冰 / 模仿冰 / 核 …），不是植物名，
+            #     所以要过一次 `_CARD_OF` —— 不然寒冰菇永远补不上。
+            card = None
+            for k in (_CARD_OF.get(plant, plant),
+                      '模仿' + _CARD_OF.get(plant, plant)):
+                if k in D.CARDS and self.card_ready.get(k, 0) <= self.t:
+                    card = k
+                    break
+            if card is None or self.sun < D.CARDS[card]['cost']:
                 continue
             if not self._base_ok((r, c)) and not self._seed_base((r, c)):
                 continue
@@ -1485,8 +1391,8 @@ class Sim:
                 cell = self.cells[(r, c)] = Cell(r, c)
             if cell.crater_until > self.t:
                 continue
-            self.sun -= D.CARDS[plant]['cost']
-            self.card_ready[plant] = self.t + D.CARDS[plant]['cd']
+            self.sun -= D.CARDS[card]['cost']
+            self.card_ready[card] = self.t + D.CARDS[card]['cd']
             self._plant_into(cell, plant)
             cell.awake = False                 # 白天种下 → 睡着
             cd[(r, c)] = self.t + 300
@@ -1494,7 +1400,7 @@ class Sim:
                                      name=plant, ok=True, rc=(r, c)))
             self._log('REPAIR', '补种睡着的 %s %d-%d（留着以后点豆）'
                       % (plant, r, c), row=r, col=c,
-                      detail='白天场：睡着的蘑菇被用掉了就补回来')
+                      detail='这一格被用掉了 → 用卡片填回去（%s）' % card)
 
     def _day_mushroom(self, ev, aim, name, card):
         """★ 白天场的**毁灭菇积木** —— 一个积木做完全部逻辑（用户 2026-10-25）。
@@ -1530,13 +1436,12 @@ class Sim:
         self.actions.append(dict(t=self.t, wave=ev['wave'], name=name, ok=False))
 
     def _use_coffee(self, ev, aim):
-        """
-        种咖啡豆 → 唤醒那一格**睡着的蘑菇** → 若是寒冰菇则立刻全场冰冻。
+        """种咖啡豆 → 唤醒那一格**睡着的蘑菇** → 若是寒冰菇则立刻全场冰冻。
 
-        ★ v0.3 统一说法：以前这一步叫"点存冰"。
-        ★ 2026-10-22：咖啡豆唤醒的是"所在格的蘑菇"，不止存冰位；
-          用户口径是「已经唤醒的蘑菇永远醒着」→ 唤醒后 cell.awake 永久为 True。
-          没给落点就自动挑：先前场临时位，再永久存冰位，最后任意睡着的蘑菇。
+        ★ v0.3 统一说法：以前这一步叫"点存冰"，现在就是"在某格种咖啡豆"。
+        ★ 2026-10-22：咖啡豆唤醒的是"所在格的蘑菇"；用户口径是
+          「已经唤醒的蘑菇永远醒着」→ 唤醒后 cell.awake 永久为 True。
+          没给落点就自动挑场上任意一个睡着的蘑菇。
         """
         pos = None
         if isinstance(aim, (tuple, list)) and len(aim) == 2:
@@ -1555,7 +1460,7 @@ class Sim:
         cell = self.cells.get(pos)
         sleep_cell = (cell is not None and cell.plant in D.MUSHROOMS
                       and not cell.awake)
-        if not (self.ice_slots.get(pos) or self.temp_ice.get(pos) or sleep_cell):
+        if not sleep_cell:
             self.broken.append(dict(t=self.t, wave=ev['wave'], what='咖啡豆',
                                     why='%d-%d 上没有睡着的蘑菇' % pos))
             return
@@ -1565,18 +1470,16 @@ class Sim:
             self.actions.append(dict(t=self.t, wave=ev['wave'],
                                      name='咖啡豆', ok=False))
             return
-        self.activate_ice(pos)
+        self._wake_cell(pos, consume=cell.plant in ('寒冰菇', '毁灭菇'))
 
     def do_action(self, ev):
         name, aim = ev['name'], ev['aim']
         name = _OP_ALIAS.get(name, name)      # 旧动作名 → 植物名（v0.3 之前存下的阵解也能跑）
-        # ══ 冰系：统一成「种寒冰菇」（落点是存冰位 = 补存冰）／「种咖啡豆」（唤醒存冰）
+        # ══ 冰系：统一成「种寒冰菇」／「种咖啡豆」（唤醒某格睡着的蘑菇）
         if name in ('种冰', '种冰2', '种临时冰'):
-            # 老动作名（内置判定轨道还在用）：自动挑位，只为兼容
-            return self._plant_ice(ev, None,
-                                   '模仿寒冰菇' if name == '种冰2' else '寒冰菇',
-                                   stock_only=(name != '种临时冰'),
-                                   temp_only=(name == '种临时冰'))
+            # 老动作名（内置判定轨道还在用），只为兼容
+            return self._plant_ice(ev, aim,
+                                   '模仿寒冰菇' if name == '种冰2' else '寒冰菇')
         if name in ('寒冰菇', '模仿寒冰菇'):
             return self._plant_ice(ev, aim, name)
         if name == '咖啡豆':
@@ -1636,8 +1539,7 @@ class Sim:
             rc = tuple(aim)
             cell = self.cells.get(rc)
             blocked = (cell is not None and cell.iced
-                       and cell.crater_until <= self.t
-                       and not self.temp_ice.get(rc))
+                       and cell.crater_until <= self.t)
             if blocked and getattr(self, '_nuke_retry', 0) < 8:
                 self._nuke_retry = getattr(self, '_nuke_retry', 0) + 1
                 self._schedule(self.t + 150, name, aim, ev['wave'],
@@ -1776,17 +1678,18 @@ class Sim:
             return
         if name == '辣椒':
             r = (self.slots.get('chili_slot') or (self._pick_row(), 0))[0]
-            # ★ 用户：5-3 存冰位如果这一波要复用辣椒，辣椒用了再补存冰。
-            #   执行顺序就是：先把这个位置上的存冰点掉（顺带冻一次），
-            #   腾出格子种辣椒；下一波再补存冰。
+            # ★ 辣椒要种的那一格如果躺着睡着的蘑菇 → 先点掉它（顺带生效），
+            #   腾出格子种辣椒；这一格变空之后 `_tick_day_mushroom_refill`
+            #   会持续判定把那种蘑菇种回去。
             chili = self._chili_slot()
-            if chili and self.ice_slots.get(chili):
-                self.ice_slots[chili] = False
-                self._freeze()
-                self.ice_chili_reuse += 1
-                self._log('ICE', '5-3 存冰复用为辣椒位：先点冰，再种辣椒',
+            cc0 = self.cells.get(chili) if chili else None
+            if (cc0 is not None and cc0.plant in D.MUSHROOMS and not cc0.awake
+                    and self._try_card('咖啡豆')):
+                self._wake_cell(chili, consume=True, why='辣椒要占这一格')
+                self._log('ICE', '辣椒位 %d-%d 躺着睡着的%s → 先点掉，再种辣椒'
+                          % (chili[0], chili[1], cc0.plant),
                           row=chili[0], col=chili[1],
-                          detail='下一波（冰卡转好后）再补回存冰')
+                          detail='这一格空出来后会被持续判定补种')
             self.chili_q.append((self.t + D.ASH_DELAY, r))
             for col in range(1, 10):
                 cc = self.cells.get((r, col))
@@ -2561,9 +2464,6 @@ class Sim:
                             self._hurt(z, D.ASH_DMG, True, src='ash')
                             self.dmg_dealt += D.ASH_DMG
                     self._clear_ice_trail(row=r)
-                    # ★ 用户："如果因 5-3 辣椒复用导致当时没能正常补存冰，
-                    #   辣椒生效后立即补" —— 不再等下一波。
-                    self._chili_freed_at = self.t
 
     def _ash_cell(self, row, col, dmg, half=40):
         """
@@ -2673,7 +2573,7 @@ class Sim:
                     cell = self.cells[(r, c)] = Cell(r, c)
                 if cell.crater_until > self.t:
                     continue
-                if self.temp_ice.get((r, c)):
+                if self._holds_sleeping((r, c)):
                     continue
                 if cell.iced:
                     continue
@@ -2694,7 +2594,7 @@ class Sim:
                 cell0 = self.cells.get((r0, c0))
                 why = ('核坑期' if (cell0 and cell0.crater_until > self.t)
                        else '冰道' if (cell0 and cell0.iced)
-                       else '临时存冰占位' if self.temp_ice.get((r0, c0))
+                       else '这一格躺着睡着的蘑菇' if self._holds_sleeping((r0, c0))
                        else '不可用')
                 self._log('INFO', '指定核坑 %d-%d 不可用（%s）→ 退到 %d-%d'
                           % (r0, c0, why, slot[0], slot[1]),
@@ -2710,7 +2610,7 @@ class Sim:
                     continue
                 if cell.crater_until > self.t:
                     continue
-                if self.temp_ice.get((r, c)):
+                if self._holds_sleeping((r, c)):
                     continue
                 slot = (r, c)
                 break
@@ -2806,8 +2706,6 @@ class Sim:
             self._tick_wogua()
             self._tick_garlic()
             self._tick_struct_fog()
-            self._tick_chili_refill()
-            self._tick_ice_refill()
             self._tick_ice_trail()
             # ★ 2026-10-25 用户：白天场睡着的蘑菇被用掉后，要**全场持续判定补种**
             if not self.fld.night:
@@ -2894,7 +2792,7 @@ class Sim:
         ★ 用户 2026-10-22 的完整口径：
           ① 已经唤醒的蘑菇永远醒着；
           ② 阵图里本来就是醒的（曾哥 / 大喷）永远醒着 —— 由 Cell 初始化保证；
-          ③ 阵图里的寒冰菇是睡着的（= 存冰）；
+          ③ 阵图里写着 `awake: false` 的蘑菇是睡着的；
           ④ **新种下的蘑菇一定是睡着的** —— 要它干活得先种一颗咖啡豆。
         """
         cell.plant = name
@@ -2998,77 +2896,6 @@ class Sim:
             c.iced = True
             c.ice_until = self.t + D.ICE_TRAIL_TTL
             self.ice_touched.add((z.row, col))
-
-    def _tick_ice_refill(self):
-        """
-        **波内即时补种**（用户原话："卡槽的冰一好就拿它补存冰"）。
-
-        原来只在换波时补一次 → 20 波最多 20 次机会，还要跟冰卡 CD 对表，
-        实际只补到 10 次，冰卡有 1/3 的产能被"等下一波"白白浪费。
-        玩家真实动作是：眼睛盯着卡槽，一好就点下去种。
-        所以改成每 2s 检查一次：有空位 + 卡好 + 阳光够 → 立刻补。
-        """
-        if self.t % 200:
-            return
-        chili = self._chili_slot()
-        empty = [rc for rc, full in self.ice_slots.items() if not full]
-        if not empty:
-            return
-        empty.sort(key=lambda rc: (rc == chili, rc[0], rc[1]))
-        rc = empty[0]
-        if rc == chili and len(empty) == 1:
-            # 5-3 与辣椒共用：辣椒快好了就先不占
-            if self.card_ready.get('辣椒', 0) - self.t <= D.CHILI_RESERVE_CS:
-                return
-        card = None
-        for k in ('冰', '模仿冰'):
-            if self.card_ready.get(k, 0) <= self.t:
-                card = k
-                break
-        if card is None or self.sun < D.CARDS[card]['cost']:
-            return
-        self.sun -= D.CARDS[card]['cost']
-        self.card_ready[card] = self.t + D.CARDS[card]['cd']
-        self.ice_slots[rc] = True
-        self.ice_refill_n += 1
-        self.actions.append(dict(t=self.t, wave=self.cur_wave, name='种冰', ok=True))
-        self._log('REPAIR', '补存冰 %d-%d（%s · 现有 %d 个）'
-                  % (rc[0], rc[1], card, self.ice_stock), row=rc[0], col=rc[1],
-                  detail='卡一好就补，不等下一波')
-
-    def _tick_chili_refill(self):
-        """
-        5-3 复用辣椒位后的**即时补种**。
-
-        用户 2026-10-19："如果因 5-3 辣椒复用导致当时没能正常补存冰，
-        辣椒生效后立即补"。
-
-        原来我是"下一波再补"，等于让 5-3 空整整一波（13~19s），
-        这段时间冰卡即使转好也用不上 —— 直接少一次补种机会。
-        现在辣椒一炸完（`_chili_freed_at`）就补，卡一好就补。
-        """
-        if getattr(self, '_chili_freed_at', -1) < 0:
-            return
-        chili = self._chili_slot()
-        if not chili or self.ice_slots.get(chili):
-            self._chili_freed_at = -1
-            return
-        card = None
-        for k in ('冰', '模仿冰'):
-            if self.card_ready.get(k, 0) <= self.t:
-                card = k
-                break
-        if card is None:
-            return
-        self.sun -= D.CARDS[card]['cost']
-        self.card_ready[card] = self.t + D.CARDS[card]['cd']
-        self.ice_slots[chili] = True
-        self.ice_refill_n += 1
-        self._chili_freed_at = -1
-        self.actions.append(dict(t=self.t, wave=self.cur_wave, name='种冰', ok=True))
-        self._log('REPAIR', '辣椒生效后立即补回 5-3 存冰（%s · 现有 %d 个）'
-                  % (card, self.ice_stock), row=chili[0], col=chili[1],
-                  detail='用户口径：辣椒用了就补，不等下一波')
 
     def _tick_ice_trail(self):
         for c in self.cells.values():
@@ -3953,18 +3780,12 @@ class Sim:
         """
         场上各植物的数量（阵解栏的条件要问"某种植物还有几个"）。
 
-        ★ 存冰在阵上是"睡着的寒冰菇"：算 `存冰`，也同时算 `寒冰菇`，
-          因为玩家脑子里的名字就是寒冰菇 —— 统一说法就靠这一层映射。
         """
         cnt = {}
         for c in self.cells.values():
-            if not c.plant or c.plant == '存冰':
+            if not c.plant:
                 continue
             cnt[c.plant] = cnt.get(c.plant, 0) + 1
-        ice = self.ice_stock
-        if ice:
-            cnt['寒冰菇'] = cnt.get('寒冰菇', 0) + ice
-            cnt['存冰'] = ice
         return cnt
 
     def plan_ctx(self):
@@ -3981,40 +3802,37 @@ class Sim:
             cells={rc: c.plant for rc, c in self.cells.items() if c.plant},
             ops_by_wave=ops_by_wave)
 
-    def activate_ice(self, rc):
-        """
-        在 rc 落一颗咖啡豆 → 唤醒那格睡着的寒冰菇 → 立刻全场冰冻。
+    def _wake_cell(self, rc, consume=False, why=''):
+        """在 rc 种一颗咖啡豆 → 唤醒那格**睡着的蘑菇**。
+
+        · 寒冰菇 → 立刻全场冰冻；
+        · `consume=True` → 这一格用掉了，**变空**（阵图里那种格子会被持续判定补种）；
+        · 其余蘑菇（曾哥 / 大喷 …）→ 只是醒过来，留在原地。
 
         ★ v0.3 统一说法：以前这一步叫"点存冰"，现在就是"在某格种咖啡豆"。
         """
         rc = tuple(rc)
-        if self.temp_ice.get(rc):
-            self.temp_ice[rc] = False
-            self._log('ICE', '咖啡豆唤醒 %d-%d（前场临时位 · 剩 %d 个）'
-                      % (rc[0], rc[1], self.ice_stock), row=rc[0], col=rc[1])
-            self._freeze()
-            return True
-        if self.ice_slots.get(rc):
-            self.ice_slots[rc] = False
-            self.ice_coffee_n = getattr(self, 'ice_coffee_n', 0) + 1
-            self._log('ICE', '咖啡豆唤醒 %d-%d（剩 %d 个）'
-                      % (rc[0], rc[1], self.ice_stock), row=rc[0], col=rc[1])
-            self._freeze()
-            return True
-        # ★ 2026-10-22：普通格子上睡着的蘑菇也能被咖啡豆唤醒
-        #   （用户口径：咖啡豆唤醒"所在格的蘑菇"，唤醒后**永久清醒**）
         cell = self.cells.get(rc)
-        if cell is not None and cell.plant in D.MUSHROOMS and not cell.awake:
-            cell.awake = True
-            if cell.plant == '寒冰菇':
-                self._log('ICE', '咖啡豆唤醒 %d-%d 的寒冰菇 → 全场冰冻'
-                          % (rc[0], rc[1]), row=rc[0], col=rc[1])
-                self._freeze()
-            else:
-                self._log('ICE', '咖啡豆唤醒 %d-%d 的%s（永久清醒）'
-                          % (rc[0], rc[1], cell.plant), row=rc[0], col=rc[1])
-            return True
-        return False
+        if cell is None or not cell.plant or cell.awake:
+            return False
+        plant = cell.plant
+        cell.awake = True
+        if plant == '寒冰菇':
+            self._log('ICE', '咖啡豆唤醒 %d-%d 的寒冰菇 → 全场冰冻%s'
+                      % (rc[0], rc[1], ('（' + why + '）') if why else ''),
+                      row=rc[0], col=rc[1])
+            self._freeze()
+            self.ice_coffee_n = getattr(self, 'ice_coffee_n', 0) + 1
+        else:
+            self._log('ICE', '咖啡豆唤醒 %d-%d 的%s（永久清醒）'
+                      % (rc[0], rc[1], plant), row=rc[0], col=rc[1])
+        if consume:
+            cell.plant = None
+            cell.plant_hp = 0
+            cell.pops = 0
+            if rc in self.sleep_cells:
+                self.ice_refill_n += 0     # 等 `_tick_day_mushroom_refill` 补回来
+        return True
 
     def _tick_globals(self):
         """全场判定层：每 tick 让阵解看一眼"条件成立了吗"，成立就做"""
@@ -4213,29 +4031,29 @@ class Sim:
 
     def _rescue_ice_emergency(self):
         """
-        真·救急点存冰。
+        真·救急：点掉场上一个睡着的寒冰菇（种咖啡豆）。
 
         ★ 触发条件收得很窄，只有一条真正成立：
           **某只僵尸下一口要落的格子，是一个"没南瓜的 CORE 植物"**。
           本阵里满足这条的其实只有 5-5 / 5-6 两个裸曾（1-3 / 6-3 的冰瓜都在南瓜里，
           1-4/1-5/6-4/6-5 的大喷不算 CORE）。红眼一锤 1800 就能秒掉 300 血的曾，
-          而曾没了就是不可逆的崩阵 —— 拿一个存冰换，天经地义。
+          而曾没了就是不可逆的崩阵 —— 拿一个睡着的冰换，天经地义。
 
         另外还要满足：
           ① 距离上一次冰冻 > 3s（不要连着冻）
           ② 距离上一次救急 > 15s
-          ③ 手上真的有存冰
+          ③ 场上真的还有睡着的寒冰菇
         """
         if self.ice_stock <= 0 or self.t < self.ice_emerg_cd:
             return
-        # ★ 2026-10-20：w19 / w20 期间**保住最后一个存冰**给 w20 的冰杀蹦极。
+        # ★ 2026-10-20：w19 / w20 期间**保住最后一个睡着的冰**给 w20 的冰杀蹦极。
         #   实测变速 seed5：w19 救急把最后 1 个冰点掉（救的是 2-6 裸曾，150 阳光），
         #   结果 w20 蹦极没冰 —— 损失是整片后场，账完全不划算。
         if self.ice_stock <= 1 and self.cur_wave >= 19:
             return
         if self.t - self.last_freeze_t < D.ICE_EMERG_GAP:
             return
-        # ★ 只有"别的牌全没了"才轮到存冰：
+        # ★ 只有"别的牌全没了"才轮到睡着的冰：
         #   两张垫材 + 窝瓜只要有一张转好，就先用它们，不许动轨道口粮。
         for k in ('垫材', '垫材2', '窝瓜'):
             if self.card_ready.get(k, 0) <= self.t:
@@ -4256,7 +4074,7 @@ class Sim:
                     hot = z
         if hot is None:
             return False
-        if self._use_stock_ice('救急：%d 路 %s 要砸 %d-%d 的裸%s'
+        if self._use_sleeping_ice('救急：%d 路 %s 要砸 %d-%d 的裸%s'
                                % (hot.row, hot.kind, hot.row,
                                   self._next_target(hot).col,
                                   self._next_target(hot).plant)):
@@ -4738,7 +4556,7 @@ class Sim:
         """
         每 1s 更新"当前波"的快照（HTML 报告 hover 用）。
 
-        记的是**这一刻的现场**：阳光、存冰、各卡剩余 CD、场上植物、
+        记的是**这一刻的现场**：阳光、睡着的冰、各卡剩余 CD、场上植物、
         以及每路僵尸推到第几列。波结束时保留最后一帧，就是"本波打到哪了"。
         """
         w = self.cur_wave
@@ -4986,7 +4804,7 @@ class Sim:
                               thr=round(m['thr'], 3), reason=m.get('reason')))
             prev = m['t']
         # ★★ 2026-10-20：wave_ctrl 里记的是 **track 排的计划**，
-        #   但救急层 / 维护层还会补发动作（极速关的存冰就是救急点的）。
+        #   但救急层 / 维护层还会补发动作（极速关的冰就是救急点的）。
         #   表格要与时间轴一致，所以这里按**实际发生的 actions** 再聚合一遍：
         #     ice_act / ash_act = 相对波首的偏移（cs），garlic = 本波补了几次蒜
         t0_of = {w: (self.wave_snap.get(w) or {}).get('t0') for w in self.wave_ctrl}
@@ -5002,7 +4820,7 @@ class Sim:
             off = a['t'] - t0
             wc = self.wave_ctrl[w]
             nm = a['name']
-            if nm in ('冰', '模仿冰', '存冰'):
+            if nm in ('冰', '模仿冰'):
                 if wc.get('ice_act') is None or off < wc['ice_act']:
                     wc['ice_act'] = off
             elif nm in ('核', '模仿核', '樱桃', '辣椒'):
@@ -5065,21 +4883,17 @@ class Sim:
                      detail=self.fog_fix[:40]),
             end_state=dict(
                 ice_stock=self.ice_stock,
-                ice_stock_perm=sum(1 for v in self.ice_slots.values() if v),
-                # ★ 2026-10-22：阵上到底有几个存冰位（0 = 这个阵根本不带冰）
-                #   —— 报告里的"存冰 0"警告只在 >0 时才发。
-                ice_cap=len(self.ice_slots),
-                ice_stock_temp=sum(1 for v in self.temp_ice.values() if v),
-                ice_slots={'%d-%d' % rc: ('满' if v else '空')
-                           for rc, v in self.ice_slots.items()},
-                temp_ice={'%d-%d' % rc: ('满' if v else '空')
-                          for rc, v in self.temp_ice.items()},
+                # ★ 2026-10-25：阵图里到底有几格「装着睡着的某种蘑菇」
+                #   （0 = 这个阵根本不带冰）—— 报告里的"冰 0"警告只在 >0 时才发。
+                ice_cap=sum(1 for p in (self.sleep_cells or {}).values()
+                            if p == '寒冰菇'),
+                sleep_cells={'%d-%d' % rc: p
+                             for rc, p in (self.sleep_cells or {}).items()},
+                sleep_cells_left=['%d-%d' % rc
+                                  for rc in self._sleeping_rcs()],
                 ice_refill=self.ice_refill_n,
-                ice_temp_planted=self.ice_temp_n,
-                ice_refill_skip=self.ice_refill_skip,
                 ice_emerg=self.ice_emerg_n,
                 ice_used=sum(1 for x in self.log if x['sev'] == 'ICE'),
-                ice_chili_reuse=self.ice_chili_reuse,
                 row_min={r: (None if v > 9000 else round(v)) for r, v in self.row_min.items()},
                 core_x=dict(D.CORE_X),
                 cards={k: (0 if v <= self.t else round(v - self.t)) for k, v in self.card_ready.items()},

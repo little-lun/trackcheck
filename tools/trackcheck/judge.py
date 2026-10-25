@@ -90,7 +90,7 @@ def judge_bungee(array, lanes=6, ice_cost=75):
     for (r, c), spec in sorted(array.items()):
         if not spec.get('plant'):
             continue
-        if spec.get('plant') in ('荷叶', '存冰', '保护伞'):
+        if spec.get('plant') in ('荷叶', '保护伞'):
             continue
         # [你] 蹦极的防御有两条：伞 或 冰杀结构。先看伞
         under_umb = any(abs(rr - r) <= 1 and abs(cc - c) <= 1 for (rr, cc) in umb)
