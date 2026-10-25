@@ -35,7 +35,7 @@ if ROOT not in sys.path:
 from tools.trackcheck import ui   # noqa: E402
 
 VERSION = '0.3'
-APP_VER = '0.3.21'        # 内部版本（0.x.n = 同一发布里的第 n 处改动）
+APP_VER = '0.3.22'        # 内部版本（0.x.n = 同一发布里的第 n 处改动）
 PYODIDE = '0.29.5'
 DIST_DIR = os.path.join(ROOT, 'tools', 'trackcheck', 'dist')
 

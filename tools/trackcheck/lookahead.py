@@ -185,11 +185,15 @@ def io_eta(sim, z, table=None):
 
 
 def _covered(sim, z, cx, cy, radius):
-    """圆（cx,cy,R）与这一只的受击框相交？"""
+    """圆（cx,cy,R）与这一只的受击框相交？
+
+    ★★ 2026-10-25 用户口径：**攻击判定域与受击判定域的交集不为空 → 伤害发生**。
+      受击框 = x 方向沿用原模型（`_dbox`），y 方向**恰好一格**（`_dbox_y`），
+      所以这里就是标准的"圆 ∩ 矩形 ≠ ∅"（等价于圆心到矩形的最近点距离 ≤ R）。
+    """
     zl, zr = sim._dbox(z)
-    zy = sim.zy(z.row)
     nx = zl if cx < zl else (zr if cx > zr else cx)
-    ny = zy if cy < zy else (zy + D.DEF_HEIGHT if cy > zy + D.DEF_HEIGHT else cy)
+    ny = sim._near_y(z.row, cy)
     return (nx - cx) ** 2 + (ny - cy) ** 2 <= radius * radius
 
 

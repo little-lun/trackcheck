@@ -1170,8 +1170,10 @@ class Sim:
                 row, col, radius, dmg = item[1], item[2], item[3], item[4]
                 cx, cy = D.cell_x(col), self._aim_py(row, col) + D.PLANTS[
                     '玉米炮']['cob']['dy']
-                zy = self.zy(z.row)
-                if (z.x + 20 - cx) ** 2 + (zy + 20 - cy) ** 2 <= radius ** 2:
+                # ★ 2026-10-25：用受击框中心（一整格的中点）参与预演判定
+                _top, _bot = self._dbox_y(z.row)
+                ny0 = (_top + _bot) / 2.0
+                if (z.x + 20 - cx) ** 2 + (ny0 - cy) ** 2 <= radius ** 2:
                     tot += dmg
             for _t, row, rows_n, lo, hi, dmg, _p in list(self.pending):
                 if _t > self.t + horizon:
@@ -1867,14 +1869,41 @@ class Sim:
         col = (best - 40.0) / float(D.CELL_W) + 1.0
         return ('fire', max(1.0, min(9.0, round(col, 1))))
 
+    def _cell_cy(self, row):
+        """**格子中心**的 y（px）—— 也就是炮落点的名义 y（不含 `dy` 偏移）。
+
+        ★ 2026-10-25 坐标口径：`y 行 x 列`的格子 = `[y-1, y] × [x-1, x]`（单位格），
+          格心 = `(y-0.5, x-0.5)`；换成 px 就是「植物 y + 40」。
+          非屋顶：`plant_y = plant_y0 + gap*(r-1)`，所以格心 = `plant_y0 + gap*(r-1) + 40`。
+          屋顶：植物 y 逐格（斜坡），取后 4 列那块平地（col 9）作该行的格心。
+        """
+        rows = self._rows()
+        r = max(rows[0], min(rows[-1], int(round(float(row)))))
+        col = 9 if self.fld.family == 'roof' else 1
+        return self.py(r, col) + 40.0
+
+    def _dbox_y(self, row):
+        """僵尸受击框的 y 区间 `(上界, 下界)` —— **恰好一格**，与格子的上下界重合。
+
+        ★★ 2026-10-25 用户口径：「y 轴宽度统一为一整格，且 y 的上界下界与格子的
+          y 上界下界重合」。所以区间 = `[格心 − gap/2, 格心 + gap/2]`，
+          相邻两行首尾相接（上一行的下界 = 下一行的上界）。
+        """
+        g = float(self.fld.gap) * D.DEF_HEIGHT_CELLS
+        cy = self._cell_cy(row)
+        return cy - g / 2.0, cy + g / 2.0
+
+    def _near_y(self, row, cy):
+        """`cy` 在 `row` 这行受击框上的**最近点** y（用于「圆形判定 ∩ 矩形」）"""
+        top, bot = self._dbox_y(row)
+        return top if cy < top else (bot if cy > bot else cy)
+
     def _boom_rows(self, row, radius, dy):
-        """这个落点**纵向**能盖到哪几行（圆心 y = 该行植物 y + dy，与受击框最近点距 ≤ R）"""
+        """这个落点**纵向**能盖到哪几行（圆心 y = 落点格心 + dy，与受击框最近点距 ≤ R）"""
         cy = self._aim_py(row, 1) + dy
         out = []
         for r in self._rows():
-            zy = self.zy(r)
-            ny = zy if cy < zy else (zy + D.DEF_HEIGHT if cy > zy + D.DEF_HEIGHT else cy)
-            if abs(ny - cy) <= radius:
+            if abs(self._near_y(r, cy) - cy) <= radius:
                 out.append(r)
         return out
 
@@ -1928,10 +1957,8 @@ class Sim:
             return None if allow_none else 8.0
         def _covers(z, cx0, cy0):
             zl, zr = self._dbox(z)
-            zy = self.zy(z.row)
             nx = zl if cx0 < zl else (zr if cx0 > zr else cx0)
-            ny = zy if cy0 < zy else (
-                zy + D.DEF_HEIGHT if cy0 > zy + D.DEF_HEIGHT else cy0)
+            ny = self._near_y(z.row, cy0)
             return (nx - cx0) ** 2 + (ny - cy0) ** 2 <= r_ * r_
 
         def _score(cx0, cy0):
@@ -1972,8 +1999,7 @@ class Sim:
         _zl, zr = self._dbox(front)
         # 跨行时圆心到受击框有纵向距离 dy，水平可用半径只有 sqrt(R² − dy²)
         cy = self._aim_py(row, 1) + dy_
-        zy = self.zy(front.row)
-        ny = zy if cy < zy else (zy + D.DEF_HEIGHT if cy > zy + D.DEF_HEIGHT else cy)
+        ny = self._near_y(front.row, cy)
         reach = (max(0.0, r_ * r_ - (ny - cy) ** 2)) ** 0.5
         cx = zr + reach - 1.0                      # −1：别卡在浮点边界上
         col = (cx - base) / float(D.CELL_W) + 1.0
@@ -2554,10 +2580,9 @@ class Sim:
             zl, zr = self._dbox(z)
             if zl > D.DMG_LINE:          # 防御域左端在 800 之外 → 还不可伤
                 continue
-            zy = self.zy(z.row)
             # 受击框上离圆心最近的点
             nx = zl if cx < zl else (zr if cx > zr else cx)
-            ny = zy if cy < zy else (zy + D.DEF_HEIGHT if cy > zy + D.DEF_HEIGHT else cy)
+            ny = self._near_y(z.row, cy)
             dx, dy = nx - cx, ny - cy
             if dx * dx + dy * dy <= r2:
                 self._hurt(z, dmg, True, src=src)
@@ -3671,6 +3696,15 @@ class Sim:
             if z.kind == '小丑':
                 continue
             if target is not None:
+                # ★★ 2026-10-25 用户（投篮车索敌 bug）：
+                #   「投篮车**仅仅索敌最左侧植物**（与其有没有被保护伞保护无关）」。
+                #   它**不啃植物** —— 以前它落进普通啃食分支，于是"底线有伞保护"的阵里
+                #   前场炮被它啃掉（报告 `by=投篮, cause=啃食`），原版不存在这种伤害。
+                #   现在：碰到植物就**停在前面**（不前进、不啃），只继续扔篮球；
+                #   篮球落点仍是本路最靠左的那一株（`_catapult_throw`）。
+                if z.kind == '投篮':
+                    z.eating = None
+                    continue
                 # ★ 表：召唤到啃食（舞王 200cs / 伴舞 151cs）—— 这段时间内不啃
                 if z.eat_ready > self.t:
                     continue
