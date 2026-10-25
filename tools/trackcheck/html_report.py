@@ -85,8 +85,8 @@ ABBR = {
     '樱桃': 'A',
     '辣椒': "A'",
     '冰': 'I', '模仿冰': 'I', '存冰': 'I',
-    '窝瓜': 'W', '窝瓜压车': 'W',
-    '垫材': 'C', '垫材2': 'C',
+    '窝瓜': 'a', '窝瓜压车': 'a',
+    '垫材': 'c', '垫材2': 'c',
     '种大喷': 'F', '大喷菇': 'F', '种冰': '·', '种冰2': '·', '种临时冰': '·',
     # ★ 2026-10-22：P（玉米炮）单独一条泳道 —— 炮阵的核心操作必须能一眼数出来
     '玉米炮': 'P',
@@ -95,8 +95,8 @@ ABBR = {
     # ★★ 2026-10-22：垫材现在是**四张独立的卡**（小喷菇 / 花盆 / 阳光菇 / 胆小菇），
     #   以前只认 '垫材'/'垫材2' 两个内部别名 → 新名字查不到缩写，落到默认泳道（I 道），
     #   画出一个灰色的 '?'。这里补齐，并把默认泳道改到 CW 行。
-    '小喷菇': 'C', '花盆': 'C', '阳光菇': 'C', '胆小菇': 'C',
-    '垫材3': 'C', '垫材4': 'C',
+    '小喷菇': 'c', '花盆': 'c', '阳光菇': 'c', '胆小菇': 'c',
+    '垫材3': 'c', '垫材4': 'c',
     # 其它"种植物"类动作：结构维护，画在 CW 行的小点
     '南瓜': '·', '荷叶': '·', '睡莲': '·', '保护伞': '·', '双子花': '·',
     '寒冰菇': 'I', '毁灭菇': 'N', '模仿寒冰菇': 'I', '模仿毁灭菇': 'N',
@@ -107,10 +107,13 @@ ABBR = {
 ABBR_COLOR = {
     'P': '#7c3aed',
     'N': '#b91c1c', 'A': '#ea580c', "A'": '#7f1d1d',
-    'I': '#1d4ed8', 'W': '#4d7c0f', 'C': '#94a3b8', 'F': '#0891b2', '·': '#cbd5e1',
+    'I': '#1d4ed8', 'a': '#4d7c0f', 'c': '#94a3b8', 'F': '#0891b2', '·': '#cbd5e1',
+    # 旧写法（`W` 窝瓜 / `C` 垫材）保留，历史阵解的时间轴还能画
+    'W': '#4d7c0f', 'C': '#94a3b8',
 }
 ABBR_DESC = {'P': '玉米炮', 'N': '核弹', 'A': '樱桃', "A'": '辣椒', 'I': '冰',
-             'W': '窝瓜', 'C': '垫材', 'F': '补大喷'}
+             'a': '窝瓜', 'c': '垫材', 'F': '补大喷',
+             'W': '窝瓜', 'C': '垫材'}
 
 # 泳道：(缩写, y_top, height)。None = 波次行
 LANES = [
@@ -276,8 +279,8 @@ def svg_for(r, W=1180):
         add('<text x="%d" y="%d" class="lk">僵尸/减速</text>' % (pad_l - 6, GRAPH_TOP + 10))
         add('<text x="%d" y="%d" class="lk2">峰值 %d 只</text>' % (W - 6, GRAPH_TOP + 10, maxz))
 
-    # 阳光曲线
-    if ser:
+    # 阳光曲线（★ 极限阵不计阳光 → 整块不画）
+    if ser and not r.get('no_sun'):
         maxs = max(1, max(p['sun'] for p in ser))
         mins = min(p['sun'] for p in ser)
         rng = max(1, maxs - mins)
@@ -319,7 +322,7 @@ def _md(t):
 
 
 CARD_ABBR = {'核': 'N', '模仿核': 'N', '冰': 'I', '模仿冰': 'I',
-             '樱桃': 'A', '辣椒': "A'", '窝瓜': 'W', '垫材': 'C', '垫材2': 'C',
+             '樱桃': 'A', '辣椒': "A'", '窝瓜': 'a', '垫材': 'c', '垫材2': 'c',
              '咖啡豆': '咖', '大喷菇': '喷'}
 PLANT_SHORT = {'忧郁菇': '曾', '冰瓜': '瓜', '大喷菇': '喷', '保护伞': '伞',
                '双子花': '花', '存冰': '冰', '香蒲': '猫', '荷叶': '叶'}
@@ -330,7 +333,7 @@ PLANT_SHORT = {'忧郁菇': '曾', '冰瓜': '瓜', '大喷菇': '喷', '保护�
 #   顺序 = 游戏里卡槽从左到右。
 DECK = {
     '慢速': [('冰', 'I'), ('模仿冰', 'I′'), ('核', 'N'), ('樱桃', 'A'), ('辣椒', "A'"),
-             ('窝瓜', 'W'), ('垫材', 'C'), ('垫材2', "C'"), ('南瓜', '南瓜'),
+             ('窝瓜', 'a'), ('垫材', 'c'), ('垫材2', "c'"), ('南瓜', '南瓜'),
              ('咖啡豆', '咖啡豆')],
     '快速': [('冰', 'I'), ('模仿冰', 'I′'), ('核', 'N'), ('樱桃', 'A'), ('辣椒', "A'"),
              ('南瓜', '南瓜'), ('荷叶', '荷叶'), ('大喷菇', '大喷'), ('忧郁菇', '曾哥'),
@@ -504,13 +507,16 @@ def hover_json(r):
         body += ['<div class="sep"></div>',
                  '<div><span class="k2">本波</span> %d 只 ｜ 小丑 %d ｜ 冰车 %d ｜ 总血 %.0fk</div>'
                  % (sn.get('n', 0), sn.get('n_joker', 0), sn.get('n_car', 0),
-                    sn.get('total_hp', 0) / 1000.0),
-                 '<div><span class="k2">阳光</span> %s → %s%s</div>'
-                 % (sn.get('sun', '—'), sn.get('sun_end', sn.get('sun', '—')),
-                    (' ｜ <span class="k2">存冰</span> %s → %s / %d'
-                     % (sn.get('ice', '—'), sn.get('ice_end', sn.get('ice', '—')),
-                        ice_cap)) if ice_cap else ''),
-                 '<div><span class="k2">卡槽</span> %s</div>'
+                    sn.get('total_hp', 0) / 1000.0)]
+        if not r.get('no_sun'):
+            body.append('<div><span class="k2">阳光</span> %s → %s</div>'
+                        % (sn.get('sun', '—'),
+                           sn.get('sun_end', sn.get('sun', '—'))))
+        if ice_cap:
+            body.append('<div><span class="k2">存冰</span> %s → %s / %d</div>'
+                        % (sn.get('ice', '—'),
+                           sn.get('ice_end', sn.get('ice', '—')), ice_cap))
+        body += ['<div><span class="k2">卡槽</span> %s</div>'
                  '<div class="k2" style="font-size:10px">'
                  '— = 这局没有启用这张卡（建阵固定 / 未建模它的补种）；'
                  '南瓜′ 与南瓜共用同一份 CD 模型</div>'
@@ -1227,14 +1233,16 @@ def field_map_html(r):
   <div class="fieldmap">
     <div class="fmcap">%s　<span class="dim">（行 1 在上、列 1 在左；☠ = 造成破坏的僵尸，✖ = 被破坏的植物，字母 = 本波操作）</span></div>
     <table class="grid9"><tr><th></th>%s</tr>%s</table>
-    <div class="fmcap">卡槽 CD（崩阵 / 结束时）：%s　·　阳光 %d</div>
-  </div>''' % (cap, head, ''.join(grid), cd_txt, snap.get('sun') or 0)
+    <div class="fmcap">%s</div>
+  </div>''' % (cap, head, ''.join(grid),
+               cd_txt if r.get('no_sun')
+               else '%s　·　阳光 %d' % (cd_txt, snap.get('sun') or 0))
 
 
 def legend_html():
     """时间轴图例：字母为主，颜色为辅"""
     items = [('P', '玉米炮'), ('N', '核弹'), ('A', '樱桃'), ("A'", '辣椒'),
-             ('I', '冰 / 存冰'), ('W', '窝瓜'), ('C', '垫材'), ('F', '补大喷')]
+             ('I', '冰 / 存冰'), ('a', '窝瓜'), ('c', '垫材'), ('F', '补大喷')]
     out = ['<div class="legend big">', '<span class="lg-t">时间轴字母</span>']
     for ab, name in items:
         out.append('<span><b style="color:%s">%s</b> %s</span>'
@@ -1279,8 +1287,7 @@ def card_html(r, dev=None):
     <span class="dim">总 __T__s｜w__NW__ 波｜波长 __SPAN__s｜减速 __COV__%｜__DPS__ dps</span>
   </div>
   <div class="kpis">
-    <div class="k"><span>阳光结余（8000 起）</span><b class="__SUNCLS__">__SUN__</b>
-      <span style="font-size:10px;color:#94a3b8">峰值 __SUNPEAK__</span></div>
+    __SUNCARD__
     <div class="k"><span>南瓜存活</span><b>__PK__ / __PK0__</b></div>
     <div class="k"><span>补南瓜</span><b>__REP__ 次</b></div>
     <div class="k"><span>植物损失</span><b>__NLOST__</b></div>
@@ -1314,6 +1321,14 @@ def card_html(r, dev=None):
         ('__COV__', '%.0f' % r.get('slow_cov', 0)),
         ('__DPS__', '%d' % r.get('dps', 0)),
         ('__SUN__', '%d' % r.get('sun_end', 0)),
+        ('__SUNCARD__', (
+            '<div class="k"><span>阳光</span><b>极限阵 · 不计阳光</b></div>'
+            if r.get('no_sun') else
+            '<div class="k"><span>阳光结余（8000 起）</span><b class="%s">%d</b>'
+            ' <span style="font-size:10px;color:#94a3b8">峰值 %s</span></div>'
+            % ('warn' if r.get('sun_capped') else '', r.get('sun_end', 0),
+               ('%d ⚠触顶（经济溢出）' % r.get('sun_peak', 0))
+               if r.get('sun_capped') else '%d' % r.get('sun_peak', 0)))),
         ('__SUNCLS__', 'warn' if r.get('sun_capped') else ''),
         ('__SUNPEAK__', ('%d ⚠触顶（经济溢出）' % r.get('sun_peak', 0))
          if r.get('sun_capped') else '%d' % r.get('sun_peak', 0)),

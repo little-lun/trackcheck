@@ -18,6 +18,9 @@ HELP_ZH = '''<div class="panel">__GLOSSARY__</div>
       每格可以设：主植物（含模仿者）、<b>是否套南瓜</b>、<b>是否搭梯</b>（必须先有南瓜）、
       <b>是否有睡莲/花盆</b>（水路、屋顶有东西时会自动锁上）。
       也可以在下面直接<b>粘贴 PvZ Tools 的阵型字符串</b>导入，或用「生成字符串」导出。</p>
+      <p><b>极限阵（不计阳光）</b>：勾上之后，这一份阵型的<b>所有模拟与分析都不再关心阳光</b>
+      —— 种植物不会因为阳光不够而卡手（补南瓜、灰烬、铲种炮全放开），
+      报告里也不展示阳光（结余 / 峰值 / 曲线都不画）。适合验证"阳光管够时这个阵能不能站住"。</p>
       <h3>② 出怪沙盘</h3>
       <p>勾选这一关允许出现的僵尸，起个名字点「加入列表」。可以加多组（不同出怪组合）。</p>
       <h3>③ 阵解编辑</h3>
@@ -76,6 +79,12 @@ HELP_EN = '''<div class="panel">__GLOSSARY__</div>
       <b>Lily Pad / Flower Pot</b> (locked automatically on water and roof).
       You can also <b>paste a PvZ Tools formation string</b> below to import,
       or export one with “Generate string”.</p>
+      <p><b>Extreme build (ignore sun)</b>: when ticked, <b>every simulation and
+      analysis of this formation stops caring about sun</b> — planting is never
+      blocked by an insufficient sun count (pumpkin repairs, ash and the
+      shovel-replant cob all run freely), and the report shows no sun at all
+      (no balance / peak / curve). Use it to answer “can this formation hold
+      when sun is not the constraint”.</p>
       <h3>② Spawn Sandbox</h3>
       <p>Tick the zombies allowed in this level, name the set and click
       “Add to queue”. Several sets can be queued.</p>

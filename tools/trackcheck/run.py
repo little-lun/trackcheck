@@ -96,6 +96,7 @@ def run_once(seed, rescue=None, plan=None, field=None, array=None):
                         '咖啡豆', '大蒜'}
         replant = (deck_core & arr_plants) - action_cards
     sim = Sim(array, track_fn, CFG.wave_script, seed=seed,              total_waves=20, sun0=None, skip_hp=getattr(CFG, 'SKIP_HP', 0),
+              no_sun=getattr(CFG, 'NO_SUN', False),
               slots=slots, cherry_cols=cherry_cols,
               rescue=rescue, repair=getattr(CFG, 'REPAIR', True),
               allow_ash=getattr(CFG, 'RESCUE_ASH', True),

@@ -351,6 +351,12 @@ table.lygrid td{padding:0}
       <input type="text" id="ly-name" style="width:190px" placeholder="电波钟无炮">
       <span class="hint">格式 <code>[场地].名字</code>，<code>[场地].</code> 由 app 自动生成，只填后面的名字</span>
     </div>
+    <div class="row" style="margin-top:6px">
+      <label class="hint" style="cursor:pointer">
+        <input type="checkbox" id="ly-nosun" style="vertical-align:-2px">
+        极限阵（不计阳光）</label>
+      <span class="hint">勾上后：种植物不因阳光卡手（阳光始终够用），报告里也不展示阳光</span>
+    </div>
   </div>
   <div class="panel">
     <div class="ptitle">2. 阵型（点格子编辑）
@@ -536,7 +542,8 @@ let polling = null;
 
 /* ================= ① 阵容布置 ================= */
 const LY = { field: localStorage.getItem('tc.field') || 'PE', array: {}, sel: null,
-             name: localStorage.getItem('tc.layoutname') || '' };
+             name: localStorage.getItem('tc.layoutname') || '',
+             noSun: localStorage.getItem('tc.nosun') === '1' };
 const LYC = META.layout || { plants: [], mushrooms: [], base_for: {}, mimic: '模仿者' };
 const LY_MUSH = new Set(LYC.mushrooms || []);
 
@@ -619,6 +626,8 @@ function lyRenderName(){
   const inp = document.getElementById('ly-name');
   if (pre) pre.textContent = '[' + LY.field + '].';
   if (inp && document.activeElement !== inp) inp.value = lyBareName(LY.name);
+  const cb = document.getElementById('ly-nosun');
+  if (cb) cb.checked = !!LY.noSun;
 }
 
 function lyRenderField(){
@@ -926,6 +935,10 @@ document.getElementById('ly-name').oninput = ev => {
   LY.name = lyBareName(ev.target.value);
   localStorage.setItem(LY_NAME_KEY, LY.name);
   lyRenderStat();
+};
+document.getElementById('ly-nosun').onchange = ev => {
+  LY.noSun = !!ev.target.checked;
+  localStorage.setItem('tc.nosun', LY.noSun ? '1' : '0');
 };
 document.getElementById('ly-clear').onclick = () => {
   if (!confirm('清空整个阵型？')) return;
@@ -1424,6 +1437,7 @@ document.getElementById('start').onclick = async () => {
     const job = { name: it.name, kinds: it.kinds, seeds: it.seeds,
                   field: it.field || LY.field,
                   layout: lyBareName(LY.name),
+                  no_sun: !!LY.noSun,
                   array: it.array || lyArrayForExport() };
     if (b) job.plan = b.plan;
     return job;

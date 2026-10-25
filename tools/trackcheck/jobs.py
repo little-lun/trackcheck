@@ -58,6 +58,8 @@ def create_jobs(specs):
                    # ★ 2026-10-22：阵型名（裸名），报告里拼成 `[场地].名字`
                    layout=((sp.get('layout') or '').strip() or None),
                    array=(sp.get('array') or {}),
+                   # ★ 2026-10-25 用户：**极限阵**（不计阳光）
+                   no_sun=bool(sp.get('no_sun')),
                    status='pending', progress=0, done=0, reports=[],
                    html=None, summary=None, seed_rows=None, error=None)
         JOBS.append(job)
@@ -104,6 +106,7 @@ def step():
         CFG.MODE = job['solve']          # ★ 阵解按 solve 走（中速 → 慢速档）
         CFG.KINDS_OVERRIDE = list(job['kinds'])
         CFG.FIELD = job.get('field') or 'PE'
+        CFG.NO_SUN = bool(job.get('no_sun'))     # ★ 极限阵：不计阳光
         CFG.reset_spawn_state()          # 每组重新开始：红眼累计 / 逐波缓存清空
         from . import layout as LY
         arr = LY.to_engine(job.get('array') or {})

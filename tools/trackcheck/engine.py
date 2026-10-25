@@ -302,8 +302,9 @@ class Sim:
                  rescue=True, repair=True, allow_ash=True, stall_waves=True,
                  cherry_cols=None, rebuild=False, wogua_flag=True,
                  rescue_tick=None, globals_tick=None, field='PE',
-                 replant=None, deck_names=None):
+                 replant=None, deck_names=None, no_sun=False):
         self.slots = slots or {}
+        self.no_sun = bool(no_sun)     # ★ 极限阵：不计阳光（种植物不因阳光卡手）
         self.rng = random.Random(seed)
         self.skip_hp = skip_hp
         self.array = array
@@ -2499,6 +2500,10 @@ class Sim:
         self._arm_fixed_timeline()
         while not self.done and self.t < self.max_t:
             self.t += D.TICK
+            # ★ 2026-10-25 极限阵：阳光永远满 —— 种植物不因阳光卡手，
+            #   也不影响任何"阳光够不够"的分支（连灰烬 / 铲种炮一起放开）。
+            if self.no_sun:
+                self.sun = 10 ** 8
             self._index()
             self._tick_spawn()
             self._tick_move()
@@ -4712,6 +4717,7 @@ class Sim:
             sun_end=round(self.sun),
             sun_peak=round(self.sun_peak),
             sun_capped=self.sun_capped,
+            no_sun=self.no_sun,        # ★ 极限阵：报告里不展示阳光
             pumpkins=pump,
             pumpkin_lost=lost_pump,
             pump_dmg=round(init - now),
