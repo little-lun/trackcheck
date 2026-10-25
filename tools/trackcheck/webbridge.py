@@ -94,7 +94,7 @@ def handle(path, query='', body=''):
                 return _json(400, {'error': 'bad json'})
             return _json(200, PL.spectrum_report(
                 d.get('plan') or {}, d.get('track'), d.get('gaps'),
-                d.get('n_cob')))
+                d.get('n_cob'), pair=d.get('pair')))
         if path == '/api/plan/batch':
             try:
                 d = json.loads(body or '{}')

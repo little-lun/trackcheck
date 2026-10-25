@@ -880,6 +880,14 @@ def compile_plan(plan):
     track.fixed = [(t, nm, aim, w, bid) for (t, nm, aim, w, bid)
                    in (fixed[0] if fixed else [])]
     track.fixed_waves = fixed_waves
+    # ★ 2026-10-25：这份阵解**自己会种哪些卡** —— 白天场"补种睡着的蘑菇"
+    #   不能和它们抢卡（抢了轨道就没冰用了，PE.二十四炮 6/6 → 3/6 就是这么坏的）。
+    _cards = set()
+    for _row in (p.get('waves') or []):
+        for _st in (_row.get('sets') or []):
+            for _b in (_st.get('ops') or []):
+                _cards.add(_b.get('op'))
+    track.cards_used = {c for c in _cards if c}
     # ★ 2026-10-25 用户：「不赞成把刷怪强行和波长串匹配」→ 不再生成刷波时刻表。
     track.wave_times = None
     return track, rescue_tick, globals_tick
@@ -1164,6 +1172,12 @@ def _letters(txt, pair, split, unknown, letters=None):
     """
     tbl = letters or LAYOUT_LETTERS
     names, kinds = [], []
+    # ★★ 2026-10-25 用户报的 bug：「选择节奏 D5:I-PP|I-PP|PP 后，报错至少需要 12 门炮」。
+    #   原因：**简写模式**下每个 `P` 各自翻倍，于是 `PP` 变成 4 门炮（一个循环 12 门）。
+    #   正确口径（与知识库 §3.3 的 `PPDD`（复写）= `PD`（简写）一致）：
+    #   简写模式下**连续相同的炮字母合并成一节**，`PP` = 一对 = 2 门。
+    if pair and all(ch in PAIRABLE for ch, sep in _track_chars(txt) if not sep):
+        txt = re.sub(r'([PSBDdp])\1+', r'\1', txt)
     for ch, sep in _track_chars(txt):
         if sep == 'unknown':
             if ch not in unknown:
@@ -1542,8 +1556,14 @@ def check_spectrum(beats, gaps, n_cob=None, deck=None):
     return out
 
 
-def spectrum_report(plan=None, track=None, gaps=None, n_cob=None):
-    """给界面用的波长校验（轨道 + 波长串 + 阵型炮数 → 结论）"""
+def spectrum_report(plan=None, track=None, gaps=None, n_cob=None, pair=None,
+                    array=None):
+    """给界面用的波长校验（轨道 + 波长串 + 阵型炮数 → 结论）
+
+    ★ 2026-10-25：`pair` = **当前界面上的简写/复写设置**（`auto`/`short`/`full`）。
+      以前只读 `plan.rhythm.pair`（阵解里存的那份），于是用户改了设置之后
+      校验结果不跟着变 —— 同一个 `PP` 会算成 4 门炮、报"至少要 12 门炮"。
+    """
     p = plan or {}
     rh = p.get('rhythm') or {}
     text = track if track is not None else '|'.join(rh.get('beats') or [])
@@ -1555,8 +1575,10 @@ def spectrum_report(plan=None, track=None, gaps=None, n_cob=None):
             return dict(ok=False, error=str(e))
     else:
         g = [float(x) for x in (raw or [])]
-    mode = rh.get('pair') or 'auto'
-    d = parse_track_full(text, None if mode == 'auto' else (mode == 'short'))
+    mode = pair or rh.get('pair') or 'auto'
+    # ★ 2026-10-25：`c` = 垫材、`C` = 地刺 的硬性规定同样要在这里生效
+    d = parse_track_full(text, None if mode == 'auto' else (mode == 'short'),
+                         letters=LAYOUT_LETTERS)
     beats = d['variants'][0] if d['variants'] else []
     ops = cycle_ops(beats)
     items = check_spectrum(beats, g, n_cob, p.get('deck'))
@@ -1807,7 +1829,12 @@ def auto_deck(plan, array=None, field=None, kinds=None, variants=None, gaps=None
     lacks = [r for r in land_rows
              if not any(c['pumpkin'] and c['ladder'] and c['row'] == r
                         for c in cells)]
-    if lacks:
+    # ★★ 2026-10-25 用户报的 bug：「**当每一行都有南瓜梯子时不应该选辣椒**」。
+    #   原来只有 ④ 这里按结构判断，可下面 ⑦ 的救场又会把辣椒加回来
+    #   （`ash = [x for x in ('樱桃','辣椒','窝瓜') if x not in deck][:2]`）——
+    #   等于 ④ 白判。这里记一个"辣椒结构化禁用"的标记，救场层也要看它。
+    chili_needed = bool(lacks)
+    if chili_needed:
         add('辣椒', '这些陆路没有梯子南瓜：%s' % _lst(lacks))
 
     # ---- ⑤ 气球没猫 → 三叶草
@@ -1820,7 +1847,10 @@ def auto_deck(plan, array=None, field=None, kinds=None, variants=None, gaps=None
         add(op, '标记了「常磨损」')
 
     # ---- ⑦ 救场：1~2 张灰烬 + 2~3 张垫材
-    ash = [x for x in ('樱桃', '辣椒', '窝瓜') if x not in deck][:2]
+    #   ★ 2026-10-25：辣椒若被 ④ 结构化禁用（每一行都有梯子南瓜），救场也不许加回来。
+    _ash_pool = [x for x in ('樱桃', '辣椒', '窝瓜')
+                 if x != '辣椒' or chili_needed]
+    ash = [x for x in _ash_pool if x not in deck][:2]
     for op in ash:
         add(op, '救场灰烬')
     pads = [x for x in ('小喷菇', '花盆', '阳光菇') if x not in deck][:3]

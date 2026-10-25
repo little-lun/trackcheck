@@ -306,6 +306,8 @@ class Sim:
         self.slots = slots or {}
         self.no_sun = bool(no_sun)     # ★ 极限阵：不计阳光（种植物不因阳光卡手）
         self.wave_times = list(wave_times) if wave_times else None
+        # ★ 2026-10-25：这份阵解自己会种哪些卡（白天场补种睡蘑菇时不许抢）
+        self.track_cards = set(getattr(track, 'cards_used', None) or ())
         self.rng = random.Random(seed)
         self.skip_hp = skip_hp
         self.array = array
@@ -1221,6 +1223,33 @@ class Sim:
                                  name=name, ok=True))
         return True
 
+    def _wake_sleeping(self, plant, ev):
+        """★ 2026-10-25 用户：**白天场**蘑菇卡 CD 没好时，用场上现成睡着的那个。
+
+        口径：「先判断卡片 cd 有没有好：cd 好了，同时种该植物与咖啡豆；
+               否则，判定场上是否有睡着的该种植物，有则对场上的这个植物用咖啡豆。」
+
+        返回 True = 已经点过咖啡豆（调用方别再往下走）。
+        """
+        cand = [rc for rc, c in self.cells.items()
+                if c.plant == plant and not c.awake]
+        # 存冰位优先（那是"预存的"），其次是普通格子
+        cand.sort(key=lambda rc: (rc not in self.ice_slots,
+                                  rc in self.temp_ice,
+                                  rc == self._chili_slot(), rc[0], rc[1]))
+        if not cand:
+            return False
+        if not self._try_card('咖啡豆'):
+            return False
+        rc = cand[0]
+        self.activate_ice(rc)
+        self.actions.append(dict(t=self.t, wave=ev.get('wave'), name='咖啡豆',
+                                 ok=True, rc=rc))
+        self._log('ICE', '咖啡豆唤醒场上睡着的 %s %d-%d（%s CD 没好）'
+                  % (plant, rc[0], rc[1], plant), row=rc[0], col=rc[1],
+                  detail='白天场：蘑菇卡没好 → 用现成睡着的那个')
+        return True
+
     def _plant_ice(self, ev, aim, name, stock_only=False, temp_only=False):
         """
         种寒冰菇（I / I′）—— v0.3 的统一写法。
@@ -1231,10 +1260,20 @@ class Sim:
           只为兼容 v0.2 及更早的阵解，新阵解请直接写落点。
         """
         card = '冰' if name == '寒冰菇' else '模仿冰'
-        if self.card_ready.get(card, 0) > self.t:
+        # ★ 2026-10-25：**真卡没好就换模仿者**（自动选卡既然带了模仿冰，就得真用它）。
+        #   以前这里只看自己那张卡，模仿冰永远闲置 → 白天场的 PI2 冰在第 3 次之后全废。
+        _slot = ('冰', '模仿冰') if card == '冰' else ('模仿冰', '冰')
+        _pick = next((c for c in _slot if self.card_ready.get(c, 0) <= self.t), None)
+        if _pick is None:
+            # ★ 2026-10-25 用户：「白天场地需要用到蘑菇植物卡片时，先判断卡片 cd
+            #   有没有好：cd 好了，同时种该植物与咖啡豆；否则，判定场上是否有
+            #   **睡着的该种植物**，有则对场上的这个植物用咖啡豆。」
+            if (not self.fld.night) and self._wake_sleeping('寒冰菇', ev):
+                return
             self.broken.append(dict(t=self.t, wave=ev['wave'], what=name,
                                     why='%s CD 没好' % card))
             return
+        card = _pick
         pos = None
         if aim in ('stock', 'temp'):
             stock_only = (aim == 'stock')
@@ -1321,14 +1360,80 @@ class Sim:
                           detail='夜场蘑菇免唤醒；冰冻时长同白天')
                 self._freeze()
                 return
-            # 白天：**新种下的蘑菇一定是睡着的** → 先睡下，再用咖啡豆唤醒
-            self._log('ICE', '种寒冰菇（%s）→ 睡下了，要咖啡豆唤醒才冻'
-                      % card, row=pos[0], col=pos[1],
-                      detail='新种的蘑菇一律先睡；唤醒后永久清醒')
+            # ★★ 2026-10-25 用户：「cd 好了，**同时种该植物与咖啡豆**」
+            #   白天场：新种的蘑菇一定是睡着的 → 立刻点咖啡豆唤醒它（顺手吃咖啡豆 CD）。
+            if self._try_card('咖啡豆'):
+                cell.awake = True
+                self.actions.append(dict(t=self.t, wave=ev['wave'],
+                                         name='咖啡豆', ok=True, rc=pos))
+                self._log('ICE', '种寒冰菇（%s）+ 咖啡豆 → 全场冰冻'
+                          % card, row=pos[0], col=pos[1],
+                          detail='白天场：种下即点豆，冰当场生效')
+            else:
+                self._log('ICE', '种寒冰菇（%s）→ 睡下了，但咖啡豆 CD 没好，'
+                          '这一发**不会生效**' % card, row=pos[0], col=pos[1],
+                          detail='白天场必须点豆才能冻')
+            self._freeze()
+            return
+        # ★ 2026-10-25：**白天场不给落点**时也要"真种 + 点豆"，不能凭空冻一下。
+        #   优先种到空着的存冰位（那是玩家放冰的地方），没有就直接在地里点豆生效。
+        if not self.fld.night:
+            if self._try_card('咖啡豆'):
+                self.actions.append(dict(t=self.t, wave=ev['wave'],
+                                         name='咖啡豆', ok=True))
+                self._log('ICE', '种寒冰菇（%s）+ 咖啡豆 → 全场冰冻' % card,
+                          detail='白天场没给落点：种下即点豆')
+            else:
+                self._log('ICE', '种寒冰菇（%s）→ 没有咖啡豆，这一发**不会生效**'
+                          % card, detail='白天场必须点豆才能冻')
+            self._freeze()
             return
         self._log('ICE', '种寒冰菇（%s）→ 全场冰冻' % card,
                   row=pos[0] if pos else None, col=pos[1] if pos else None)
         self._freeze()
+
+    def _tick_day_mushroom_refill(self):
+        """★ 2026-10-25 用户：**白天场如果有睡着的蘑菇，一旦被使用，
+        需要全场持续判定卡片补种睡着的蘑菇。**
+
+        判据：阵型里（`self.array`）放着蘑菇、而那一格现在**空了**（或植物没了）
+        → 用对应的蘑菇卡把它种回去（白天种下就是睡着的，留着以后点豆）。
+        每 50cs 判一次，同一格有冷却，避免刷屏。
+        """
+        cd = self.__dict__.setdefault('_mush_refill_cd', {})
+        for (r, c), spec in (self.array or {}).items():
+            plant = spec.get('plant')
+            if plant not in D.MUSHROOMS:
+                continue
+            if cd.get((r, c), -1) > self.t:
+                continue
+            cell = self.cells.get((r, c))
+            if cell is not None and cell.plant:
+                continue
+            if plant not in D.CARDS:
+                continue
+            # ★ 2026-10-25：**阵解自己会种这个蘑菇 → 不抢它的卡**
+            #   （补种只是"留点储备"，轨道才是主力；抢了冰卡直接崩阵）
+            if plant in self.track_cards:
+                continue
+            if self.card_ready.get(plant, 0) > self.t or self.sun < D.CARDS[plant]['cost']:
+                continue
+            if not self._base_ok((r, c)) and not self._seed_base((r, c)):
+                continue
+            if cell is None:
+                cell = self.cells[(r, c)] = Cell(r, c)
+            if cell.crater_until > self.t:
+                continue
+            self.sun -= D.CARDS[plant]['cost']
+            self.card_ready[plant] = self.t + D.CARDS[plant]['cd']
+            self._plant_into(cell, plant)
+            cell.awake = False                 # 白天种下 → 睡着
+            cd[(r, c)] = self.t + 300
+            self.actions.append(dict(t=self.t, wave=self.cur_wave,
+                                     name=plant, ok=True, rc=(r, c)))
+            self._log('REPAIR', '补种睡着的 %s %d-%d（留着以后点豆）'
+                      % (plant, r, c), row=r, col=c,
+                      detail='白天场：睡着的蘑菇被用掉了就补回来')
 
     def _use_coffee(self, ev, aim):
         """
@@ -1503,6 +1608,12 @@ class Sim:
             self.broken.append(dict(t=self.t, wave=ev['wave'], what=name, why='未知卡片'))
             return
         if self.card_ready.get(card, 0) > self.t:
+            # ★ 2026-10-25 用户：白天场蘑菇卡没好 → 用场上**睡着的同种蘑菇**（点咖啡豆）
+            if (not self.fld.night and card in D.MUSHROOMS
+                    and self._wake_sleeping(card, ev)):
+                if card == '毁灭菇':
+                    self._doom(aim)
+                return
             self.broken.append(dict(t=self.t, wave=ev['wave'], what=name,
                                     why='CD 没好（剩 %d cs）' % (self.card_ready[card] - self.t)))
             self.actions.append(dict(t=self.t, wave=ev['wave'], name=name, ok=False))
@@ -1518,6 +1629,17 @@ class Sim:
         self.actions.append(dict(t=self.t, wave=ev['wave'], name=name, ok=True))
 
         if name in ('毁灭菇', '模仿毁灭菇'):
+            # ★ 2026-10-25 用户：白天场用蘑菇要「先判卡 CD：好了就同时种下 + 咖啡豆；
+            #   没好就看场上有没有睡着的同种蘑菇，有就点咖啡豆」。
+            #   走到这里说明卡已经好了（CD/阳光在上面查过），
+            #   所以这里只需要**顺手确认咖啡豆也能用**，再照常生效。
+            if not self.fld.night and not self._try_card('咖啡豆'):
+                self.broken.append(dict(t=self.t, wave=ev['wave'], what=name,
+                                        why='白天场要咖啡豆唤醒，但咖啡豆 CD 没好'))
+                return
+            if not self.fld.night:
+                self.actions.append(dict(t=self.t, wave=ev['wave'],
+                                         name='咖啡豆', ok=True))
             self._doom(aim)
             return
         if name == '樱桃':
@@ -2575,6 +2697,9 @@ class Sim:
             self._tick_chili_refill()
             self._tick_ice_refill()
             self._tick_ice_trail()
+            # ★ 2026-10-25 用户：白天场睡着的蘑菇被用掉后，要**全场持续判定补种**
+            if not self.fld.night:
+                self._tick_day_mushroom_refill()
             self._tick_dying()
             self._check_fail()
             if self.done:

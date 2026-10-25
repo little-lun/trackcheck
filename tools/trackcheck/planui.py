@@ -1026,7 +1026,8 @@ async function plSpectrum() {
   const track = document.getElementById('pl-beats').value;
   const gaps = document.getElementById('pl-gaps').value;
   const d = await plPost('/api/plan/spectrum', { plan: plP(), track: track,
-    gaps: gaps, n_cob: (typeof plCobCount === 'function') ? (plCobCount() || null) : null });
+    gaps: gaps, pair: plPairMode(),
+    n_cob: (typeof plCobCount === 'function') ? (plCobCount() || null) : null });
   if (!d || d.error || d.ok === false) {
     box.innerHTML = '<span style="color:#b91c1c">波长串读不出来：'
       + plEsc((d && d.error) || '') + '</span>';
