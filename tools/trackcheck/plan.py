@@ -1592,6 +1592,7 @@ def auto_deck(plan, array=None, field=None, kinds=None, variants=None, gaps=None
     kinds = set(kinds or [])
     cob_letters = _cob_letters_used(plan)
     deck, notes, mimic = [], [], []
+    warnings = []
 
     def add(name, why=''):
         if not name or len(deck) >= 10:
@@ -1630,8 +1631,12 @@ def auto_deck(plan, array=None, field=None, kinds=None, variants=None, gaps=None
 
     # ---- ② 炮套件：用到铲种炮（p）时必须带 玉米投手 + 玉米炮
     if 'p' in cob_letters:
-        add('玉米投手', '铲种炮（p）需要先把玉米投手种回去')
-        add('玉米炮', '铲种炮（p）需要炮卡才能重新种成炮')
+        ok1 = add('玉米投手', '铲种炮（p）需要先把玉米投手种回去')
+        ok2 = add('玉米炮', '铲种炮（p）需要炮卡才能重新种成炮')
+        for ok, nm in ((ok1, '玉米投手'), (ok2, '玉米炮')):
+            if not ok and nm not in deck:
+                warnings.append('铲种炮（p）要用到 %s，但选卡已经满了（10 张）'
+                                '—— 请腾一张出来，否则 p 这一拍会打不出来' % nm)
 
     # ---- ③ 白天场用蘑菇 → 咖啡豆
     day = not (fld and fld.night)
@@ -1672,6 +1677,7 @@ def auto_deck(plan, array=None, field=None, kinds=None, variants=None, gaps=None
         add(op, '救场垫材')
 
     return dict(deck=deck[:10], notes=notes, mimic=mimic, wear=wear_ops,
+                warnings=warnings,
                 n_cob=sum(1 for c in cells if c['plant'] == '玉米炮'))
 
 
@@ -1991,6 +1997,8 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
         info['deck_added'] = dk['notes']
         info['mimic'] = dk['mimic']
         info['wear'] = dk['wear']
+        for w_ in (dk.get('warnings') or []):
+            info['warnings'].append(w_)
         rs = auto_rescue(array=array, deck=p['deck'], kinds=kinds, field=field)
         p['rescue_simple'] = rs
         info['rescue'] = dict(n=len(rs['targets']), ash=rs['ash'],
