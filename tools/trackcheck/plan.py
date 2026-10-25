@@ -260,14 +260,17 @@ LAYOUT_LETTERS = {
     'N': ['毁灭菇'], "N'": ['模仿毁灭菇'],
     "A'": ['辣椒'], 'A': ['樱桃'],
     "I'": ['模仿寒冰菇'], 'I': ['寒冰菇'],
-    # ★ 2026-10-25 用户更正符号：**窝瓜记为 `a`**（原来写 W）、**垫材记为 `c`**（原来写 C）
+    # ★ 2026-10-25 用户（硬性规定）：**`c` = 一般用途的垫材，`C` = 地刺**
+    #   （以前 `C` 是"小喷菇"的旧写法 —— 现在含义变了，`C'` 作为旧别名保留为花盆）
+    'c': ['小喷菇'], '垫': ['小喷菇'],
+    'C': ['地刺'], '地刺': ['地刺'],
+    "C'": ['花盆'],
     'a': ['窝瓜'], 'W': ['窝瓜'],
-    'c': ['小喷菇'], 'C': ['小喷菇'], "C'": ['花盆'],
     'K': ['咖啡豆'],
     'P': ['玉米炮'], 'S': ['玉米炮'], 'B': ['玉米炮'],
     'D': ['玉米炮'], 'd': ['玉米炮'], 'p': ['玉米炮'],
     '核': ['毁灭菇'], '冰': ['寒冰菇'], '樱': ['樱桃'], '辣': ['辣椒'],
-    '窝': ['窝瓜'], '垫': ['小喷菇'],
+    '窝': ['窝瓜'],
 }
 # ★ 2026-10-25：冰变奏复合符号 = **一个炮操作 + 一个冰操作**（`cI4` 只有冰）。
 #   `PI2` 不是"P"也不是"I2"，它是一个整体记号，展开成两块积木。
@@ -576,7 +579,7 @@ def run_plan_op(sim, op, aim=None):
 
 def _gate_ok_sim(sim, gate):
     """全场判定的条件求值 —— 需要"场上状态"的条件（如 `tail`）交给 `_event_fired`"""
-    if (gate or {}).get('kind') == 'tail':
+    if (gate or {}).get('kind') in ('tail', 'core_threat'):
         return _event_fired(sim, gate)
     return gate_ok(gate, sim.plan_ctx(), sim.cur_wave)
 
@@ -962,8 +965,26 @@ def _event_fired(sim, ev):
         return True
     if k == 'wave':
         return int(ev.get('from') or 1) <= sim.cur_wave <= int(ev.get('to') or WAVES)
+    if k == 'core_threat':
+        # ★★ 2026-10-25：**底线已经被人贴上了** —— 有僵尸进到「本路最靠前的 CORE
+        #   植物」旁边 `cells` 格以内。用来挂"补一发炮救底线"这种全场判定。
+        #   典型场景：矿工挖到底线出土后往右走，而炮的滑动落点一直贴在 8~9 列
+        #   打正面人群 → 底线那门炮白送（FE.二十四炮 就是被这个打崩的）。
+        n_cells = float(ev.get('cells') or 1.5)
+        from tools.trackcheck import data as D
+        from tools.trackcheck.lookahead import front_core_col
+        for r in range(1, int(sim.rows) + 1):
+            core = front_core_col(sim, r)
+            if core is None:
+                continue
+            lim = D.cell_x(core) + n_cells * D.CELL_W
+            for z in sim.by_row.get(r, ()):
+                if not z.alive or z.hp <= 0 or not sim._targetable(z):
+                    continue
+                if z.x <= lim:
+                    return True
+        return False
     if k == 'tail':
-        # ★ 2026-10-25 用户：「收尾 = 根据其血量，用所有救场卡、最后是 P 消灭所有尾兵」
         #   → 判定 = **最后一波已经刷出来了**，且场上还活着僵尸。
         #   （再往后不会再有新波，剩下的都是"尾兵"，可以放心把卡全砸掉。）
         if int(sim.cur_wave or 0) < WAVES:
@@ -1529,7 +1550,8 @@ def spectrum_report(plan=None, track=None, gaps=None, n_cob=None):
 #   （冰 / 咖啡豆 / 垫材 / 南瓜这类都不是"运算量"，起手打出去等于白打）
 _NO_COUNT_OPS = {'寒冰菇', '模仿寒冰菇', '冰', '模仿冰', '咖啡豆', '存冰',
                  '小喷菇', '花盆', '阳光菇', '胆小菇', '南瓜',
-                 '垫材', '垫材2', '垫材3', '垫材4', '荷叶', '花盆'}
+                 '垫材', '垫材2', '垫材3', '垫材4', '荷叶', '花盆',
+                 '地刺', '地刺王'}
 
 # 冰类操作（旗波"冰杀蹦极"要挑含它的那一拍）
 _ICE_OPS = {'寒冰菇', '模仿寒冰菇', '冰', '模仿冰', '存冰'}
@@ -1879,15 +1901,10 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
         rh['beats'] = [s.strip() for s in track_text.split('|')
                        if s.strip()] or rh.get('beats') or []
     mode = pair if pair is not None else (rh.get('pair') or 'auto')
-    # ★★ 2026-10-25 用户：「`c` 特指地刺」（FE.二十四炮 的 `Iac` / `BDcc` ——
-    #   地刺是用来解决冰车的：冰车碾过地刺会自己掉血）。
-    #   所以 `c` 是**二义**的：阵里会来冰车 → 当「地刺」；否则当「垫材（小喷菇）」。
-    #   还可以用 `rhythm.letters` 显式指定（`{"c": "地刺"}`）。
+    # ★★ 2026-10-25 用户（**硬性规定**）：**`c` = 一般用途的垫材，`C` = 地刺**。
+    #   不再按出怪去猜（FE.二十四炮 的 `Iac` / `BDcc` 里那些 `c` 其实是 `C`）。
+    #   `rhythm.letters` 只作逃生口（`{"c": "花盆"}` 之类）。
     _letters_tbl = dict(LAYOUT_LETTERS)
-    _kinds = set(kinds or [])
-    if 'c' in text:
-        _c = '地刺' if ('冰车' in _kinds or '雪橇' in _kinds) else '小喷菇'
-        _letters_tbl['c'] = [_c]
     for _k, _v in ((rh.get('letters') or {})).items():
         _letters_tbl[str(_k)] = [_v] if isinstance(_v, str) else list(_v)
     parsed = parse_track_full(text, None if mode == 'auto' else (mode == 'short'),
@@ -2361,7 +2378,18 @@ def _merge_tail_globals(existing, deck, n_cob, lane_a, lane_b):
                             when=dict(kind='tail'),
                             ops=[dict(op='玉米炮', aim=[lane, 'front'],
                                       trig={'kind': 'spawn'})]))
-    return out if out != [r for r in (existing or [])] else out
+    # ★★ 2026-10-25：**底线补炮** —— 有僵尸贴到本路最靠前的 CORE 旁边（1.5 格）时，
+    #   补一发炮。落点留空 → 引擎按"最危险的那一路"自己挑（`_pick_row`）。
+    #   这一条是为"矿工挖到底线出土、正面人群又在 8~9 列"这种两难准备的：
+    #   光靠 `front` 滑动落点，炮会一直被正面人群吸走，底线那门炮白送。
+    if n_cob:
+        rid = '底线补炮'
+        if rid not in have:
+            out.append(dict(id=rid, enabled=True, every=100, cooldown=0,
+                            when=dict(kind='core_threat', cells=1.5),
+                            ops=[dict(op='玉米炮', aim=None,
+                                      trig={'kind': 'spawn'})]))
+    return out
 
 
 def _merge_wear_globals(existing, wear_ops, field=None):
