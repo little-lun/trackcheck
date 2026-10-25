@@ -302,9 +302,10 @@ class Sim:
                  rescue=True, repair=True, allow_ash=True, stall_waves=True,
                  cherry_cols=None, rebuild=False, wogua_flag=True,
                  rescue_tick=None, globals_tick=None, field='PE',
-                 replant=None, deck_names=None, no_sun=False):
+                 replant=None, deck_names=None, no_sun=False, wave_times=None):
         self.slots = slots or {}
         self.no_sun = bool(no_sun)     # ★ 极限阵：不计阳光（种植物不因阳光卡手）
+        self.wave_times = list(wave_times) if wave_times else None
         self.rng = random.Random(seed)
         self.skip_hp = skip_hp
         self.array = array
@@ -4484,6 +4485,20 @@ class Sim:
             if self.t >= D.R0_FIRST:
                 self.spawn_wave(1)
             return
+        # ★★ 2026-10-25：**波长串 → 强制刷波时刻**（只在给了波长串的固定波长阵启用）
+        #   用户口径：波长串写的就是"每波到下波的刷新间隔" —— 固定波长的阵里，
+        #   玩家的节奏**导致**波按这个间隔刷出来（不是"血量跌破阈值"才刷）。
+        #   不这么做的话，模拟会按 R1 最短 6s 一路刷，而阵解写的是 12s/13s 一拍，
+        #   于是"这一拍还没到，下一波已经刷出来了" → 冰车 / 红眼从容走进来啃炮。
+        wt = getattr(self, 'wave_times', None)
+        if wt:
+            nxt_w = int(m['wave']) + 1
+            if nxt_w < len(wt):
+                if self.t >= int(wt[nxt_w]):
+                    self.spawn_wave(nxt_w)
+                # ★ 关键：**表还在生效时不许走"血量跌破阈值"那条路** ——
+                #   否则波会比节奏早刷出来（实测 w3 在 1805 就刷了，表上写 2500）。
+                return
         if self.done:
             return
         m['age'] = self.t - m['t']

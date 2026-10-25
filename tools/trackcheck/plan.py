@@ -543,7 +543,7 @@ def _blocks_acts(blocks, ctx):
             trig['anchor'] = b['id']
         out.append(dict(op=op, at=at, aim=b.get('aim'), trig=(trig or None),
                         **{k: b[k] for k in ('cob', 'imp_group', 'imp_when',
-                                             'dyn_kinds')
+                                             'dyn_kinds', 'late_shot')
                            if b.get(k)}))
         prev_at = at
     return out
@@ -855,6 +855,7 @@ def compile_plan(plan):
             acts = [a for a in acts
                     if (a.get('op') or '') in _NO_COUNT_OPS
                     or a.get('cob') in ('D', 'd')
+                    or a.get('late_shot')
                     or (a.get('trig') or {}).get('kind') in ('imp', 'imp_ground')]
         return acts
 
@@ -872,6 +873,17 @@ def compile_plan(plan):
     track.fixed = [(t, nm, aim, w, bid) for (t, nm, aim, w, bid)
                    in (fixed[0] if fixed else [])]
     track.fixed_waves = fixed_waves
+    # ★★ 2026-10-25：**波长串 → 刷波时刻表**（`Sim` 用它按节奏刷波，而不是按血量）
+    track.wave_times = None
+    if fixed and fixed[0]:
+        bt = {}
+        for t, _nm, _aim, w, _bid in fixed[0]:
+            if w and (w not in bt or t < bt[w]):
+                bt[w] = int(t)
+        if 1 in bt:
+            ofs = bt[1] - int(getattr(__import__(
+                'tools.trackcheck.data', fromlist=['x']), 'R0_FIRST', 600))
+            track.wave_times = [None] + [max(0, bt[w] - ofs) for w in sorted(bt)]
     return track, rescue_tick, globals_tick
 
 
@@ -911,7 +923,8 @@ def _fixed_timeline(p):
             blocks = [b for st in (row.get('sets') or [])
                       for b in (st.get('ops') or [])
                       if (b.get('op') or '') not in _NO_COUNT_OPS
-                      and b.get('cob') != 'D']
+                      and b.get('cob') != 'D'
+                      and not b.get('late_shot')]
             if not blocks:
                 continue
             if only_count:
@@ -1912,12 +1925,27 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
     mid_high = 5 if rows_n >= 6 else 4         # 4~6 / 4~5 路的中路
     n_cob = sum(1 for c in cells if c['plant'] == '玉米炮')
     # ★ 2026-10-25：轨道里到底有没有"冰"（I / 冰变奏 / 寒冰菇卡）。
-    #   没有冰 → 没有"先冻住巨人再杀"的拦截定式 → D 按"延迟补刀"处理
-    #   （见 `_assign_cob_aims` 的注释）。
+    #   ★★ 2026-10-25 修 bug：`variants` 的元素是**拍（dict）**不是操作名，
+    #      原来直接 `b_.get('op')` 永远拿不到东西 → `has_ice` 恒为 False。
     has_ice = any(
-        (b_.get('op') or '') in ('寒冰菇', '寒冰菇:i')
-        or b_.get('ice_var')
-        for v in variants for b_ in v)
+        o in ('寒冰菇', '模仿寒冰菇', '冰', '模仿冰', '存冰')
+        or any(o in ICE_COMPOSITE for o in (bt.get('ops') or []))
+        for v in variants for bt in v
+        for o in (bt.get('ops') or []))
+    # ★ 2026-10-25：**D 是按"实打实的延迟炮"还是"只拦小鬼"** —— 看产能：
+    #   一个循环里所有炮操作（含 D）需求 ≤ 炮数在循环内能打的发数
+    #   → 每一发都打得出去，D 就是实打实的延迟炮（补刀）；
+    #   反过来（需求超产能）才退化成"只在小鬼在空中时才打"的拦截炮。
+    #   实测：FE.二十四炮（无花）C9u 55s 循环要 35 发 / 24 门炮产能 38 → 补刀；
+    #        PE.二十四炮 P6-2i 36s 循环 12 发 / 24 门炮 → 补刀；
+    #        FE.弦十四炮 34.75s 循环 16 发（简写翻倍后）/ 14 门炮 → 拦截。
+    d_follow = not has_ice
+    if gaps:
+        _demand = sum(1 for bt in variants[0]
+                      for o in (bt.get('ops') or []) if o == '玉米炮')
+        _cyc = sum(float(g) for g in gaps) * 100.0
+        if _cyc > 0 and _demand <= max(1, n_cob) * _cyc / float(COB_CD):
+            d_follow = True
     info = dict(hints=[], warnings=[], unknown=parsed['unknown'],
                 need_ice_bungee=bool(need_ice), n_cob=n_cob,
                 cob_lanes=[lane_a, lane_b], deck_added=[], mimic=[], wear=[])
@@ -1986,6 +2014,14 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
                 blk = dict(op=op, aim=None,
                            trig=({'kind': 'spawn'} if is_main
                                  else {'kind': 'after', 'at': 0}))
+                if not is_main:
+                    # ★★ 2026-10-25 用户（FE.二十四炮 无花 / C9u）：
+                    #   「`-` 表示前者是**刷怪立即**操作，而后者是**稍等至波长**操作」
+                    #   → `-` 后面那一组不是"紧接着上一块"，而是**等这一拍走完**
+                    #     （也就是它才是把这一波清掉、触发刷新的那一组）。
+                    #   具体延时要等积木 id 分配完才能挂 `after_block`，
+                    #   所以先打标记 `late_shot`，下面统一改写。
+                    blk['late_shot'] = True
                 if op == '玉米炮':
                     blk['cob'] = COB_LETTERS.get(letter, 'P')
                 elif letter in ICE_COMPOSITE:
@@ -2008,7 +2044,7 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
         #       而 `PI2|PSD` 那种"先冻再杀、D 拦被冻巨人投出的小鬼"的定式里，
         #       D 才是真拦截炮 —— 那类阵解一定有冰。
         _assign_cob_aims(blocks, groups, lane_a, lane_b, mid_low, mid_high,
-                         d_follow=not has_ice)
+                         d_follow=d_follow)
 
         # ★ 2026-10-23 用户：起手那一拍里**没有运算量的操作开局不打**
         #   （N6s 从第 2 拍的炮起手时，第 2 拍的 I 不打 —— 开局还没怪可冻）
@@ -2067,6 +2103,21 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
                             if x.get('cob') in (None, 'P', 'p')), None)
                 if src is not None and src.get('id') and src is not b_:
                     b_['trig'] = dict(kind='after_block', id=src['id'], delay=100)
+        # ★ 2026-10-25：`-` 后面那一组 = **稍等至波长**（等这一拍走完才打）
+        if any(b_.get('late_shot') for b_ in blocks):
+            # 锚点必须是**真的排在时间轴上的**那一块（冰是"刷怪即刻"、不进轴，
+            # 拿它当锚点等于永远查不到生效时刻）
+            _first = next((x for x in blocks
+                           if not x.get('late_shot')
+                           and x.get('op') not in _NO_COUNT_OPS
+                           and x.get('cob') not in ('D', 'd')), None)
+            _late = int(round((gap_in if gap_in is not None else 0) * 100))
+            for b_ in blocks:
+                if not b_.get('late_shot'):
+                    continue
+                if _first is not None and _first.get('id') and _late > 0:
+                    b_['trig'] = dict(kind='after_block', id=_first['id'],
+                                      delay=_late)
         row['sets'] = [dict(when={'kind': 'always'}, ops=blocks)]
         label = ' + '.join(_block_label(b_) for b_ in blocks) or '（空）'
         row['note'] = '快捷布置：' + label
@@ -2090,13 +2141,15 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
                 ice_used[b_['ice_var']] = ice_used.get(b_['ice_var'], 0) + 1
 
     if n_imp_cob:
-        if has_ice:
-            info['hints'].append('延迟炮（D）×%d 默认用「拦截动态落点（空中小鬼）」：'
-                                 '时机可选出手 / 最高点 / 落地前' % n_imp_cob)
+        if d_follow:
+            info['hints'].append(
+                '延迟炮（D）×%d 按「延迟补刀」处理（这个循环的炮数吃得下所有炮操作）：'
+                '主炮之后 100cs 打同一片前排' % n_imp_cob)
         else:
             info['hints'].append(
-                '延迟炮（D）×%d 按「延迟补刀」处理（轨道里一点冰都没有 → 不做拦截）：'
-                '主炮之后 100cs 打同一片前排' % n_imp_cob)
+                '延迟炮（D）×%d 用「拦截动态落点（空中小鬼）」（这个循环的炮操作'
+                '超过炮的产能 → D 只在有小鬼在空中时才打）：时机可选出手 / 最高点 / 落地前'
+                % n_imp_cob)
     if n_split_cob:
         info['hints'].append('提前炮（B）×%d 默认用「分离炮动态落点」：请确认'
                              '「行」和「打哪几种僵尸」' % n_split_cob)
