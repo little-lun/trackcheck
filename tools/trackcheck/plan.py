@@ -139,7 +139,7 @@ LEGACY_OP = {
 # ══════════════════════════════════════════════════════════════════
 OPS = [
     dict(name='毁灭菇', group='灰烬', need_aim=True, aim_kind='cell',
-         note='圆形 R=250（含纵向 30px 偏移）'),
+         note='圆形 R=250（含纵向 30px 偏移）。白天场这一块自己点咖啡豆唤醒'),
     dict(name='模仿毁灭菇', group='灰烬', need_aim=True, aim_kind='cell',
          note='模仿者毁灭菇，效果相同、CD 独立'),
     dict(name='樱桃', group='灰烬', need_aim=True, aim_kind='cell', auto=True,
@@ -147,11 +147,13 @@ OPS = [
     dict(name='辣椒', group='灰烬', need_aim=False, aim_kind='row',
          note='整行 1800；不给落点则自动挑最密的一行'),
     dict(name='寒冰菇', group='冰', need_aim=False, aim_kind='cell',
-         note='落点是存冰位 → 就是"补存冰"；落点是普通格子 → 种下即冻'),
+         note='白天场：这一块自己完成「种下 + 点咖啡豆」；冰卡没好就点场上睡着的那个。'
+              '落点是存冰位 → 就是"补存冰"'),
     dict(name='模仿寒冰菇', group='冰', need_aim=False, aim_kind='cell',
          note='同上，用模仿者那张冰卡'),
     dict(name='咖啡豆', group='冰', need_aim=True, aim_kind='cell', auto=True,
-         note='在这一格种咖啡豆 → 唤醒那格**睡着的蘑菇**（若是寒冰菇则立刻全场冰冻）'),
+         note='单独唤醒某一格睡着的蘑菇（寒冰菇则立刻全场冰冻）。'
+              '要"冰 + 豆"直接用「寒冰菇」积木，不用再排这一块'),
     dict(name='窝瓜', group='卡', need_aim=False, aim_kind='cell',
          note='不给落点则按最危险的一路自动挑'),
     dict(name='小喷菇', group='卡', need_aim=False, aim_kind='row',
@@ -2014,12 +2016,9 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
     cells = _arr_cells(array)
     rows_n = _field_rows(field, array)
     need_ice = need_ice_for_bungee(array, field) if cells else True
-    # ★ 2026-10-25：白天场（PE / DE / RE）—— 种蘑菇必须配咖啡豆
-    try:
-        from tools.trackcheck import fields as _FD
-        day_field = not bool(_FD.get(field or 'PE').night)
-    except Exception:                                        # noqa: BLE001
-        day_field = True
+    # ★ 2026-10-25：白天场（PE / DE / RE）种蘑菇必须点咖啡豆 ——
+    #   这条**不再由这里拼积木**，改由「寒冰菇 / 毁灭菇」积木自己完成
+    #   （engine._wake_after_plant / _wake_sleeping）。
     lane_a, lane_b = cob_lane_pairs(rows_n)
     mid_low = 2 if rows_n >= 6 else 2          # 1~3 路的中路
     mid_high = 5 if rows_n >= 6 else 4         # 4~6 / 4~5 路的中路
@@ -2155,23 +2154,11 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
         _assign_cob_aims(blocks, groups, lane_a, lane_b, mid_low, mid_high,
                          d_follow=d_follow)
 
-        # ★★ 2026-10-25 用户：**白天场用蘑菇要在同一候选里同时种咖啡豆**
-        #   （口径见 0.3.18）：卡好了 → 种下 + 立刻咖啡豆；卡没好 → 点场上睡着的那个。
-        #   这里把"同时点豆"写进阵解本身，报告里的"同一候选里没有咖啡豆"就不会再刷屏
-        #   （引擎侧也有兜底：真没写的话它会自己补一颗，见 `_plant_ice`）。
-        if day_field:
-            _mush = ('寒冰菇', '模仿寒冰菇', '毁灭菇', '模仿毁灭菇')
-            out_blocks = []
-            for _i, b_ in enumerate(blocks):
-                out_blocks.append(b_)
-                if b_.get('op') not in _mush:
-                    continue
-                _nxt = blocks[_i + 1] if _i + 1 < len(blocks) else None
-                if _nxt is not None and _nxt.get('op') == '咖啡豆':
-                    continue                       # 用户已经自己写了
-                out_blocks.append(dict(op='咖啡豆', aim=None,
-                                       trig={'kind': 'after', 'at': 0}))
-            blocks = out_blocks
+        # ★★ 2026-10-25 用户：**放弃"蘑菇积木 + 咖啡豆积木"这一对**。
+        #   「这一个卡积木就完成（咖啡豆+蘑菇）」——白天场的唤醒逻辑全部落在
+        #   蘑菇积木自己身上（engine._wake_after_plant / _wake_sleeping），
+        #   自动填充**不再**往后面塞一颗 `咖啡豆`，否则两颗豆会互相打脸
+        #   （第二颗报"没有睡着的蘑菇可唤醒"，看起来就像"蘑菇卡手"）。
 
         # ★ 2026-10-23 用户：起手那一拍里**没有运算量的操作开局不打**
         #   （N6s 从第 2 拍的炮起手时，第 2 拍的 I 不打 —— 开局还没怪可冻）
@@ -2775,22 +2762,9 @@ def validate(plan):
             elif it['level'] == 'warn':
                 warn('波长', it['msg'])
 
-    # ---- 白昼场：种下去的冰是睡着的，同一波没有咖啡豆就白种（用户 2026-10-22）
-    fld_code = plan.get('field') or 'PE'
-    try:
-        from tools.trackcheck import fields as _F
-        _night = bool((_F.FIELDS.get(fld_code) or _F.FIELDS['PE']).night)
-    except Exception:
-        _night = False
-    if not _night:
-        for row in rows:
-            for si, st in enumerate(row.get('sets') or []):
-                ops = [LEGACY_OP.get(b.get('op'), b.get('op'))
-                       for b in st.get('ops') or []]
-                if any(o in ('寒冰菇', '模仿寒冰菇') for o in ops) \
-                        and '咖啡豆' not in ops:
-                    warn('w%s 候选%d' % (row.get('w'), si + 1),
-                         '白天场：新种的寒冰菇是睡着的，同一候选里没有咖啡豆 → 这颗冰不会生效')
+    # ---- 白昼场种冰：★ 2026-10-25 起**不再需要**同一候选里另排一颗咖啡豆 ——
+    #   「寒冰菇」积木自己就把"种下 + 点豆 / 用场上睡着的那个"做完了
+    #   （见 engine._wake_after_plant / _wake_sleeping），所以以前的告警删除。
     return out
 
 
