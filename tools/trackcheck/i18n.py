@@ -518,6 +518,17 @@ def _keys_desc(d):
 #   ⚠️ 只放**纯显示**的片段：`任意`（= 任意僵尸）、`旗波`（role 值）、`炮`/`特技`
 #      （group 值）、`模仿`（模仿者前缀）这些是**数据**，绝不能进来。
 JS_LITERALS = {
+    # ★ 2026-10-25：匹配表「一键全绑 / 清空」按钮与空列表提示
+    #   （`check_i18n` 抓的是**整条 JS 字符串字面量**，所以键要连 `<button …>` 一起写全）
+    '<button class="ghost mini2" data-act="mapAll">⚡ 所有出怪都用当前这套阵解</button>':
+        '<button class="ghost mini2" data-act="mapAll">⚡ Apply this plan to every spawn group</button>',
+    '<button class="ghost mini2" data-act="mapNone">清空匹配</button>':
+        '<button class="ghost mini2" data-act="mapNone">Clear all matches</button>',
+    '出怪列表还是空的 —— 先去「出怪沙盘」加几组':
+        'Spawn list is empty — add a few groups in the Spawn Sandbox first',
+    '出怪列表是空的 —— 先去「② 出怪沙盘」加几组':
+        'Spawn list is empty — add a few groups in "② Spawn Sandbox" first',
+    '出怪列表还是空的': 'Spawn list is still empty',
     # ★ 2026-10-24：炮积木 / 卡积木分离后的标签片段
     '<label>动作</label>': '<label>Action</label>',
     # 这两条只以**带引号字面量**的形式出现，走 BULK 会被_clean_bulk 当整句碎片丢掉

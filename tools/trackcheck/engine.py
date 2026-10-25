@@ -1857,9 +1857,13 @@ class Sim:
                 self.broken.append(dict(t=self.t, wave=ev['wave'], what='铲种炮',
                                         why='场上没有玉米炮可铲'))
                 return
-            # 闸门用**玉米炮真卡**的 CD（不是每门炮的 3475cs 装填）
-            cd = self.card_ready.get('玉米投手', 0)
-            if cd > self.t or self.sun < D.COB_SHOVEL_SUN:
+            # ★ 2026-10-25 用户给的精确口径：
+            #   阳光 = 2×玉米(100) + 炮(500 + 50n)，n = 场上当前玉米炮数量
+            cost = (D.COB_SHOVEL_CORN * D.COB_SHOVEL_CORN_N
+                    + D.COB_SHOVEL_BASE + D.COB_SHOVEL_PREMIUM * len(cobs))
+            # 闸门 = 炮卡的 50s CD
+            cd = self.card_ready.get('玉米炮', 0)
+            if cd > self.t or self.sun < cost:
                 n = getattr(self, '_cob_cd_wait', 0)
                 if n < 24:
                     self._cob_cd_wait = n + 1
@@ -1871,11 +1875,11 @@ class Sim:
                 self.broken.append(dict(
                     t=self.t, wave=ev['wave'], what='铲种炮',
                     why='炮卡没好（%d cs）或阳光不够（%d < %d）'
-                        % (cd - self.t, self.sun, D.COB_SHOVEL_SUN)))
+                        % (cd - self.t, self.sun, cost)))
                 return
             self._cob_cd_wait = 0
-            self.sun -= D.COB_SHOVEL_SUN
-            self.card_ready['玉米投手'] = self.t + D.COB_SHOVEL_CARD_CD
+            self.sun -= cost
+            self.card_ready['玉米炮'] = self.t + D.COB_SHOVEL_CARD_CD
             gun = min(cobs, key=lambda c: c.cob_cd)
             gun.cob_cd = self.t + spec['cd']      # 新种的炮从满装填开始
             ready = [gun]
@@ -2024,6 +2028,15 @@ class Sim:
         if D.COB_IGNORE_FUSE:
             fuse = 0
         # 占一个装填位（按剩余 CD 最短的那门炮）
+        # ★ 2026-10-25：**落点没有射程限制** —— 玉米炮是"点哪打哪"的迫击炮，
+        #   准星可以移到草坪上任意一格（1-1 的炮打 9 列完全合法）。
+        #   （曾一度误加过"±1.44 格射程"约束，已撤销：那是把 R=115 的爆炸半径
+        #    错当成了瞄准限制。）
+        # ★★ 2026-10-25 **bug**：这里必须把"等了多久"的计数器归零。
+        #   原来只有"放弃"分支才归零，成功开炮时**残留**下来；每波攒 1~3，
+        #   攒到 24（上限）之后**每一拍都直接放弃** —— PE.二十四炮 打到
+        #   w10 就彻底不开炮（僵尸走进来把 2-7 的炮啃了），就是这么来的。
+        self._cob_cd_wait = 0
         gun = min(ready, key=lambda c: c.cob_cd)
         gun.cob_cd = self.t + spec['cd']
         self.cob_shot.append(dict(t=self.t, row=row, col=col,
@@ -2982,6 +2995,12 @@ class Sim:
         n_umbrella = 0          # 被伞罩住（含炮）→ 不用管
         n_cob_exempt = 0        # 玉米炮 → 不会被锁定
         n_pad_exempt = 0        # 垫材 → 本来就是消耗品，不值得为它防蹦极
+        # ★ 2026-10-25 用户：「当场上**仅仅只有 1 个**阳光植物（葵 / 阳光菇 / 双子葵）时，
+        #   这个阳光植物**不会被蹦极锁定**」→ 唯一的经济来源不会被掐断。
+        sun_cells = [(r, c) for (r, c), cell in self.cells.items()
+                     if (cell.plant or '') in D.SUN_PLANTS]
+        lone_sun = sun_cells[0] if len(sun_cells) == 1 else None
+        n_sun_exempt = 0
         for (r, c), cell in self.cells.items():
             if not (cell.plant or cell.tail):
                 continue
@@ -2993,6 +3012,9 @@ class Sim:
                 continue
             if name in D.PAD_PLANT.values():
                 n_pad_exempt += 1
+                continue
+            if lone_sun is not None and (r, c) == lone_sun:
+                n_sun_exempt += 1
                 continue
             if self._umbrella_covers((r, c)):
                 n_umbrella += 1
@@ -3008,7 +3030,8 @@ class Sim:
         return dict(wave=w, n=n, targets=targets,
                     stolen=[], saved_ice=0, saved_cob=0,
                     safe_umbrella=n_umbrella, cob_exempt=n_cob_exempt,
-                    pad_exempt=n_pad_exempt, exposed=len(cand))
+                    pad_exempt=n_pad_exempt, sun_exempt=n_sun_exempt,
+                    exposed=len(cand))
 
     def _bungee_mark(self, kind, rc=None, center=None):
         """冰 / 炮 救下蹦极目标；`center=(cx,cy)` = 爆炸判定域（盖到那格就算救）"""
@@ -4484,15 +4507,23 @@ class Sim:
                     self.done = True
                     return
         else:
-            if m['age'] >= D.R1_MIN_GAP:
-                if m.get('trig') is None:
-                    if m['total_hp'] > 0 and remain / m['total_hp'] < m['thr']:
-                        m['trig'] = self.t
-                        m['reason'] = 'R2 血线 %.2f' % m['thr']
-                    elif m['age'] >= m['hard']:
-                        m['trig'] = self.t
-                        m['reason'] = 'R3 硬顶 %d' % m['hard']
-                if m.get('trig') is not None and self.t - m['trig'] >= D.R2_VACUUM:
+            # ★★ 2026-10-25 用户：「**无论如何，最短波长为 6s**。本波刷新后最极限的
+            #   情况下也必须 6s 才可以刷新下一波。」
+            #   → 修正：以前把 R1 挂在"**设 trig 之前**"，于是最坏情况变成
+            #     max(6s, T) + 2s真空 = 最少 8s。正确口径是
+            #     `波长 = max(R1 6s, 血量跌破阈值 + 2s)`（R3 硬顶直接刷）。
+            if m.get('trig') is None:
+                if m['total_hp'] > 0 and remain / m['total_hp'] < m['thr']:
+                    m['trig'] = self.t
+                    m['reason'] = 'R2 血线 %.2f' % m['thr']
+                elif m['age'] >= m['hard']:
+                    m['trig'] = self.t
+                    m['reason'] = 'R3 硬顶 %d' % m['hard']
+            if m.get('trig') is not None:
+                if m['age'] >= m['hard']:
+                    nxt = self.t            # R3 到点必刷
+                elif (self.t - m['trig'] >= D.R2_VACUUM
+                      and m['age'] >= D.R1_MIN_GAP):
                     nxt = self.t
 
         if nxt is not None:

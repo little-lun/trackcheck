@@ -72,6 +72,6 @@
 ## 4. 验证
 
 - 改动涉及模拟 → 跑四档基线（`python -m tools.trackcheck.run --tier <档> --seeds 20`），
-  期望 **21.5 / 17.8 / 13.5 / 12.2 s**（中英一致）。
+  期望 **21.7 / 17.5 / 13.7 / 12.0 s**（中英一致）。
 - 改动涉及界面 → 中英两版 `ui.page_html()` 都要能生成，英文版**可见中文应为 0 条**。
 - 改动涉及打包 → `python -m tools.trackcheck.build_web` + `build_win` 都要重跑。

@@ -961,6 +961,11 @@ function plRenderMap() {
         + '<td>' + (it.kinds || []).length + ' 种</td><td>' + (it.seeds || 1) + '</td>'
         + '<td><select data-map="' + i + '">' + opts + '</select></td></tr>';
     }).join('') + '</table>'
+    // ★ 2026-10-25 用户：「**自动填充阵解**」要能一次把**所有出怪**都匹配到当前这套阵解
+    + '<div class="row" style="margin-top:6px">'
+    + '<button class="ghost mini2" data-act="mapAll">⚡ 所有出怪都用当前这套阵解</button>'
+    + '<button class="ghost mini2" data-act="mapNone">清空匹配</button>'
+    + '<span class="hint">' + q.length + ' 组出怪</span></div>'
     + '<div class="hint" style="margin-top:4px">在「运行」标签页点开始，会按这张表给每组配上阵解。</div>';
 }
 
@@ -1146,6 +1151,22 @@ PL_ROOT.addEventListener('click', async function (e) {
     selBlock: function () { PLAN.sel.set = +el.dataset.set; PLAN.sel.block = +el.dataset.block; },
     selGlobal: function () { PLAN.sel.g = (PLAN.sel.g === +el.dataset.g ? -1 : +el.dataset.g); },
     selRule: function () { PLAN.sel.rule = (PLAN.sel.rule === +el.dataset.rule ? -1 : +el.dataset.rule); },
+    // ★ 2026-10-25 用户：「自动填充阵解」要能一次把**所有出怪**都匹配到这套阵解
+    mapAll: function () {
+      if (typeof queue === 'undefined' || !Array.isArray(queue) || !queue.length) {
+        alert('出怪列表是空的 —— 先去「② 出怪沙盘」加几组');
+        return;
+      }
+      const id = plBankId();
+      queue.forEach(function (it) { it.planId = id; });
+      plSnap();                          // 匹配表存在阵解里，一起进撤销栈
+      return plRenderMap();
+    },
+    mapNone: function () {
+      if (typeof queue === 'undefined' || !Array.isArray(queue)) return;
+      queue.forEach(function (it) { it.planId = null; });
+      return plRenderMap();
+    },
     addSet: function () { plSnap(); plPath(p, path).push({ when: { kind: 'always' }, ops: [] }); },
     delSet: function () { plSnap(); plPath(p, path.replace(/\.[^.]+$/, '')).splice(+path.split('.').pop(), 1); },
     upSet: function () { plSnap(); plMove(path, -1); },

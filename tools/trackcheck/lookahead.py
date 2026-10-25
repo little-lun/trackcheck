@@ -214,6 +214,14 @@ def best_aim(sim, row, radius, dy, dmg, cols=None, integer=False, tables=None):
           if z.alive and z.hp > 0 and sim._dbox(z)[0] <= D.DMG_LINE
           and sim._targetable(z)]
     if not zs:
+        # ★ 2026-10-25：**前瞻瞄准**。本波刚刷出来的僵尸还在 800 附近、
+        #   没进可伤区，旧实现在这里返回 None → 调用方只好"对着空气炸 8.0 列"，
+        #   白搭一发 3475cs 装填（PE.二十四炮 w1 的海豚就是这么漏过去的）。
+        #   改成**按"能看见的最靠前的僵尸"落点**：爆炸判定域该盖不到还是盖不到，
+        #   但爆心至少贴在僵尸身上，而不是钉死在 8.0。
+        zs = [z for r in rows for z in sim.by_row.get(r, ())
+              if z.alive and z.hp > 0 and sim._targetable(z)]
+    if not zs:
         return None
     base = D.cell_x(1)
     cand = set()
@@ -235,7 +243,13 @@ def best_aim(sim, row, radius, dy, dmg, cols=None, integer=False, tables=None):
         c = round(1.0 + i * 0.5, 1)
         if c <= 9.0:
             cand.add(c)
-    cand = sorted(cand)[:40]
+    # ★ 2026-10-25：**落点没有射程限制**（玉米炮点哪打哪），候选就是整条草坪。
+    cand = sorted(cand)
+    if len(cand) > 40:
+        # ★ 2026-10-25：原来直接 `[:40]` = 只留最左边 40 个（有偏）。
+        #   改成**均匀抽稀**，整段射程都能被搜到。
+        step = len(cand) / 40.0
+        cand = [cand[min(len(cand) - 1, int(i * step))] for i in range(40)]
 
     # 每路"最靠前那只"是否必须炸（IO 能不能救）—— 每路只推演一次，缓存
     must = {}

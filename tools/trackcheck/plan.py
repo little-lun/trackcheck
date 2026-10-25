@@ -265,8 +265,15 @@ LAYOUT_LETTERS = {
     'P': ['玉米炮'], 'S': ['玉米炮'], 'B': ['玉米炮'],
     'D': ['玉米炮'], 'd': ['玉米炮'], 'p': ['玉米炮'],
     '核': ['毁灭菇'], '冰': ['寒冰菇'], '樱': ['樱桃'], '辣': ['辣椒'],
-    # ★ 2026-10-24 冰变奏（冰代奏）复合符号 —— 三个字符紧挨着当一个记号
-    'PI1': ['寒冰菇'], 'PI2': ['寒冰菇'], 'PI3': ['寒冰菇'], 'cI4': ['寒冰菇'],
+}
+# ★ 2026-10-25：冰变奏复合符号 = **一个炮操作 + 一个冰操作**（`cI4` 只有冰）。
+#   `PI2` 不是"P"也不是"I2"，它是一个整体记号，展开成两块积木。
+#   ⚠️ 这里的 `P` 仍然吃"简写 = 一对炮"的规则；冰不吃。
+ICE_COMPOSITE_OPS = {
+    'PI1': [('玉米炮', 'P'), ('寒冰菇', 'PI1')],
+    'PI2': [('玉米炮', 'P'), ('寒冰菇', 'PI2')],
+    'PI3': [('玉米炮', 'P'), ('寒冰菇', 'PI3')],
+    'cI4': [('寒冰菇', 'cI4')],
 }
 # 记号长度（从长到短匹配，`PI1` 必须先于 `P`）
 _TRACK_LENS = (3, 2, 1)
@@ -1061,7 +1068,8 @@ def _track_chars(text):
         hit = None
         for n in _TRACK_LENS:                 # 从长到短：`PI1` 优先于 `P`
             tok = s[i:i + n]
-            if len(tok) == n and tok in LAYOUT_LETTERS:
+            if len(tok) == n and (tok in LAYOUT_LETTERS
+                                  or tok in ICE_COMPOSITE_OPS):
                 hit = tok
                 break
         if hit:
@@ -1086,6 +1094,15 @@ def _letters(txt, pair, split, unknown):
                 unknown.append(ch)
             continue
         if sep:                       # 片段里残留的分隔符（`/`）跳过
+            continue
+        if ch in ICE_COMPOSITE_OPS:
+            # 复合符号：展开成"炮 + 冰"（`cI4` 只有冰），炮那半仍按简写翻倍
+            for nm, sub in ICE_COMPOSITE_OPS[ch]:
+                names.append(nm)
+                kinds.append(sub)
+                if pair and sub in PAIRABLE and not split:
+                    names.append(nm)
+                    kinds.append(sub)
             continue
         for n in (LAYOUT_LETTERS.get(ch) or []):
             names.append(n)
@@ -1144,8 +1161,9 @@ def parse_track_full(text, pair=None):
     `pair=None` = 自动辨认简写/复写（见 `resolve_pair`）。
     """
     raw = ''.join((text or '').split())
-    # 去掉开头的节奏名标签（`N6s:` / `P4:` / `ch6：`），它不是操作
-    m = re.match(r'^([A-Za-z]*\d+[A-Za-z]*)[:：]', raw)
+    # 去掉开头的节奏名标签（`N6s:` / `P4:` / `ch6：` / `P6-2i:`），它不是操作
+    # ★ 2026-10-25：节奏名可能带 `-2i` 这种后缀（P6-2i），所以不能只认字母+数字
+    m = re.match(r'^([A-Za-z][A-Za-z0-9\-]*\d[A-Za-z0-9\-]*)[:：]', raw)
     if m:
         raw = raw[m.end():]
     if pair is None:
@@ -1409,13 +1427,21 @@ _ICE_OPS = {'寒冰菇', '模仿寒冰菇', '冰', '模仿冰', '存冰'}
 # 快捷布置：结构判断（旗波要不要冰杀蹦极 / 炮的默认落点 / 自动选卡 / 自动救场）
 # ══════════════════════════════════════════════════════════════════
 def _arr_cells(array):
-    """阵型数组（`{'1-2': {plant, pumpkin, ladder, base, core, wear}}`）→ 规范化列表"""
+    """阵型数组（`{'1-2': {plant,…}}`）→ 规范化列表
+
+    ★ 2026-10-25：键可能是 `'1-2'` 字符串（编辑器）**也可能**是 `(1, 2)` 元组
+      （`layout.decode_any()` 的返回值）。以前只认字符串，导致"从阵型串解出来的
+      阵图"在这里被**全部静默丢掉** —— 自动选卡 / 旗波判断 / 炮路全都不看阵型了。
+    """
     out = []
     for k, v in (array or {}).items():
         if not isinstance(v, dict):
             continue
         try:
-            r, c = [int(x) for x in str(k).split('-')[:2]]
+            if isinstance(k, (tuple, list)):
+                r, c = int(k[0]), int(k[1])
+            else:
+                r, c = [int(x) for x in str(k).replace(',', '-').split('-')[:2]]
         except Exception:                                    # noqa: BLE001
             continue
         out.append(dict(row=r, col=c, plant=v.get('plant') or '',
@@ -1747,6 +1773,14 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
             rh[GAPS_KEY] = parse_gaps(raw_gaps)
         except ValueError:
             rh[GAPS_KEY] = []
+    # ★★ 2026-10-25：**给了波长串 = 固定波长阵 → 自动开绝对时间轴**。
+    #   用户口径「固定波长的阵，其具备运算量的操作必须是定时的」。
+    #   实测 PE.二十四炮（P6-2i，6s 波）：
+    #     · 按 `after_block + 6s` 链排 → 一波清得慢，后面的拍就整串迟到，
+    #       w10 之后干脆一拍都不打，红眼走进来把 2-7 的炮啃了（0/3 全灭）；
+    #     · 换成绝对时间轴 → **饱和出怪 20 波全清，3/3 全过**。
+    if rh.get(GAPS_KEY):
+        rh['fixed_timeline'] = True
     rh['pair'] = mode
     if start is not None:
         rh['start'] = int(start)
@@ -1850,10 +1884,20 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
                 blocks = kept
         # ★ 2026-10-24：起手那一拍的定时 —— 用户 case 里是 `time at 900`
         #   （刷怪后 0.9s 才开炮，等僵尸走进可伤区）。
+        # ★ 2026-10-24：起手那一拍的定时 —— 用户 case 里是 `time at 900`
+        #   （刷怪后 0.9s 才开炮，等僵尸走进可伤区）。
+        #   ★ 2026-10-25：**短波长的阵不能让起手空等 900cs**（6s 波等于空过 1/6
+        #     个循环，PE.二十四炮 的海豚就能直接啃掉一线炮）。
+        #     规则：最短波长 ≥ 9s 的阵**完全不改**（沿用 900）；
+        #     更短的按"半个波长"取，至少 100cs。
         if i == 0 and gaps and w == targets[0]:
+            g_min = int(min(gaps) * 100)
+            start_off = 900 if g_min >= 900 else max(100, g_min // 2)
             for b_ in blocks:
-                if b_['op'] not in _NO_COUNT_OPS:
-                    b_['trig'] = {'kind': 'time', 'at': 900}
+                # ★ 2026-10-25：D / d 有自己按小鬼的触发器，别被起手的定时覆盖掉
+                if (b_['op'] not in _NO_COUNT_OPS
+                        and b_.get('cob') not in ('D', 'd')):
+                    b_['trig'] = {'kind': 'time', 'at': start_off}
         # ★★ 2026-10-23：**固定波长阵的定时**
         #   锚点必须落在**具备运算量的那一块**上（炮 / 核 / 灰烬），
         #   不能落在"刷怪即刻"的冰上 —— 冰是按刷怪时刻打的（慢波要一出来就冻），
@@ -2024,16 +2068,21 @@ def _assign_cob_aims(blocks, groups, lane_a, lane_b, mid_low, mid_high):
             if b_.get('cob') == 'd':
                 b_['aim'] = [mid_low, 'tail']
                 b_['trig'] = {'kind': 'imp_ground'}
-        # ④ 同步炮（S）→ 复制上一个主炮的落点 + 同时生效
-        for b_ in cobs:
-            if b_.get('cob') == 'S':
-                b_['aim'] = list(last_main_aim) if last_main_aim else [mid_low, 'front']
-                b_['trig'] = {'kind': 'after', 'at': 0}
-        # ⑤ 主炮 / 铲种炮 → 成对的滑动落点
+        # ④ 主炮 / 铲种炮 → 成对的滑动落点（先算，S 要复制它们）
         mains = [b_ for b_ in cobs if b_.get('cob') in (None, 'P', 'p')]
         lanes = (lane_a, lane_b)
         for n, b_ in enumerate(mains):
             b_['aim'] = [lanes[min(n, 1)] if len(mains) > 1 else lanes[0], 'front']
+        # ⑤ 同步炮（S）→ 照抄**同位**主炮的落点 + 同时生效
+        #    ★ 2026-10-25：一对 P 配一对 S 时，S 必须一个一个对上
+        #      （以前全抄 mains[0]，于是两门 S 都打 2 路）
+        s_cobs = [b_ for b_ in cobs if b_.get('cob') == 'S']
+        for n, b_ in enumerate(s_cobs):
+            src = mains[n] if n < len(mains) else (mains[0] if mains else None)
+            b_['aim'] = (list(src['aim']) if src and src.get('aim')
+                         else [lanes[min(n, 1)] if len(s_cobs) > 1 else lanes[0],
+                               'front'])
+            b_['trig'] = {'kind': 'after', 'at': 0}
         if mains:
             last_main_aim = list(mains[0]['aim'])
 
