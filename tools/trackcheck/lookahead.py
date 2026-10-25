@@ -209,10 +209,11 @@ def best_aim(sim, row, radius, dy, dmg, cols=None, integer=False, tables=None):
     `integer=True` 返回整列（樱桃 / 辣椒这类要种在格子里）。
     """
     rows = sim._boom_rows(row, radius, dy)
-    # ★ 2026-10-24：地下的矿工既打不到也不该被瞄（`_targetable`）
+    # ★ 2026-10-25 用户：「P、N、A、A′ 是可以杀死正在地下挖掘的矿工的」
+    #   → 灰烬的瞄点可以选地下的矿工（`ash=True`）；单目标伤害仍然不选。
     zs = [z for r in rows for z in sim.by_row.get(r, ())
           if z.alive and z.hp > 0 and sim._dbox(z)[0] <= D.DMG_LINE
-          and sim._targetable(z)]
+          and sim._targetable(z, ash=True)]
     if not zs:
         # ★ 2026-10-25：**前瞻瞄准**。本波刚刷出来的僵尸还在 800 附近、
         #   没进可伤区，旧实现在这里返回 None → 调用方只好"对着空气炸 8.0 列"，
@@ -220,7 +221,7 @@ def best_aim(sim, row, radius, dy, dmg, cols=None, integer=False, tables=None):
         #   改成**按"能看见的最靠前的僵尸"落点**：爆炸判定域该盖不到还是盖不到，
         #   但爆心至少贴在僵尸身上，而不是钉死在 8.0。
         zs = [z for r in rows for z in sim.by_row.get(r, ())
-              if z.alive and z.hp > 0 and sim._targetable(z)]
+              if z.alive and z.hp > 0 and sim._targetable(z, ash=True)]
     if not zs:
         return None
     base = D.cell_x(1)
@@ -261,7 +262,7 @@ def best_aim(sim, row, radius, dy, dmg, cols=None, integer=False, tables=None):
                 continue
             if sim._dbox(z)[0] > D.DMG_LINE:
                 continue
-            if not sim._targetable(z):
+            if not sim._targetable(z, ash=True):
                 continue
             if f is None or z.x < f.x:
                 f = z
@@ -290,6 +291,19 @@ def best_aim(sim, row, radius, dy, dmg, cols=None, integer=False, tables=None):
         return w
 
 
+    # ★ 2026-10-25 用户：「扩大 P 滑动落点滑动范围，覆盖全场，**但是保证不会炸坏梯子**」
+    #   → 候选列本来就是 1~9 全场；这里把"判定域盖到梯子格"的候选直接判为不可行。
+    ladder_cells = [(rc, cell) for rc, cell in sim.cells.items()
+                    if getattr(cell, 'ladder', False)]
+
+    def _hits_ladder(cx, cy):
+        for (lr, lc), cell in ladder_cells:
+            if lr not in rows:
+                continue
+            if abs(D.cell_x(lc) - cx) <= radius:
+                return True
+        return False
+
     best, best_key = None, None
     for c in cand:
         cx = base + (c - 1.0) * D.CELL_W
@@ -297,6 +311,8 @@ def best_aim(sim, row, radius, dy, dmg, cols=None, integer=False, tables=None):
         # 硬约束：被这一炮纵向覆盖到的每一路，若"最靠前那只"必须炸（IO 救不了），
         # 就必须被打中 —— 否则这个候选**不可行**（用户 2026-10-23 口径）。
         feasible = True
+        if _hits_ladder(cx, cy):
+            feasible = False       # ★ 不许炸坏梯子
         n_must = 0.0               # 这一炮盖住的"必须炸的前锋"有多急（加权）
         for r in rows:
             f = front.get(r)

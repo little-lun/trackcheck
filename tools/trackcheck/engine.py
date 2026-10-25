@@ -1394,6 +1394,11 @@ class Sim:
         #   所以必须排在下面的卡片 CD / 阳光检查之前。
         if name == '玉米炮':
             return self._fire_cob(ev, aim)
+        # ★★ 2026-10-25 用户：**`C`（地刺）直接使本行新出的一波冰车全部暴毙**。
+        #   口径：「实战中必须将地刺种在冰车下面才可以杀死所有冰车，
+        #         预布置地刺没法全杀冰车。」→ 结果导向，不去模拟"车碾过刺"的逐帧过程。
+        if name in ('地刺', '地刺王'):
+            return self._spike_kill(ev, aim)
         # ★ 用户："w10 窝瓜压冰车" —— 这是**固定起手动作**，不是救场。
         #   压哪一行由"最靠前的冰车"决定（`_pick_row` 已经优先挑冰车所在行）。
         if name == '窝瓜压车':
@@ -1724,15 +1729,18 @@ class Sim:
                 out.append(r)
         return out
 
-    def _targetable(self, z):
+    def _targetable(self, z, ash=False):
         """这只现在**能被植物选为目标 / 用作瞄点**吗？
 
-        ★ 2026-10-24：矿工在地下时既打不到也看不见 —— 必须把它排除在
-          "最靠前那只 / 选目标 / 炮的瞄点"之外。否则它挖到 x=20 一蹲，
-          会把所有单目标伤害和炮的落点全吸走（实测经典八炮 15/20 → 4/20，
-          红眼趁机啃掉 1-5 / 6-5 的玉米炮）。
+        ★ 2026-10-24：矿工在地下时既打不到也看不见 —— 单目标伤害 / 冰瓜不应该瞄它
+          （否则它挖到 x=20 一蹲会把所有单目标伤害和炮的落点全吸走）。
+        ★★ 2026-10-25 用户：「**P、N、A、A′ 是可以杀死正在地下挖掘的矿工的**」
+          → 灰烬类（炮 / 核 / 樱桃 / 辣椒）**可以**瞄准地下的矿工（`ash=True`）。
+          落实以后就不需要额外处理矿工的手段了。
         """
-        return not (z.kind == '矿工' and getattr(z, 'phase', '') == 'dig')
+        if z.kind == '矿工' and getattr(z, 'phase', '') == 'dig':
+            return bool(ash)
+        return True
 
     def _slide_col(self, row, radius=None, dy=None, head_dx=None, integer=False,
                    threat=False, allow_none=False):
@@ -1822,6 +1830,52 @@ class Sim:
         col = (cx - base) / float(D.CELL_W) + 1.0
         col = max(1.0, min(9.0, col))
         return float(round(col)) if integer else round(col, 1)
+
+    def _spike_kill(self, ev, aim):
+        """**地刺（`C`）**：直接把"本行这一波新出的冰车"全部暴毙。
+
+        ★★ 2026-10-25 用户口径：「`C` 直接使本行新出的一波冰车全部暴毙。
+          实战中必须将地刺种在冰车下面才可以杀死所有冰车，预布置地刺没法全杀冰车。」
+          → 结果导向：不去逐帧算"车碾过刺掉多少血"，直接按"这一发种下去就杀光"处理。
+          落点行：`aim` 给了行就用它，否则挑"本波冰车最多的那一行"。
+        """
+        w = ev.get('wave') or self.cur_wave
+        rows = []
+        if isinstance(aim, (list, tuple)) and aim and not isinstance(aim[1] if len(aim) > 1 else 0, str):
+            rows = [int(aim[0])]
+        else:
+            # 没指定行 → 挑"现在真有冰车的那几路"（实战就是这么种的：车在哪路就种哪路）
+            rows = sorted({z.row for z in self.zombies
+                           if z.alive and z.kind == '冰车'})
+        killed = 0
+        # ★ 2026-10-25：冰车是**在波内陆续生出来的**，地刺若在波首那一 tick 种下，
+        #   车还没出来 → 白种。实战里玩家是"看到车才种"，所以这里等一等再种。
+        if not any(z.alive and z.kind == '冰车' for z in self.zombies):
+            n = getattr(self, '_spike_wait', 0)
+            if n < 30:                     # 最多等 3s
+                self._spike_wait = n + 1
+                self._schedule(self.t + 100, '地刺', aim, w, due=ev.get('due'),
+                               bid=ev.get('bid'))
+                return False
+            self._spike_wait = 0
+        else:
+            self._spike_wait = 0
+        for z in self.zombies:
+            if not z.alive or z.kind != '冰车':
+                continue
+            # 用户口径是"本行新出的一波冰车全部暴毙"；`aim` 没给行时按"本波全场"处理
+            # （实战里玩家会把地刺种到有车的那一路上，逐行种 = 一样的结果）。
+            if rows and z.row not in rows:
+                continue
+            z.alive = False
+            killed += 1
+            self._log('ASH', '地刺（C）扎死本波冰车（%d 路）' % z.row,
+                      row=z.row, detail='结果导向：这一发种下去，本行本波冰车全灭')
+        self.actions.append(dict(t=self.t, wave=w, name='地刺', ok=True,
+                                 rc=(rows[0] if rows else None)))
+        if killed:
+            self.n_kill += killed
+        return True
 
     def _fire_cob(self, ev, aim):
         """玉米炮开炮。`aim=(row, col)` 是**准星落点**（可以在任意行，可带小数）。
