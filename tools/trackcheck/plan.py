@@ -583,8 +583,15 @@ def run_plan_op(sim, op, aim=None):
 
 def _gate_ok_sim(sim, gate):
     """全场判定的条件求值 —— 需要"场上状态"的条件（如 `tail`）交给 `_event_fired`"""
-    if (gate or {}).get('kind') in ('tail', 'core_threat'):
+    kind = (gate or {}).get('kind')
+    if kind in ('tail', 'core_threat', 'no_cob_pending'):
         return _event_fired(sim, gate)
+    if kind == 'all':
+        return all(_gate_ok_sim(sim, g) for g in (gate.get('of') or []))
+    if kind == 'any':
+        return any(_gate_ok_sim(sim, g) for g in (gate.get('of') or []))
+    if kind == 'not':
+        return not _gate_ok_sim(sim, gate.get('of'))
     return gate_ok(gate, sim.plan_ctx(), sim.cur_wave)
 
 
@@ -996,10 +1003,21 @@ def _event_fired(sim, ev):
                 if z.x <= lim:
                     return True
         return False
+    if k == 'no_cob_pending':
+        # ★ 2026-10-25：**"最后是 P"** —— 只有时间轴上已经没有待打的炮了，
+        #   收尾才自己补炮。否则它会和时间轴的炮抢装填（实测 PE.二十四炮 6/6 → 3/6）。
+        for e in (sim.events or []):
+            if e.get('name') == '玉米炮' and e['t'] >= sim.t:
+                return False
+        return True
     if k == 'tail':
-        #   → 判定 = **最后一波已经刷出来了**，且场上还活着僵尸。
-        #   （再往后不会再有新波，剩下的都是"尾兵"，可以放心把卡全砸掉。）
-        if int(sim.cur_wave or 0) < WAVES:
+        # ★★ 2026-10-25 用户：「**收尾操作一定仅仅在 w9, w19, w20 生效**，
+        #   而不影响其它波。」
+        #   w9 / w19 是红字波（拖时间），w20 是最后一波 —— 只有这三波允许"把卡全砸掉"。
+        #   ★ 再加一道「**尾兵**」判定（用户原话："根据其血量…消灭所有尾兵"）：
+        #     必须是这一波的兵**快打完了**（剩余血量 ≤ 本波总量的 25%），
+        #     否则 w9 那种长红字波会从头到尾不停烧卡（实测把 24 炮的节奏烧穿）。
+        if int(sim.cur_wave or 0) not in (9, 19, WAVES):
             return False
         for rs in (sim.by_row or {}).values():
             for z in rs:
@@ -2169,13 +2187,18 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
         #     个循环，PE.二十四炮 的海豚就能直接啃掉一线炮）。
         #     规则：最短波长 ≥ 9s 的阵**完全不改**（沿用 900）；
         #     更短的按"半个波长"取，至少 100cs。
-        if i == 0 and gaps and w == targets[0]:
-            g_min = int(min(gaps) * 100)
-            start_off = 900 if g_min >= 900 else max(100, g_min // 2)
+        # ★★ 2026-10-25 用户（明确口径）：
+        #   「**起手是刷怪后半个波长**，其它波都应该要按照波长发炮
+        #     （锚定上一波最后一个运算量操作）。」
+        #   → 起手固定成"半个波长"（半个 = 这一拍波长的一半），不再用 900 那套。
+        if i == 0 and gaps:
+            start_off = max(100, int(round(gap_in * 100 / 2.0))
+                            if gap_in else int(min(gaps) * 100 / 2.0))
             for b_ in blocks:
                 # ★ 2026-10-25：D / d 有自己按小鬼的触发器，别被起手的定时覆盖掉
                 if (b_['op'] not in _NO_COUNT_OPS
-                        and b_.get('cob') not in ('D', 'd')):
+                        and b_.get('cob') not in ('D', 'd')
+                        and not b_.get('spawn_shot')):
                     b_['trig'] = {'kind': 'time', 'at': start_off}
         # ★★ 2026-10-23：**固定波长阵的定时**
         #   锚点必须落在**具备运算量的那一块**上（炮 / 核 / 灰烬），
@@ -2203,9 +2226,12 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
             for b_ in ops_blocks:
                 b_['trig'] = {'kind': 'after_block', 'id': prev_anchor,
                               'delay': int(round(gap_in * 100))}
-        # 本波的新锚点 = 这一波第一块**有运算量**的积木
+        # ★★★ 2026-10-25 用户：「其它波都应该要按照波长发炮（**锚定上一波最后一个
+        #   运算量操作**）」。
+        #   → 锚点取上一波**最后一块**运算量（不是第一块）：一拍里有多个时点
+        #     （`-` 前后两组）时，只有最后那组才代表"这一拍打完了"。
         if ops_blocks:
-            k = blocks.index(ops_blocks[0]) + 1
+            k = blocks.index(ops_blocks[-1]) + 1
             prev_anchor = 'w%d-1-%d' % (w, k)
         # ★ 每块积木唯一命名：波数-候选-序号（after_block 靠它定位）
         for k, b_ in enumerate(blocks, 1):
@@ -2213,8 +2239,18 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
         # ★ 2026-10-25：迟延补刀的 D 现在才挂得上 `after_block`（那要用到 id）
         for b_ in blocks:
             if b_.pop('d_follow', False):
+                # ★ 2026-10-25 **bug**：原来是 `x.get('cob') in (None, 'P', 'p')` ——
+                #   冰 / 灰烬这类积木**没有 `cob` 字段**，`get` 也是 None，
+                #   于是"延迟补刀"锚到了冰上（冰是刷怪即刻、不进轴，永远等不到）。
+                #   必须显式要求"是玉米炮且不是 D/d"。
                 src = next((x for x in blocks
-                            if x.get('cob') in (None, 'P', 'p')), None)
+                            if x.get('op') == '玉米炮'
+                            and x.get('cob') in (None, 'P', 'p')
+                            and not x.get('spawn_shot')), None)
+                if src is None:
+                    src = next((x for x in blocks
+                                if x.get('op') == '玉米炮'
+                                and x.get('cob') in (None, 'P', 'p')), None)
                 if src is not None and src.get('id') and src is not b_:
                     b_['trig'] = dict(kind='after_block', id=src['id'], delay=100)
         row['sets'] = [dict(when={'kind': 'always'}, ops=blocks)]
@@ -2455,14 +2491,19 @@ def _merge_tail_globals(existing, deck, n_cob, lane_a, lane_b):
             rid = '收尾-P-%s' % tag
             if rid in have:
                 continue
+            # ★ 2026-10-25 用户：「最后是 P」—— 所以这一条要等**时间轴上的炮全打完**
+            #   （`no_cob_pending`），否则会跟时间轴抢装填（PE.二十四炮 6/6 → 3/6）。
             out.append(dict(id=rid, enabled=True, every=300, cooldown=0,
-                            when=dict(kind='tail'),
+                            when=dict(kind='all', of=[
+                                dict(kind='tail'), dict(kind='no_cob_pending')]),
                             ops=[dict(op='玉米炮', aim=[lane, 'front'],
                                       trig={'kind': 'spawn'})]))
     # ★★ 2026-10-25：**底线补炮** —— 有僵尸贴到本路最靠前的 CORE 旁边（1.5 格）时，
-    #   补一发炮。落点留空 → 引擎按"最危险的那一路"自己挑（`_pick_row`）。
-    #   这一条是为"矿工挖到底线出土、正面人群又在 8~9 列"这种两难准备的：
-    #   光靠 `front` 滑动落点，炮会一直被正面人群吸走，底线那门炮白送。
+    #   补一发炮（落点留空 → 引擎按"最危险的那一路"自己挑）。
+    #   ⚠️ 这不是"收尾"（收尾只在 w9 / w19 / w20），它是**每波都可能需要的救急**：
+    #     炮的滑动落点会一直被 8~9 列的正面人群吸走，越过 7 列的红眼 / 冰车就没人管。
+    #     （用户「灰烬可杀地下矿工 → 不再需要额外处理矿工」说的是**矿工**；
+    #       这条管的是"任何已经贴到 CORE 的硬目标"，矿工只是其中一种。）
     if n_cob:
         rid = '底线补炮'
         if rid not in have:
