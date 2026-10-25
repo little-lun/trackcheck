@@ -28,7 +28,10 @@ HELP_ZH = '''<div class="panel">__GLOSSARY__</div>
       <b>种植物</b>（卡片）。轨道串认得
       <code>|</code>（换波）、<code>-</code>（同一波的第二个时机）、
       <code>/</code>（上下半场）、<code>~</code>（两套节奏摆动）；
-      右边的「波长串」写 <code>(9,9,9,9)</code>，会自动校验波长和够不够炮 / 卡的 CD 转完。</p>
+      右边的「波长串」写 <code>(9,9,9,9)</code>，会自动校验波长和够不够炮 / 卡的 CD 转完。
+      <b>单位自动识别</b>：默认按<b>秒</b>读；写成 <code>(875,875,875,850)</code> 这种
+      明显是 <b>cs</b> 的数量级也会自动按 cs 读（= 8.75 / 8.75 / 8.75 / 8.5 秒）。
+      想写死单位就带后缀：<code>875cs</code> / <code>8.75s</code>。</p>
       <h3>④ 运行与报告</h3>
       <p>点「开始模拟」。报告里有：波长、偏差、减速覆盖、存冰/阳光/补南瓜台账、
       逐波时间轴、轨道执行表；右上角可以下载 PDF。</p>
@@ -87,7 +90,11 @@ HELP_EN = '''<div class="panel">__GLOSSARY__</div>
       <code>|</code> (next wave), <code>-</code> (a second group in the same wave),
       <code>/</code> (upper / lower half) and <code>~</code> (alternate two rhythms).
       The “wavelength list” on the right takes <code>(9,9,9,9)</code> and is
-      validated against cob / card cooldowns automatically.</p>
+      validated against cob / card cooldowns automatically.
+      <b>Units are detected automatically</b>: seconds by default; a list like
+      <code>(875,875,875,850)</code> is recognised as <b>centiseconds</b>
+      (= 8.75 / 8.75 / 8.75 / 8.5 s). To force a unit, add a suffix:
+      <code>875cs</code> / <code>8.75s</code>.</p>
       <h3>④ Run &amp; report</h3>
       <p>Click “Start”. The report contains: wavelength, deviation, slow coverage,
       ice-bank / sun / pumpkin ledgers, a per-wave timeline and the track execution

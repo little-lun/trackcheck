@@ -2492,8 +2492,8 @@ class Sim:
             fixed = kept
         for item in fixed:
             t, name, aim, w = item[0], item[1], item[2], item[3]
-            mode = item[4] if len(item) > 4 else None
-            self._schedule(max(0, int(t)), name, aim, w, mode=mode)
+            bid = item[4] if len(item) > 4 else None
+            self._schedule(max(0, int(t)), name, aim, w, bid=bid)
 
     def run(self):
         self._arm_fixed_timeline()
@@ -3449,6 +3449,14 @@ class Sim:
                 #   [知识库 14] 1 路→2、6 路→5、中间路随机二选一。
                 #   所以这里不进入普通啃食流程 —— 扣一口血就把它赶走。
                 self._garlic(z, target)
+                continue
+            # ★★ 2026-10-25 **模型修正**：**小丑不啃植物**。
+            #   小丑的"盒子里的小丑"是按**开盒计时器**（`_tick_joker`）走的，
+            #   到点就原地炸，跟它面前有没有植物无关；原版里它会走到植物跟前
+            #   站着等炸，**绝不会像普通僵尸那样啃**。
+            #   原来让它走普通啃食分支，于是"小丑把 5 列玉米炮啃了"这种
+            #   原版根本不存在的崩阵方式（FE.弦十四炮 6/6 都是这么崩的）。
+            if z.kind == '小丑':
                 continue
             if target is not None:
                 # ★ 表：召唤到啃食（舞王 200cs / 伴舞 151cs）—— 这段时间内不啃

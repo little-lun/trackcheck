@@ -836,7 +836,16 @@ def compile_plan(plan):
         acts = _wave_acts(rows.get(int(w or 0)), ctx, hist)
         if int(w or 0) in fixed_waves and not (ctx or {}).get('fixed_off'):
             # 运算量已经排进绝对时间轴 → 这里只留"非运算量"（冰 / 咖啡豆 / 种大喷）
-            acts = [a for a in acts if (a.get('op') or '') in _NO_COUNT_OPS]
+            # ★★ 2026-10-25 **bug**：延迟炮 / 尾炸炮（D / d）是**触发器驱动**的
+            #   （等"小鬼飞到某个阶段"），它们没进、也不能进绝对时间轴；
+            #   可原来这里按"_NO_COUNT_OPS 之外全砍"处理，于是 **D / d 被整批丢掉**，
+            #   连带 `imp_active` 永远不开（本局不模拟小鬼投掷）。
+            #   FE.弦十四炮 就是这么丢掉了一整个 D（每拍 1 门）+ 全部拦截能力，
+            #   炮力只剩 2/3，红眼 8.75s 一波根本清不掉。
+            acts = [a for a in acts
+                    if (a.get('op') or '') in _NO_COUNT_OPS
+                    or a.get('cob') in ('D', 'd')
+                    or (a.get('trig') or {}).get('kind') in ('imp', 'imp_ground')]
         return acts
 
     def rescue_tick(sim):
@@ -846,7 +855,12 @@ def compile_plan(plan):
     def globals_tick(sim):
         tick_globals(sim, g_rules)
 
-    track.fixed = [(t, nm, aim, w) for (t, nm, aim, w, _bid) in (fixed[0] if fixed else [])]
+    # ★ 2026-10-25：**必须把 bid 一起带上** —— `after_block` 靠"那一块积木
+    #   什么时候生效"定时，而引擎记这个时刻用的就是 `bid`。
+    #   原来这里把 bid 丢掉了，于是绝对时间轴上的炮**永远查不到生效时刻**，
+    #   挂在它后面的「延迟补刀 D」全部哑火（FE.弦十四炮 只剩 2/3 炮力）。
+    track.fixed = [(t, nm, aim, w, bid) for (t, nm, aim, w, bid)
+                   in (fixed[0] if fixed else [])]
     track.fixed_waves = fixed_waves
     return track, rescue_tick, globals_tick
 
@@ -907,7 +921,14 @@ def _fixed_timeline(p):
             else:
                 return None             # 有非时间型触发器 → 不做绝对轴
             if t is None:
-                t = d if d is not None else 0
+                # ★★ 2026-10-25：**起手块的 `time at` 是"刷怪后 N cs"**，
+                #   而这条轴是**绝对时刻** → 必须加上第一波的刷怪时刻。
+                #   原来直接 `t = at`，于是 `time at 425` 落在 t=425 ——
+                #   **第一波还没刷出来**（`R0_FIRST=600`），那一发炮打的是空气。
+                #   PE.二十四炮 24 门炮兜得住，FE.弦十四炮（14 炮 / 8.75s 波）
+                #   少一发就直接漏一只红眼进来啃炮。
+                from tools.trackcheck import data as _D
+                t = int(getattr(_D, 'R0_FIRST', 600)) + (d or 0)
             else:
                 t += (0 if d is None else d)
             for b in blocks:
@@ -1205,19 +1226,33 @@ GAPS_KEY = 'gaps'
 def parse_gaps(text):
     """波长串 → [秒, …]
 
-    接受 `(9,9,9,9)`、`(9|9|9|9)`、`9 9 9 9`、`(18,18,9,9)`；
-    也接受 cs 写法（任何一项 ≥ 100 时整串按 cs 解，如 `(1800,1800,900,900)`）。
+    接受 `(9,9,9,9)`、`(9|9|9|9)`、`9 9 9 9`、`(18,18,9,9)`。
+
+    ★ 2026-10-25：**单位自动识别**。大多数情况写的是**秒**（`(18,18,9,9)`），
+      但也有人直接写 **cs**（`(875,875,875,850)` = 8.75 / 8.75 / 8.75 / 8.5 秒）。
+      判据：
+        · 写了单位就听写明的 —— `875cs` / `8.75s` / `875 cs`；
+        · 没写单位就按**数量级**判：
+          - 最大项 ≥ 100 → 整串是 cs（一"个"波长不可能 100 秒以上）；
+          - 最小项 ≥ 60  → 整串也是 cs（生存无尽最短波长 6s，
+            整串都 ≥ 60 秒的阵不存在，只可能是 cs）。
     """
     s = (text or '').strip()
     if not s:
         return []
     s = s.strip('()（）[]').replace('|', ',').replace('｜', ',')
     s = s.replace('/', ',').replace('，', ',').replace(' ', ',')
-    out = []
+    out, units = [], set()
     for tok in s.split(','):
         tok = tok.strip()
         if not tok:
             continue
+        u = ''
+        low = tok.lower()
+        if low.endswith('cs'):
+            u, tok = 'cs', tok[:-2].strip()
+        elif low.endswith('s'):
+            u, tok = 's', tok[:-1].strip()
         try:
             v = float(tok)
         except ValueError:
@@ -1225,9 +1260,54 @@ def parse_gaps(text):
         if v <= 0:
             raise ValueError('波长必须 > 0（读到 %s）' % tok)
         out.append(v)
-    if out and max(out) >= 100:          # 按 cs 写的
-        out = [v / 100.0 for v in out]
+        if u:
+            units.add(u)
+    if not out:
+        return []
+    if 'cs' in units:                    # 写明了 cs → 整串按 cs
+        return [v / 100.0 for v in out]
+    if 's' in units:                     # 写明了 s → 原样
+        return out
+    if max(out) >= 100 or min(out) >= 60:   # 按数量级判：cs
+        return [v / 100.0 for v in out]
     return out
+
+
+def detect_gap_unit(text):
+    """波长串**实际用的是哪个单位**（给界面回显用）：'cs' / 's' / ''（空串）。
+
+    与 `parse_gaps` 的判据保持一致 —— 写明了后缀听后缀，否则看数量级。
+    """
+    s = (text or '').strip()
+    if not s:
+        return ''
+    s = s.strip('()（）[]').replace('|', ',').replace('｜', ',')
+    s = s.replace('/', ',').replace('，', ',').replace(' ', ',')
+    vals, units = [], set()
+    for tok in s.split(','):
+        tok = tok.strip()
+        if not tok:
+            continue
+        low = tok.lower()
+        if low.endswith('cs'):
+            units.add('cs')
+            tok = tok[:-2].strip()
+        elif low.endswith('s'):
+            units.add('s')
+            tok = tok[:-1].strip()
+        try:
+            vals.append(float(tok))
+        except ValueError:
+            return ''
+    if not vals:
+        return ''
+    if 'cs' in units:
+        return 'cs'
+    if 's' in units:
+        return 's'
+    if max(vals) >= 100 or min(vals) >= 60:
+        return 'cs'
+    return 's'
 
 
 def format_gaps(gaps, sep=','):
@@ -1787,6 +1867,14 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
     #     · 换成绝对时间轴 → **饱和出怪 20 波全清，3/3 全过**。
     if rh.get(GAPS_KEY):
         rh['fixed_timeline'] = True
+        # ★ 2026-10-25：波长串单位自动识别 —— 按 cs 读入时回显一条，
+        #   免得用户写了 `(875,…)` 以为工具读成了 875 秒 / 或以为读错了。
+        if gaps_text is not None and detect_gap_unit(gaps_text) == 'cs':
+            info_gap_unit = True
+        else:
+            info_gap_unit = False
+    else:
+        info_gap_unit = False
     rh['pair'] = mode
     if start is not None:
         rh['start'] = int(start)
@@ -1802,9 +1890,19 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
     mid_low = 2 if rows_n >= 6 else 2          # 1~3 路的中路
     mid_high = 5 if rows_n >= 6 else 4         # 4~6 / 4~5 路的中路
     n_cob = sum(1 for c in cells if c['plant'] == '玉米炮')
+    # ★ 2026-10-25：轨道里到底有没有"冰"（I / 冰变奏 / 寒冰菇卡）。
+    #   没有冰 → 没有"先冻住巨人再杀"的拦截定式 → D 按"延迟补刀"处理
+    #   （见 `_assign_cob_aims` 的注释）。
+    has_ice = any(
+        (b_.get('op') or '') in ('寒冰菇', '寒冰菇:i')
+        or b_.get('ice_var')
+        for v in variants for b_ in v)
     info = dict(hints=[], warnings=[], unknown=parsed['unknown'],
                 need_ice_bungee=bool(need_ice), n_cob=n_cob,
                 cob_lanes=[lane_a, lane_b], deck_added=[], mimic=[], wear=[])
+    if info_gap_unit:
+        info['hints'].append('波长串按 **cs** 读入：%s → %s 秒'
+                             % (raw_gaps, format_gaps(gaps)))
     if cells and not need_ice:
         info['hints'].append(
             '阵型结构不需要冰杀蹦极（伞覆盖 / 只剩炮 / 超多炮 %d 门 / '
@@ -1880,7 +1978,16 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
         #   · 一对常规炮（P）→ 滑动落点，6 路场地 2/5 路、5 路场地 2/4 路
         #   · 单门 / 分离炮（S）→ 留空，提示自己填
         #   · 拦截炮（D）→ 动态落点 `[行, "imp"]`，给三个时机选项
-        _assign_cob_aims(blocks, groups, lane_a, lane_b, mid_low, mid_high)
+        #     ★ 2026-10-25：**整份阵解一点冰都没有**时，D 按"延迟补刀"处理。
+        #       判据来自 FE.弦十四炮 `P4u:PD|PD|PD|ND(875,875,875,875)`：
+        #       14 门炮 / 34.75s 循环 = 3 对 P + 4 对 D 正好 14 发，
+        #       **每门炮一个循环打一次** —— D 是这个阵的主力输出来源，
+        #       不可能"只用来拦小鬼"（拦小鬼只在有巨人投掷时才发生，
+        #       8.75s 一波的小丑/普通波它会全程不开炮，炮力直接掉 1/3）。
+        #       而 `PI2|PSD` 那种"先冻再杀、D 拦被冻巨人投出的小鬼"的定式里，
+        #       D 才是真拦截炮 —— 那类阵解一定有冰。
+        _assign_cob_aims(blocks, groups, lane_a, lane_b, mid_low, mid_high,
+                         d_follow=not has_ice)
 
         # ★ 2026-10-23 用户：起手那一拍里**没有运算量的操作开局不打**
         #   （N6s 从第 2 拍的炮起手时，第 2 拍的 I 不打 —— 开局还没怪可冻）
@@ -1932,6 +2039,13 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
         # ★ 每块积木唯一命名：波数-候选-序号（after_block 靠它定位）
         for k, b_ in enumerate(blocks, 1):
             b_['id'] = 'w%d-1-%d' % (w, k)
+        # ★ 2026-10-25：迟延补刀的 D 现在才挂得上 `after_block`（那要用到 id）
+        for b_ in blocks:
+            if b_.pop('d_follow', False):
+                src = next((x for x in blocks
+                            if x.get('cob') in (None, 'P', 'p')), None)
+                if src is not None and src.get('id') and src is not b_:
+                    b_['trig'] = dict(kind='after_block', id=src['id'], delay=100)
         row['sets'] = [dict(when={'kind': 'always'}, ops=blocks)]
         label = ' + '.join(_block_label(b_) for b_ in blocks) or '（空）'
         row['note'] = '快捷布置：' + label
@@ -1955,8 +2069,13 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
                 ice_used[b_['ice_var']] = ice_used.get(b_['ice_var'], 0) + 1
 
     if n_imp_cob:
-        info['hints'].append('延迟炮（D）×%d 默认用「拦截动态落点（空中小鬼）」：'
-                             '时机可选出手 / 最高点 / 落地前' % n_imp_cob)
+        if has_ice:
+            info['hints'].append('延迟炮（D）×%d 默认用「拦截动态落点（空中小鬼）」：'
+                                 '时机可选出手 / 最高点 / 落地前' % n_imp_cob)
+        else:
+            info['hints'].append(
+                '延迟炮（D）×%d 按「延迟补刀」处理（轨道里一点冰都没有 → 不做拦截）：'
+                '主炮之后 100cs 打同一片前排' % n_imp_cob)
     if n_split_cob:
         info['hints'].append('提前炮（B）×%d 默认用「分离炮动态落点」：请确认'
                              '「行」和「打哪几种僵尸」' % n_split_cob)
@@ -2033,14 +2152,18 @@ def _block_label(b_):
     return op
 
 
-def _assign_cob_aims(blocks, groups, lane_a, lane_b, mid_low, mid_high):
+def _assign_cob_aims(blocks, groups, lane_a, lane_b, mid_low, mid_high,
+                    d_follow=False):
     """给本波的炮积木分配**落点策略**（★ 2026-10-25 起与炮符号解耦）
 
     炮符号（P/S/B/D/d/p）说的是**节奏角色**，"用什么落点策略"是另一件事：
       · `P` 主炮       → 一对炮滑动落点（6 行场地 2/5 路、5 行场地 2/4 路）
       · `S` 同步炮     → **复制前一个主炮的落点**，触发器设成"接上块 +0cs"
       · `B` 提前炮     → 默认「分离炮动态落点」（`[行,"dyn"]` + `dyn_kinds`）
-      · `D` 延迟炮     → 默认「拦截动态落点（空中小鬼）」（`[行,"imp"]`）
+      · `D` 延迟炮     → 默认「拦截动态落点（空中小鬼）」（`[行,"imp"]`）；
+                         **但阵解里一点冰都没有时**（`d_follow=True`）改按
+                         「延迟补刀」处理：主炮之后 100cs 打**同一片前排**。
+                         理由见 `quick_layout` 里的注释（FE.弦十四炮）。
       · `d` 尾炸炮     → 默认「尾炸落点（已落地的小鬼）」（`[行,"tail"]`）
       · `p` 铲种炮     → 同 P 的滑动落点（但引擎走"铲种刷新"路径）
     单门/落单的一律保留原符号，不再偷偷改成 S（S 现在是"同步炮"，语义不同）。
@@ -2055,7 +2178,21 @@ def _assign_cob_aims(blocks, groups, lane_a, lane_b, mid_low, mid_high):
             continue
         # ① 拦截炮（D）：一个管 1~3 路、一个管 4~6（5 路场地 4~5）
         d_cobs = [b_ for b_ in cobs if b_.get('cob') == 'D']
+        # ★ 2026-10-25：本拍的主炮 id（延迟补刀要挂在它后面）
+        _beat_main = next((b_ for b_ in cobs
+                           if b_.get('cob') in (None, 'P', 'p')), None)
         for n, b_ in enumerate(d_cobs):
+            if d_follow:
+                # 延迟补刀：主炮之后 100cs 打同一片（落点策略仍是 `front`，
+                # 到点现算，所以会跟着前排一起往前压）
+                lanes_d = (lane_a, lane_b)
+                b_['aim'] = [lanes_d[min(n, 1)] if len(d_cobs) > 1 else lanes_d[0],
+                             'front']
+                b_['trig'] = dict(kind='after', at=100)
+                b_['d_follow'] = True        # 出 id 之后再改写成 after_block
+                b_.pop('imp_group', None)
+                b_.pop('imp_when', None)
+                continue
             if len(d_cobs) >= 2:
                 b_['imp_group'] = 'low' if n == 0 else 'high'
             else:
