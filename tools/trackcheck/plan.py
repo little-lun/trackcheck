@@ -873,17 +873,8 @@ def compile_plan(plan):
     track.fixed = [(t, nm, aim, w, bid) for (t, nm, aim, w, bid)
                    in (fixed[0] if fixed else [])]
     track.fixed_waves = fixed_waves
-    # ★★ 2026-10-25：**波长串 → 刷波时刻表**（`Sim` 用它按节奏刷波，而不是按血量）
+    # ★ 2026-10-25 用户：「不赞成把刷怪强行和波长串匹配」→ 不再生成刷波时刻表。
     track.wave_times = None
-    if fixed and fixed[0]:
-        bt = {}
-        for t, _nm, _aim, w, _bid in fixed[0]:
-            if w and (w not in bt or t < bt[w]):
-                bt[w] = int(t)
-        if 1 in bt:
-            ofs = bt[1] - int(getattr(__import__(
-                'tools.trackcheck.data', fromlist=['x']), 'R0_FIRST', 600))
-            track.wave_times = [None] + [max(0, bt[w] - ofs) for w in sorted(bt)]
     return track, rescue_tick, globals_tick
 
 
@@ -944,16 +935,18 @@ def _fixed_timeline(p):
             else:
                 return None             # 有非时间型触发器 → 不做绝对轴
             if t is None:
-                # ★★ 2026-10-25：**起手块的 `time at` 是"刷怪后 N cs"**，
-                #   而这条轴是**绝对时刻** → 必须加上第一波的刷怪时刻。
-                #   原来直接 `t = at`，于是 `time at 425` 落在 t=425 ——
-                #   **第一波还没刷出来**（`R0_FIRST=600`），那一发炮打的是空气。
-                #   PE.二十四炮 24 门炮兜得住，FE.弦十四炮（14 炮 / 8.75s 波）
-                #   少一发就直接漏一只红眼进来啃炮。
                 from tools.trackcheck import data as _D
                 t = int(getattr(_D, 'R0_FIRST', 600)) + (d or 0)
             else:
                 t += (0 if d is None else d)
+            # ★ 2026-10-25 用户：`-` **前**那一组是"刷新即刻生效"、不能进绝对轴
+            #   （进了就成了绝对时刻）。这种拍整个交给运行期：
+            #   前半段 = 刷怪即刻，后半段 = 锚在上一个锚定波长的运算量上。
+            #   时间照样往前走（这一拍的长度不变）。
+            _all = [b for st in (row.get('sets') or [])
+                    for b in (st.get('ops') or [])]
+            if any(b.get('late_shot') for b in _all):
+                continue
             for b in blocks:
                 events.append((t, b.get('op'), b.get('aim'), w, b.get('id')))
             waves.add(w)
@@ -1136,12 +1129,15 @@ def _track_chars(text):
     return out
 
 
-def _letters(txt, pair, split, unknown):
+def _letters(txt, pair, split, unknown, letters=None):
     """一个片段里的记号 → (植物名列表, 对应字母列表)
 
     `split=True`（该片段用过 `/`）时**不按简写翻倍** —— 分场本身就表达了"一对"。
     ★ 2026-10-24：多返回一份"字母"，`quick_layout` 靠它区分 P / S / D。
+    ★ 2026-10-25：`letters` = 本次的符号表（`c` 可能是垫材也可能是地刺，见
+      `quick_layout` 里按"出怪里有没有冰车"决定）。
     """
+    tbl = letters or LAYOUT_LETTERS
     names, kinds = [], []
     for ch, sep in _track_chars(txt):
         if sep == 'unknown':
@@ -1159,7 +1155,7 @@ def _letters(txt, pair, split, unknown):
                     names.append(nm)
                     kinds.append(sub)
             continue
-        for n in (LAYOUT_LETTERS.get(ch) or []):
+        for n in (tbl.get(ch) or []):
             names.append(n)
             kinds.append(ch)
             if pair and ch in PAIRABLE and not split:
@@ -1168,17 +1164,18 @@ def _letters(txt, pair, split, unknown):
     return names, kinds
 
 
-def _parse_beat(seg, pair, unknown):
+def _parse_beat(seg, pair, unknown, letters=None):
     """一段（两个 `|` 之间）→ beat
 
-    `-` 把这一波切成多个时机：第 1 段是主时机（刷怪即刻），后面的都是"过渡"。
+    `-` 把这一波切成多个时机：第 1 段是**刷新即刻**（或刷新后几十 cs），
+    后面的都是"锚在上一个锚定波长（= 最后一个有运算量的操作）"的那一组。
     `/` 表示同一时机的上下半场 —— 只记标记，落点留给用户。
     """
     parts = re.split(r'[-－]', seg)
     split = bool(re.search(r'[/／]', seg))
 
     def names_of(txt):
-        return _letters(txt, pair, split, unknown)
+        return _letters(txt, pair, split, unknown, letters=letters)
 
     ops, kinds = names_of(parts[0])
     beat = dict(ops=ops, kinds=kinds, late=[], late_kinds=[], split=split)
@@ -1206,14 +1203,15 @@ def resolve_pair(text, mode='auto'):
     return not re.search(r'[Pp]{2,}', ''.join((text or '').split()))
 
 
-def parse_track_full(text, pair=None):
+def parse_track_full(text, pair=None, letters=None):
     """轨道串 → {'variants': [[beat, …], …], 'unknown': [...], 'seps': [...]}
 
     `beat = dict(ops=[植物名…], late=[[植物名…]…], split=bool)`
       · `ops`   这一波的**主时机**（刷怪即刻）
-      · `late`  用 `-` 分隔出来的后续时机（每个是一组操作）
+      · `late`  用 `-` 分隔出来的后续时机 —— 锚在上一个锚定波长的运算量上
       · `split` 这段里用过 `/` → 上下半场各自填落点
     `pair=None` = 自动辨认简写/复写（见 `resolve_pair`）。
+    `letters` = 本次的符号表（`c` 可能是垫材也可能是地刺，由出怪决定）。
     """
     raw = ''.join((text or '').split())
     # 去掉开头的节奏名标签（`N6s:` / `P4:` / `ch6：` / `P6-2i:`），它不是操作
@@ -1229,7 +1227,7 @@ def parse_track_full(text, pair=None):
         for seg in re.split(r'[|｜]', vt):
             if not seg:
                 continue
-            b = _parse_beat(seg, pair, unknown)
+            b = _parse_beat(seg, pair, unknown, letters=letters)
             if b:
                 beats.append(b)
         if beats:
@@ -1881,7 +1879,19 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
         rh['beats'] = [s.strip() for s in track_text.split('|')
                        if s.strip()] or rh.get('beats') or []
     mode = pair if pair is not None else (rh.get('pair') or 'auto')
-    parsed = parse_track_full(text, None if mode == 'auto' else (mode == 'short'))
+    # ★★ 2026-10-25 用户：「`c` 特指地刺」（FE.二十四炮 的 `Iac` / `BDcc` ——
+    #   地刺是用来解决冰车的：冰车碾过地刺会自己掉血）。
+    #   所以 `c` 是**二义**的：阵里会来冰车 → 当「地刺」；否则当「垫材（小喷菇）」。
+    #   还可以用 `rhythm.letters` 显式指定（`{"c": "地刺"}`）。
+    _letters_tbl = dict(LAYOUT_LETTERS)
+    _kinds = set(kinds or [])
+    if 'c' in text:
+        _c = '地刺' if ('冰车' in _kinds or '雪橇' in _kinds) else '小喷菇'
+        _letters_tbl['c'] = [_c]
+    for _k, _v in ((rh.get('letters') or {})).items():
+        _letters_tbl[str(_k)] = [_v] if isinstance(_v, str) else list(_v)
+    parsed = parse_track_full(text, None if mode == 'auto' else (mode == 'short'),
+                              letters=_letters_tbl)
     variants = [v for v in parsed['variants'] if any(cycle_ops([b]) for b in v)]
     if not variants:
         return p, 0, dict(hints=[], warnings=['轨道是空的'], unknown=parsed['unknown'])
@@ -2082,9 +2092,15 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
         #   case 里实测是 900/900/1800/1800，正好是 `gaps[(b+1)%4]`。
         #   ★ 2026-10-24 追加：**拦截炮（D）不参与定时链** —— 它是"按小鬼出手"
         #     的条件触发，钉死在时间上就没有拦截意义了。
+        # ★ 2026-10-25 用户：`-` 后面那一组**不用**额外改写触发器 ——
+        #   它和"整拍"一样锚在上一个锚定波长的那块运算量上（= 下面的定时链）。
+        #   而 `-` **前**那一组是"刷新即刻生效"，所以它要留在 `spawn`，
+        #   不能在下面的定时链里被覆盖。
+        _has_late = any(b_.get('late_shot') for b_ in blocks)
         ops_blocks = [b_ for b_ in blocks
                       if b_['op'] not in _NO_COUNT_OPS
-                      and b_.get('cob') not in ('D', 'd')]
+                      and b_.get('cob') not in ('D', 'd')
+                      and not (b_.get('late_shot') is None and _has_late)]
         if gap_in is not None and prev_anchor and ops_blocks:
             for b_ in ops_blocks:
                 b_['trig'] = {'kind': 'after_block', 'id': prev_anchor,
@@ -2103,21 +2119,6 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
                             if x.get('cob') in (None, 'P', 'p')), None)
                 if src is not None and src.get('id') and src is not b_:
                     b_['trig'] = dict(kind='after_block', id=src['id'], delay=100)
-        # ★ 2026-10-25：`-` 后面那一组 = **稍等至波长**（等这一拍走完才打）
-        if any(b_.get('late_shot') for b_ in blocks):
-            # 锚点必须是**真的排在时间轴上的**那一块（冰是"刷怪即刻"、不进轴，
-            # 拿它当锚点等于永远查不到生效时刻）
-            _first = next((x for x in blocks
-                           if not x.get('late_shot')
-                           and x.get('op') not in _NO_COUNT_OPS
-                           and x.get('cob') not in ('D', 'd')), None)
-            _late = int(round((gap_in if gap_in is not None else 0) * 100))
-            for b_ in blocks:
-                if not b_.get('late_shot'):
-                    continue
-                if _first is not None and _first.get('id') and _late > 0:
-                    b_['trig'] = dict(kind='after_block', id=_first['id'],
-                                      delay=_late)
         row['sets'] = [dict(when={'kind': 'always'}, ops=blocks)]
         label = ' + '.join(_block_label(b_) for b_ in blocks) or '（空）'
         row['note'] = '快捷布置：' + label
