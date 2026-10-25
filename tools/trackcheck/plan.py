@@ -1996,6 +1996,12 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
     cells = _arr_cells(array)
     rows_n = _field_rows(field, array)
     need_ice = need_ice_for_bungee(array, field) if cells else True
+    # ★ 2026-10-25：白天场（PE / DE / RE）—— 种蘑菇必须配咖啡豆
+    try:
+        from tools.trackcheck import fields as _FD
+        day_field = not bool(_FD.get(field or 'PE').night)
+    except Exception:                                        # noqa: BLE001
+        day_field = True
     lane_a, lane_b = cob_lane_pairs(rows_n)
     mid_low = 2 if rows_n >= 6 else 2          # 1~3 路的中路
     mid_high = 5 if rows_n >= 6 else 4         # 4~6 / 4~5 路的中路
@@ -2130,6 +2136,24 @@ def quick_layout(plan, track_text=None, pair=None, gaps_text=None, start=None,
         #       D 才是真拦截炮 —— 那类阵解一定有冰。
         _assign_cob_aims(blocks, groups, lane_a, lane_b, mid_low, mid_high,
                          d_follow=d_follow)
+
+        # ★★ 2026-10-25 用户：**白天场用蘑菇要在同一候选里同时种咖啡豆**
+        #   （口径见 0.3.18）：卡好了 → 种下 + 立刻咖啡豆；卡没好 → 点场上睡着的那个。
+        #   这里把"同时点豆"写进阵解本身，报告里的"同一候选里没有咖啡豆"就不会再刷屏
+        #   （引擎侧也有兜底：真没写的话它会自己补一颗，见 `_plant_ice`）。
+        if day_field:
+            _mush = ('寒冰菇', '模仿寒冰菇', '毁灭菇', '模仿毁灭菇')
+            out_blocks = []
+            for _i, b_ in enumerate(blocks):
+                out_blocks.append(b_)
+                if b_.get('op') not in _mush:
+                    continue
+                _nxt = blocks[_i + 1] if _i + 1 < len(blocks) else None
+                if _nxt is not None and _nxt.get('op') == '咖啡豆':
+                    continue                       # 用户已经自己写了
+                out_blocks.append(dict(op='咖啡豆', aim=None,
+                                       trig={'kind': 'after', 'at': 0}))
+            blocks = out_blocks
 
         # ★ 2026-10-23 用户：起手那一拍里**没有运算量的操作开局不打**
         #   （N6s 从第 2 拍的炮起手时，第 2 拍的 I 不打 —— 开局还没怪可冻）

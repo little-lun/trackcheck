@@ -1223,6 +1223,22 @@ class Sim:
                                  name=name, ok=True))
         return True
 
+    def _coffee_pending(self, within=150):
+        """这一波里是不是**已经排了**一颗咖啡豆（阵解自己写了"同时种豆"）？
+
+        ★ 2026-10-25：自动填充现在会把 `咖啡豆` 写进同一候选，
+          引擎就不要再自己补一颗（会重复扣 CD，还会报"没有睡着的蘑菇可唤醒"）。
+          判据两条任一条成立就算：
+            · 本波排的**动作名**里有咖啡豆（`_prev_acts`，刷怪时记下的）；
+            · 待办事件里 150cs 内有一颗咖啡豆。
+        """
+        if '咖啡豆' in (self.__dict__.get('_prev_acts') or ()):
+            return True
+        for e in self.events:
+            if e.get('name') == '咖啡豆' and abs(e['t'] - self.t) <= within:
+                return True
+        return False
+
     def _wake_sleeping(self, plant, ev):
         """★ 2026-10-25 用户：**白天场**蘑菇卡 CD 没好时，用场上现成睡着的那个。
 
@@ -1362,6 +1378,14 @@ class Sim:
                 return
             # ★★ 2026-10-25 用户：「cd 好了，**同时种该植物与咖啡豆**」
             #   白天场：新种的蘑菇一定是睡着的 → 立刻点咖啡豆唤醒它（顺手吃咖啡豆 CD）。
+            #   ★ 如果阵解**自己**已经写了同一波的一颗咖啡豆（自动填充就会写），
+            #     那就交给它，引擎不要重复扣 CD。
+            if self._coffee_pending():
+                cell.awake = False
+                self._log('ICE', '种寒冰菇（%s）→ 睡下，等本波的咖啡豆唤醒'
+                          % card, row=pos[0], col=pos[1],
+                          detail='阵解里已有咖啡豆，冰会在那一步生效')
+                return
             if self._try_card('咖啡豆'):
                 cell.awake = True
                 self.actions.append(dict(t=self.t, wave=ev['wave'],
@@ -1378,6 +1402,10 @@ class Sim:
         # ★ 2026-10-25：**白天场不给落点**时也要"真种 + 点豆"，不能凭空冻一下。
         #   优先种到空着的存冰位（那是玩家放冰的地方），没有就直接在地里点豆生效。
         if not self.fld.night:
+            if self._coffee_pending():
+                self._log('ICE', '种寒冰菇（%s）→ 睡下，等本波的咖啡豆唤醒' % card,
+                          detail='阵解里已有咖啡豆')
+                return
             if self._try_card('咖啡豆'):
                 self.actions.append(dict(t=self.t, wave=ev['wave'],
                                          name='咖啡豆', ok=True))
@@ -1412,10 +1440,9 @@ class Sim:
                 continue
             if plant not in D.CARDS:
                 continue
-            # ★ 2026-10-25：**阵解自己会种这个蘑菇 → 不抢它的卡**
-            #   （补种只是"留点储备"，轨道才是主力；抢了冰卡直接崩阵）
-            if plant in self.track_cards:
-                continue
+            # ★★ 2026-10-25 用户：**解除"不许和轨道抢卡"的限制** ——
+            #   「因为补种的睡着的蘑菇本身就在轨道中，而补种只是把这些蘑菇**存起来**了，
+            #     所以一律认为其不与轨道发生抢卡的矛盾」。
             if self.card_ready.get(plant, 0) > self.t or self.sun < D.CARDS[plant]['cost']:
                 continue
             if not self._base_ok((r, c)) and not self._seed_base((r, c)):
