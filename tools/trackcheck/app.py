@@ -296,7 +296,9 @@ class Handler(BaseHTTPRequestHandler):
                 d = json.loads(raw or b'{}')
             except Exception:
                 return self._json({'error': 'bad json'}, 400)
-            from tools.trackcheck import i18n as I18N
+            # ⚠️ 这里不能再写 `from ... import i18n as I18N` —— 那个赋值会让 `I18N`
+            #   变成 `do_POST` 的**局部变量**，同一函数里别的分支（如 /api/plan/quick）
+            #   就会抛 UnboundLocalError。模块顶部已经 import 过了。
             return self._json({'ok': True, 'lang': I18N.set_lang(d.get('lang'))})
         if path == '/api/plan/validate':
             try:

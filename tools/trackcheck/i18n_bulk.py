@@ -1353,4 +1353,53 @@ BULK = {
     "等刚落地的小鬼（尾炸炮）": "wait for an Imp that has just landed (tail-blast cob)",
     "等空中小鬼": "wait for an Imp in mid-air",
     "等刚落地的小鬼": "wait for a just-landed Imp",
+    # ---- 表层阵解 · 轨道（时间轴视图）2026-10-31 ----
+    "（时间轴：横向是时间，蓝竖虚线 = 波 mark，方块 = 操作 mark；虚线箭头 = 锚定关系）":
+        "(timeline: time runs left to right; blue dashed vertical line = wave mark, box = operation mark; dashed arrow = anchoring)",
+    "视图": "View",
+    "时间轴": "Timeline",
+    "列表（候选 / 触发器全展开）": "List (all candidates / triggers expanded)",
+    "＋ C mark 要加哪种卡（模拟时会自动处理模仿卡）":
+        "+ C mark: which card (imitate cards are handled automatically by the simulation)",
+    "按刷怪机理重新排 wave mark": "re-lay the wave marks using the spawn mechanism",
+    "⟲ 自动排 wave mark": "⟲ Auto wave marks",
+    "把所有 mark 装进视野": "fit every mark into view",
+    "⤢ 适应宽度": "⤢ Fit width",
+    "只装一个循环": "fit exactly one cycle",
+    "◎ 一个循环": "◎ One cycle",
+    "缩放": "Zoom",
+    "先点一个 mark，再点「🔗 锚定」，然后点它要依赖的 mark":
+        "click a mark first, then 🔗 Anchor, then the mark it depends on",
+    "🔗 锚定…": "🔗 Anchor…",
+    "断开这个 mark 的锚定（改成刷怪即刻）":
+        "drop the anchor of this mark (back to firing right on spawn)",
+    "⛓ 断开": "⛓ Unlink",
+    "波 / 候选": "Wave / cand.",
+    "炮 mark": "cob mark",
+    "卡 mark": "card mark",
+    "虚线箭头 = 该 mark 锚在谁身上（箭头指向被依赖的 mark）":
+        "dashed arrow = what this mark is anchored to (the arrow points at the mark it depends on)",
+    "横向拖动 mark = 改它的锚定延时；拖动波 mark = 改波长串":
+        "drag a mark sideways = change its anchor delay; drag a wave mark = change the wavelength list",
+    "点一根轨道上的方块看详情": "click a box on a track to see its details",
+    "点一根轨道上的方块看详情（双击左侧 w 行可以给这一波加 mark）":
+        "click a box on a track to see its details (double-click a w row on the left to add a mark to that wave)",
+    "Mark 详情 · w": "Mark details · w",
+    "　候选 ": " · candidate ",
+    "<span class=\"lc\">候选": "<span class=\"lc\">candidate",
+    "<span class=\"gr\">刷怪</span></div>": "<span class=\"gr\">spawn</span></div>",
+    "本波刷怪即刻": "right on wave spawn",
+    "本波 wave mark + 延时": "this wave mark + delay",
+    "同候选上一块 + 延时": "previous block in the candidate + delay",
+    "指定某个 mark + 延时": "a specific mark + delay",
+    "事件驱动（": "event-driven (",
+    "（拖动 = 改波长串）": " (drag = change the wavelength list)",
+    "🔗 点目标 mark…": "🔗 click the target mark…",
+    "点一下，然后点它要依赖的 mark": "click here, then click the mark it should depend on",
+    "🔗 点选目标": "🔗 pick target",
+    "先点一个 mark，再点「🔗 锚定」": "select a mark first, then click 🔗 Anchor",
+    "先点一个 mark": "select a mark first",
+    "本波 +": "this wave +",
+    "上一块 +": "previous block +",
+    "锚定": "Anchor",
 }

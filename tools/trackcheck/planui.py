@@ -93,6 +93,82 @@ STYLE = r"""
 .maptable{width:100%;border-collapse:collapse;font-size:12px}
 .maptable th,.maptable td{border-bottom:1px solid #f1f5f9;padding:4px 6px;text-align:left}
 .maptable select{font-size:11.5px}
+/* ══════════ 时间轴（表层阵解）2026-10-31 ══════════ */
+.tl-tools{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+.tl-tools .sep{width:8px}
+#tl-area{border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;background:#fff}
+#tl-head{display:flex;border-bottom:1px solid #e2e8f0;background:#f8fafc}
+#tl-gutter{width:190px;flex:none;font-size:11px;color:#64748b;padding:3px 6px;
+ border-right:1px solid #e2e8f0;background:#f1f5f9}
+#tl-rulerwrap{flex:1;overflow:hidden;position:relative}
+#tl-ruler{height:26px;position:relative;cursor:ew-resize}
+#tl-ruler .tick{position:absolute;top:0;bottom:0;border-left:1px solid #e2e8f0}
+#tl-ruler .tick b{position:absolute;left:2px;top:2px;font-size:10px;color:#94a3b8;
+ font-weight:400;white-space:nowrap}
+#tl-main{display:flex;max-height:520px}
+#tl-guttercol{width:190px;flex:none;border-right:1px solid #e2e8f0;background:#f8fafc;
+ overflow:hidden}
+#tl-scroll{flex:1;overflow:auto;position:relative}
+#tl-canvas{position:relative;min-height:60px}
+#tl-rows{position:relative;z-index:2}
+.tl-row{display:flex;align-items:stretch;border-bottom:1px solid #f1f5f9;position:relative}
+.tl-row.on{background:#f0f9ff}
+.tl-lane{position:relative;height:26px;min-height:26px}
+.tl-row.tl-wrow,.tl-lrow.tl-wrow{height:18px;background:#f8fafc}
+.tl-row.tl-wrow{border-bottom:1px solid #e2e8f0}
+.tl-lane{position:relative;height:26px}
+.tl-lane.tall{height:30px}
+#tl-links{position:absolute;left:0;top:0;z-index:4;pointer-events:none;overflow:visible}
+#tl-wavemarks{position:absolute;left:0;top:0;bottom:0;z-index:3;pointer-events:none}
+.tl-wm{position:absolute;top:0;bottom:0;border-left:1px dashed #60a5fa;pointer-events:none}
+.tl-wm.spec{border-left-color:#f87171}
+.tl-wm b{position:absolute;top:1px;left:2px;font-size:9.5px;color:#1d4ed8;font-weight:700;
+ background:#dbeafe;border:1px solid #93c5fd;border-radius:3px;padding:0 3px;
+ pointer-events:auto;cursor:grab;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.tl-wm.spec b{color:#b91c1c;background:#fee2e2;border-color:#fca5a5}
+.tl-grow{height:26px;display:flex;align-items:center;gap:4px;padding:0 6px;font-size:11px;
+ cursor:pointer;border-bottom:1px solid #f1f5f9}
+.tl-grow.on{background:#dbeafe}
+.tl-grow .gw{font-weight:700;color:#334155;width:26px}
+.tl-grow .gr{font-size:9.5px;color:#475569;background:#f1f5f9;border-radius:4px;padding:0 4px}
+.tl-grow .gn{color:#94a3b8;font-size:9.5px;margin-left:auto;white-space:nowrap;
+ overflow:hidden;text-overflow:ellipsis;max-width:52px}
+.tl-lrow{display:flex;align-items:center;gap:4px;padding:0 4px 0 10px;font-size:9.5px;
+ color:#94a3b8;border-bottom:1px solid #f8fafc;height:26px;overflow:hidden;white-space:nowrap}
+.tl-lrow .gw{flex:none}
+.tl-lrow .gr{flex:none}
+.tl-lrow .lc{color:#64748b;flex:none}
+.tl-lrow .gn{flex:1 1 auto;min-width:0;margin-left:auto;text-align:right;
+ overflow:hidden;text-overflow:ellipsis}
+.mk{position:absolute;z-index:5;display:inline-flex;align-items:center;gap:3px;
+ border-radius:6px;padding:1px 6px;font-size:11px;line-height:17px;cursor:grab;
+ border:1px solid #cbd5e1;background:#fff;white-space:nowrap;user-select:none;
+ transform:translateY(-50%);top:50%}
+.mk.p{border-color:#f59e0b;background:#fffbeb;color:#92400e}
+.mk.p.P{border-color:#d97706;background:#fef3c7;font-weight:700}
+.mk.p.D{border-color:#c026d3;background:#fdf4ff;color:#86198f}
+.mk.p.d{border-color:#a21caf;background:#fae8ff;color:#701a75}
+.mk.p.B{border-color:#ea580c;background:#fff7ed;color:#9a3412}
+.mk.p.S{border-color:#0891b2;background:#ecfeff;color:#155e75}
+.mk.p.p{border-color:#65a30d;background:#f7fee7;color:#3f6212}
+.mk.c{border-color:#2563eb;background:#eff6ff;color:#1e40af}
+.mk.c.ash{border-color:#dc2626;background:#fef2f2;color:#991b1b}
+.mk.c.ice{border-color:#0ea5e9;background:#f0f9ff;color:#075985}
+.mk.c.pad{border-color:#16a34a;background:#f0fdf4;color:#166534}
+.mk.sel{outline:2px solid #2563eb;outline-offset:1px;box-shadow:0 2px 8px rgba(37,99,235,.35)}
+.mk.linking{outline:2px dashed #f59e0b;outline-offset:1px}
+.mk.linktarget{cursor:crosshair;box-shadow:0 0 0 2px #fbbf24}
+.mk .lb{font-weight:700}
+.mk .lg{font-size:9px;color:#94a3b8}
+.mk .lk{font-size:9px;color:#f59e0b}
+.mk.dyn{border-style:dashed}
+.tl-add{position:absolute;z-index:6;font-size:10px;color:#64748b;background:#f8fafc;
+ border:1px dashed #cbd5e1;border-radius:5px;padding:0 4px;cursor:pointer;line-height:16px;
+ transform:translateY(-50%);top:50%}
+.tl-empty{font-size:11px;color:#94a3b8;padding:4px 8px}
+#tl-insp{margin-top:10px}
+.tl-legend{display:flex;gap:8px;flex-wrap:wrap;font-size:10.5px;color:#64748b;margin-top:6px}
+.tl-legend i{font-style:normal;font-weight:700}
 """
 MARKUP = r"""
 <div id="planpage" style="display:none">
@@ -160,26 +236,75 @@ MARKUP = r"""
 
   <div class="panel">
     <div class="ptitle">表层阵解 · 轨道
-      <span class="hint" style="font-weight:400">（每波一行；行内是候选兜底链，
-        行首积木 = 刷怪即刻生效）</span></div>
+      <span class="hint" style="font-weight:400">（时间轴：横向是时间，蓝竖虚线 = 波 mark，方块 = 操作 mark；虚线箭头 = 锚定关系）</span></div>
+    <div class="row tl-tools">
+      <label class="hint">视图</label>
+      <select id="tl-view">
+        <option value="tl">时间轴</option>
+        <option value="grid">列表（候选 / 触发器全展开）</option>
+      </select>
+      <span class="sep"></span>
+      <button class="ghost mini2" data-act="tlAddP">＋ P mark</button>
+      <button class="ghost mini2" data-act="tlAddC">＋ C mark</button>
+      <select id="tl-cmark" style="font-size:11px;max-width:104px"
+        title="＋ C mark 要加哪种卡（模拟时会自动处理模仿卡）"></select>
+      <span class="sep"></span>
+      <button class="ghost mini2" data-act="tlAutoWave" title="按刷怪机理重新排 wave mark">⟲ 自动排 wave mark</button>
+      <button class="ghost mini2" data-act="tlFit" title="把所有 mark 装进视野">⤢ 适应宽度</button>
+      <button class="ghost mini2" data-act="tlFitCycle" title="只装一个循环">◎ 一个循环</button>
+      <span class="hint">缩放</span>
+      <button class="ghost mini2" data-act="tlZoom" data-d="-1">−</button>
+      <button class="ghost mini2" data-act="tlZoom" data-d="1">＋</button>
+      <span class="sep"></span>
+      <button class="ghost mini2" data-act="tlLink" id="tl-linkbtn"
+        title="先点一个 mark，再点「🔗 锚定」，然后点它要依赖的 mark">🔗 锚定…</button>
+      <button class="ghost mini2" data-act="tlUnlink" title="断开这个 mark 的锚定（改成刷怪即刻）">⛓ 断开</button>
+    </div>
     <div class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:8px">
       <span class="hint">批量：</span>
       <button class="ghost mini2" data-act="markAll">全选</button>
       <button class="ghost mini2" data-act="markInv">反选</button>
       <button class="ghost mini2" data-act="markNone">清空勾选</button>
-      <span style="width:8px"></span>
+      <span class="sep"></span>
       <button class="ghost mini2" data-act="shiftL">← 整体前移一位</button>
       <button class="ghost mini2" data-act="shiftR">整体后移一位 →</button>
-      <span style="width:8px"></span>
+      <span class="sep"></span>
       <button class="ghost mini2" data-act="copy">⎘ 复制</button>
       <button class="ghost mini2" data-act="paste">⎗ 粘贴</button>
       <button class="ghost mini2" data-act="clr">⌫ 清空</button>
       <button class="ghost mini2" data-act="undo">↶ 撤销</button>
       <span class="hint" id="pl-marks"></span>
     </div>
-    <div class="pgrid">
-      <div class="wlist" id="pl-waves"></div>
-      <div id="pl-wavebox"></div>
+
+    <div id="tl-area">
+      <div id="tl-head">
+        <div id="tl-gutter">波 / 候选</div>
+        <div id="tl-rulerwrap"><div id="tl-ruler"></div></div>
+      </div>
+      <div id="tl-main">
+        <div id="tl-guttercol"></div>
+        <div id="tl-scroll">
+          <div id="tl-canvas">
+            <div id="tl-wavemarks"></div>
+            <div id="tl-rows"></div>
+            <svg id="tl-links"></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="tl-legend">
+      <span><i style="color:#92400e">P/S/B/D/d/p</i> 炮 mark</span>
+      <span><i style="color:#1e40af">c/C/A/A′/a/I/N…</i> 卡 mark</span>
+      <span>虚线箭头 = 该 mark 锚在谁身上（箭头指向被依赖的 mark）</span>
+      <span>横向拖动 mark = 改它的锚定延时；拖动波 mark = 改波长串</span>
+    </div>
+    <div id="tl-insp"></div>
+
+    <div id="pl-gridview" style="display:none">
+      <div class="pgrid">
+        <div class="wlist" id="pl-waves"></div>
+        <div id="pl-wavebox"></div>
+      </div>
     </div>
   </div>
 
@@ -348,17 +473,27 @@ function plPreset(id) {
 /* 选中节奏型时，把它的**波长串**自动填进输入框（26 版速查表给的官方波长）。
    ★ 官方没给固定波长（C4io / S3 这类"看阵"的）→ **清空**并提示，
      不能留着上一个节奏型的旧值（用户会以为那是官方值）。
-   用户口径：波长串是**可选**的，io 高的阵本来就难精确控波长。 */
+   用户口径：波长串是**可选**的，io 高的阵本来就难精确控波长。
+   ★★ 2026-10-31 修 bug（用户报）：以前只改了输入框的显示值，**没写回阵解**
+     （`plan.rhythm.gaps` 还是空的），接着 `plRender()` 又按阵解重画输入框 →
+     切节奏型后波长串立刻被抹掉，快捷布置也就拿不到波长。现在一起写回阵解。 */
 function plFillGaps(q) {
   const g = (q && q.gaps) || [];
   const box = document.getElementById('pl-gaps');
   const tip = document.getElementById('pl-gaps-tip');
   const ok = g.length && !g.some(function (x) { return x === null || x === undefined; });
-  if (box) box.value = ok ? ('(' + g.join(',') + ')') : '';
+  const vals = ok ? g.map(function (x) { return +x; }) : [];
+  // —— 写回阵解（这才是快捷布置 / 校验真正读的地方）——
+  const p = (PLAN.bank.length ? plP() : null);
+  if (p) {
+    p.rhythm = p.rhythm || {};
+    p.rhythm[(PLAN.cat && PLAN.cat.gaps_key) || 'gaps'] = vals.slice();
+  }
+  if (box) box.value = ok ? ('(' + vals.join(',') + ')') : '';
   if (tip) {
     tip.textContent = ok
-      ? '官方波长 ' + g.join(' / ') + 's（循环 ' +
-        (g.reduce(function (a, b) { return a + (+b || 0); }, 0)) + 's）'
+      ? '官方波长 ' + vals.join(' / ') + 's（循环 ' +
+        (vals.reduce(function (a, b) { return a + (+b || 0); }, 0)) + 's）'
       : '这个节奏型官方没给固定波长 —— 按实战填，留空就不校验';
   }
 }
@@ -824,7 +959,9 @@ function plInspector(st, sp, si) {
     + '</div>'
     + '<div class="row"><label>落点</label>' + plAimEditor(bp, b) + '</div>'
     + '<div class="row"><label>触发器</label>'
-    + plCond(b.trig || { kind: 'spawn' }, bp + '.trig', PLAN.cat.triggers) + '</div>'
+    + plCond(b.trig || { kind: 'spawn' }, bp + '.trig',
+             plTrigKindList((b.trig || {}).kind)) + '</div>'
+    + tlAnchorRow(bp, b)
     + '<div class="row"><label>循环</label>'
     + '<label class="hint"><input type="checkbox" id="pl-usep"' + (rep ? ' checked' : '') + '>启用</label>'
     + '每 <input type="number" id="pl-rep-every" value="' + ((rep && rep.every) || 100) + '" style="width:58px"> cs'
@@ -1085,7 +1222,17 @@ function plRender() {
       '命名方案：' + ({ '2021': '2021 传统', '2026': '2026 新版', 'both': '双轨' })[plNaming()],
     ].filter(Boolean).join('　·　');
   }
-  plRenderBank(); plRenderDeck(); plRenderWaveList(); plRenderWave();
+  plRenderBank(); plRenderDeck(); plRenderWaveList();
+  // ★ 2026-10-31：表层阵解有两种视图 —— 时间轴（默认）/ 列表。
+  //   时间轴把 mark 铺在时间横轴上；列表保留原来的「候选 + 积木链 + 触发器」全展开。
+  if (tlView() === 'tl') {
+    document.getElementById('pl-wavebox').innerHTML = '';
+    if (typeof tlFillCmarkSelect === 'function') tlFillCmarkSelect();
+    if (typeof tlRender === 'function') tlRender();
+  } else {
+    if (typeof tlInspClear === 'function') tlInspClear();
+    plRenderWave();
+  }
   plRenderGlobals(); plRenderSimple(); plRenderRescue(); plRenderMap();
   plSpectrumSoon();
 }
@@ -1831,6 +1978,850 @@ function plTemplateRaw() {
 function plPlanById(id) {
   const b = PLAN.bank.find(function (x) { return x.id === id; });
   return b ? b.plan : null;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   时间轴视图（2026-10-31 用户：像视频剪辑 app 的轨道）
+   ─────────────────────────────────────────────────────────────────
+   · 横轴 = 时间（cs）。蓝竖虚线 = 波 mark（刷怪时刻），方块 = 操作 mark。
+   · 自动排波 mark：没有编辑时按**最长时间**（常规波上限 4+27+2 = 33s）铺；
+     填了波长串就按波长串循环；w9/w19→旗波加 45s+红字7.2s，w20→结束加 49s+白字5s。
+   · 运算量定理：某波的运算量必须在**下一波刷新之前**做完 →
+     T[w+1] ≥ 该波最后一个 mark + 2s 真空。拖 mark 太晚会把 wave mark 往后推。
+   · 虚线箭头 = 锚定关系（箭头指向**被依赖**的一方）：
+       spawn / time  → 本波 wave mark（time 带延时）
+       after         → 同候选的上一块
+       after_block   → id 指定的那块 mark，或 `w7` 这种 wave mark
+     其余触发器（距离 / 场况 / 卡片 / 拦截小鬼 …）是**事件驱动**，不画线（标 ⏱）。
+   ══════════════════════════════════════════════════════════════════ */
+var TL = {
+  px: 0.1,          // 每 cs 多少 px
+  view: (function () {
+    try { return localStorage.getItem('tc.tlview') || 'tl'; } catch (e) { return 'tl'; }
+  })(),
+  linkFrom: null,   // {w, si, bi}
+  drag: null,
+  snap: 10,         // 拖动吸附（cs）
+  markY: {},        // mark id → 画布内的 y（同一时刻的 mark 会分层错开）
+};
+var TL_MH = 26;    // 每个 mark 层的高度
+var TL_N = 20;
+var TL_FIRST = 600;              // 起手 6s
+var TL_REG_MAX = 3300;           // 常规波上限：4s + 27s 窗口 + 2s
+var TL_FLAG_EXTRA = 5220;        // w9 / w19 → 旗波：45s + 红字 7.2s
+var TL_END_EXTRA = 5400;         // w20 → 结束：49s + 白字 5s
+var TL_MIN_GAP = 600;            // 最短波长 6s
+var TL_VACUUM = 200;             // 刷新真空 2s
+
+function tlView() {
+  return (typeof TL === 'object' && TL && TL.view) ? TL.view : 'grid';
+}
+
+/* 时间轴视图里**去掉**那些「可以改用锚定到某个 mark 来表达」的触发器。
+   剩下的（距离 / 场况 / 卡片 / 拦截小鬼 / 组合）保留不变。 */
+function plTrigKindList(cur) {
+  const all = (PLAN.cat && PLAN.cat.triggers) || [];
+  if (tlView() !== 'tl') return all;
+  const drop = { time: 1, after: 1, after_block: 1 };
+  return all.filter(function (t) { return !drop[t.kind] || t.kind === cur; });
+}
+
+/* ---------------- 波 mark 时刻 / 运算量约束 ---------------- */
+function tlGapList() {
+  const p = plP();
+  let g = (p && p.rhythm && p.rhythm.gaps) || [];
+  if (!g.length) {
+    const box = document.getElementById('pl-gaps');
+    if (box && box.value.trim()) g = plGapsParse(box.value);
+  }
+  return g.map(Number).filter(function (x) { return x > 0; });
+}
+
+function tlWaveTimes() {
+  const g = tlGapList();
+  const T = new Array(TL_N + 2).fill(0);
+  T[1] = TL_FIRST;
+  for (let w = 2; w <= TL_N; w++) {
+    const prev = w - 1;
+    let gap = g.length ? Math.round(g[(prev - 1) % g.length] * 100) : TL_REG_MAX;
+    if (prev === 9 || prev === 19) gap = Math.max(gap, TL_FLAG_EXTRA);
+    T[w] = T[prev] + Math.max(TL_MIN_GAP, gap);
+  }
+  return T;
+}
+
+/* 把整份阵解摊平成一串 mark（带 id） */
+function tlFlat() {
+  const p = plP();
+  const out = [];
+  ((p && p.waves) || []).forEach(function (row, wi) {
+    (row.sets || []).forEach(function (st, si) {
+      (st.ops || []).forEach(function (b, bi) {
+        out.push({ w: +row.w, wi: wi, si: si, bi: bi, b: b,
+                   id: b.id || plAutoBlockId(row.w, si, bi) });
+      });
+    });
+  });
+  return out;
+}
+
+/* 每块 mark 的绝对时刻（cs）。锚定链按「指向前一块 / 某个 id / 本波」解析。 */
+function tlTimes(T) {
+  const flat = tlFlat();
+  const byId = {};
+  flat.forEach(function (m) { byId[m.id] = m; });
+  const tOf = {};
+  const wOf = function (w) {
+    return T[Math.max(1, Math.min(TL_N, w | 0))] || TL_FIRST;
+  };
+  const p = plP();
+  let guard = 0;
+
+  function prevInSet(m) {
+    const ops = (((p.waves || [])[m.wi] || {}).sets || [])[m.si]
+      ? (((p.waves || [])[m.wi] || {}).sets[m.si] || {}).ops || [] : [];
+    if (m.bi <= 0 || !ops[m.bi - 1]) return null;
+    const b = ops[m.bi - 1];
+    return { w: m.w, wi: m.wi, si: m.si, bi: m.bi - 1, b: b,
+             id: b.id || plAutoBlockId(m.w, m.si, m.bi - 1) };
+  }
+
+  function res(m, depth) {
+    if (m.id in tOf) return tOf[m.id];
+    if ((depth || 0) > 30 || guard++ > 8000) return (tOf[m.id] = wOf(m.w));
+    tOf[m.id] = wOf(m.w);                    // 先占位，防环
+    const tr = m.b.trig || {};
+    const k = tr.kind || 'spawn';
+    let t = wOf(m.w);
+    if (k === 'time') {
+      t = wOf(m.w) + (+tr.at || 0);
+    } else if (k === 'after') {
+      const pv = prevInSet(m);
+      t = (pv ? res(pv, (depth || 0) + 1) : wOf(m.w)) + (+tr.at || 0);
+    } else if (k === 'after_block') {
+      const tid = String(tr.id || '');
+      const wm = /^w(\d+)$/.exec(tid);
+      let base = null;
+      if (wm) base = wOf(+wm[1]);
+      else if (byId[tid]) base = res(byId[tid], (depth || 0) + 1);
+      t = (base === null ? wOf(m.w) : base) + (+(tr.at || tr.delay) || 0);
+    }
+    // spawn / 事件驱动（dist / state / card / imp …）→ 按本波刷怪时刻摆个位置
+    tOf[m.id] = Math.round(t);
+    return tOf[m.id];
+  }
+  flat.forEach(function (m) { res(m, 0); });
+  return { flat: flat, byId: byId, tOf: tOf };
+}
+
+/* 波 mark + 运算量约束（迭代两三轮就收敛） */
+function tlLayout() {
+  const T = tlWaveTimes();
+  const clamp = function () {
+    for (let w = 2; w <= TL_N; w++) {
+      const prev = w - 1;
+      let low = T[prev] + TL_MIN_GAP;
+      if (prev === 9 || prev === 19) low = Math.max(low, T[prev] + TL_FLAG_EXTRA);
+      if (T[w] < low) T[w] = low;
+    }
+  };
+  let R = tlTimes(T);
+  for (let pass = 0; pass < 4; pass++) {
+    let changed = false;
+    for (let w = 1; w < TL_N; w++) {
+      let last = 0;
+      R.flat.forEach(function (m) {
+        if (m.w !== w) return;
+        // ★ 排除「锚定到后面某一波的 wave mark」的 mark —— 它本来就在那一波之后才发生
+        //   （写成 after_block id='w5'），算进本波的运算量会形成循环：波 w 的运算量
+        //   推迟 → 波 5 又推迟 → 永远收敛不了。这类 mark 不参与本波约束。
+        const tr = m.b.trig || {};
+        if ((tr.kind || '') === 'after_block') {
+          const wm = /^w(\d+)$/.exec(String(tr.id || ''));
+          if (wm && +wm[1] > w) return;
+        }
+        const t = R.tOf[m.id] || 0;
+        // ★ 已经在「下一波刷新的同一刻或之后」发生的 mark，不构成「刷新前必须做完」的约束
+        //   （否则把某一块锚定到下一波、又有别的块链在它后面时，波长会无限增长）。
+        if (t >= T[w + 1]) return;
+        if (t > last) last = t;
+      });
+      if (!last) continue;
+      const need = last + TL_VACUUM;
+      if (need > T[w + 1]) { T[w + 1] = need; changed = true; }
+    }
+    clamp();
+    R = tlTimes(T);
+    if (!changed) break;
+  }
+  return { T: T, R: R };
+}
+
+/* ---------------- mark 外观 ---------------- */
+function tlLetter(b) {
+  if (b.op === '玉米炮') return (b.cob || 'P');
+  const map = (PLAN.cat && PLAN.cat.layout_letters) || {};
+  let best = '';
+  Object.keys(map).forEach(function (k) {
+    if (!/^[A-Za-z][A-Za-z'′]{0,2}$/.test(k)) return;
+    const arr = map[k] || [];
+    if (arr.indexOf(b.op) < 0) return;
+    if (!best || k.length < best.length) best = k;
+  });
+  return best || String(b.op || '?').slice(0, 2);
+}
+function tlMarkCls(b) {
+  if (b.op === '玉米炮') return 'mk p ' + (b.cob || 'P');
+  const ops = (PLAN.cat && PLAN.cat.card_ops) || [];
+  const spec = ops.find(function (o) { return o.name === b.op; }) || {};
+  const g = spec.group || '';
+  if (g === '灰烬') return 'mk c ash';
+  if (g === '冰') return 'mk c ice';
+  if (['小喷菇', '花盆', '阳光菇', '胆小菇'].indexOf(b.op) >= 0) return 'mk c pad';
+  return 'mk c';
+}
+function tlIsEvent(m) {
+  const k = ((m.b.trig || {}).kind) || 'spawn';
+  return !(k === 'spawn' || k === 'time' || k === 'after' || k === 'after_block');
+}
+function tlTip(m, t) {
+  const b = m.b;
+  const tr = b.trig || {};
+  let anchor = '刷怪即刻';
+  const k = tr.kind || 'spawn';
+  if (k === 'time') anchor = '本波 +' + (+tr.at || 0) + 'cs';
+  else if (k === 'after') anchor = '上一块 +' + (+tr.at || 0) + 'cs';
+  else if (k === 'after_block') anchor = '锚定 ' + (tr.id || '?') + ' +' + (+(tr.at || tr.delay) || 0) + 'cs';
+  else if (k !== 'spawn') anchor = '事件驱动（' + k + '）';
+  return '#' + m.id + '　' + plOp(b.op) + '　' + anchor + '\n' + (Math.round(t) / 100).toFixed(2) + 's';
+}
+
+/* ---------------- 主渲染 ---------------- */
+var TL_CACHE = null;
+
+function tlRender() {
+  const box = document.getElementById('tl-rows');
+  if (!box) return;
+  const area = document.getElementById('tl-area');
+  const grid = document.getElementById('pl-gridview');
+  const isTL = (tlView() === 'tl');
+  if (area) area.style.display = isTL ? '' : 'none';
+  if (grid) grid.style.display = isTL ? 'none' : '';
+  if (!isTL) { return; }
+
+  const p = plP();
+  if (!p || !PLAN.cat) return;
+  const lay = tlLayout();
+  TL_CACHE = lay;
+  const M = lay.R;
+
+  // ---- 画布宽度
+  let maxT = lay.T[TL_N] + TL_END_EXTRA;
+  M.flat.forEach(function (m) {
+    const t = M.tOf[m.id] || 0;
+    if (t + 400 > maxT) maxT = t + 400;
+  });
+  const width = Math.max(600, Math.round(maxT * TL.px) + 200);
+
+  // ---- 波 mark（竖虚线）
+  let wm = '';
+  for (let w = 1; w <= TL_N; w++) {
+    const x = Math.round(lay.T[w] * TL.px);
+    const special = (w === 10 || w === 20);
+    wm += '<div class="tl-wm' + (special ? ' spec' : '') + '" style="left:' + x + 'px">'
+      + '<b data-tlwave="' + w + '" title="w' + w + '：' + (lay.T[w] / 100).toFixed(2)
+      + 's' + '（拖动 = 改波长串）' + '">w' + w + '</b></div>';
+  }
+  document.getElementById('tl-wavemarks').innerHTML = wm;
+
+  // ---- 标尺
+  const ruler = document.getElementById('tl-ruler');
+  const steps = [100, 200, 500, 1000, 2000, 5000, 10000, 20000];
+  const step = steps.find(function (s) { return s * TL.px >= 44; }) || 20000;
+  let rh = '<div style="width:' + width + 'px;height:26px;position:relative">';
+  for (let t = 0; t <= maxT + step; t += step) {
+    rh += '<div class="tick" style="left:' + Math.round(t * TL.px) + 'px">'
+      + '<b>' + (t / 100).toFixed(t % 100 ? 1 : 0) + 's</b></div>';
+  }
+  rh += '</div>';
+  ruler.innerHTML = rh;
+
+  // ---- 左侧栏 + 轨道行
+  const byLane = {};
+  M.flat.forEach(function (m) {
+    const t = M.tOf[m.id];
+    if (t === null || t === undefined) return;
+    const key = m.w + '|' + m.si;
+    (byLane[key] = byLane[key] || []).push({ m: m, x: Math.round(t * TL.px), t: t });
+  });
+
+  let gutter = '<div class="tl-lrow tl-wrow"><b class="gw">波</b>'
+    + '<span class="gr">刷怪</span></div>';
+  let rows = '<div class="tl-row tl-wrow"><div class="tl-lane"'
+    + ' style="width:' + width + 'px"></div></div>';
+  let y = 18;
+  const lanes = [];
+  TL.markY = {};
+  (p.waves || []).forEach(function (row) {
+    (row.sets || []).forEach(function (st, si) {
+      const on = (row.w === PLAN.sel.wave);
+      // ★ 同一时刻的 mark（`PP` 一对炮、冰 + 炮同时…）会叠在一起 → 分层错开摆，
+      //   行高随层数长高，否则永远只能看见最后一个。
+      const list = (byLane[row.w + '|' + si] || []).slice()
+        .sort(function (a, b) { return a.x - b.x; });
+      const lvEnd = [];
+      let mk = '';
+      list.forEach(function (it) {
+        const label = tlLetter(it.m.b) + plOp(it.m.b.op);
+        const wpx = 44 + 10 * String(label).length;
+        let L = 0;
+        while (lvEnd[L] !== undefined && lvEnd[L] + 6 > it.x) L++;
+        lvEnd[L] = it.x + wpx;
+        TL.markY[it.m.id] = y + L * TL_MH + 13;
+        mk += tlMarkHtml(it.m, it.x, it.t, L);
+      });
+      const laneH = Math.max(TL_MH, lvEnd.length * TL_MH);
+      gutter += '<div class="tl-lrow' + (on ? ' on' : '') + '"'
+        + ' data-tlselw="' + row.w + '" data-si="' + si + '"'
+        + ' style="cursor:pointer;height:' + laneH + 'px;'
+        + (on ? 'background:#dbeafe' : '') + '">'
+        + (si === 0
+            ? '<b class="gw">w' + row.w + '</b>'
+              + '<span class="gr">' + plEsc((PLAN.cat.roles || {})[String(row.w)] || '') + '</span>'
+              + '<span class="gn" title="' + plEsc(row.note || '') + '">'
+              + plEsc(row.note || '') + '</span>'
+            : '<span class="lc">候选 ' + (si + 1) + '</span>')
+        + '</div>';
+      rows += '<div class="tl-row' + (on ? ' on' : '') + '">'
+        + '<div class="tl-lane" data-w="' + row.w + '" data-si="' + si + '"'
+        + ' style="width:' + width + 'px;height:' + laneH + 'px">' + mk
+        + '<span class="tl-add" data-act="tlAddHere" data-w="' + row.w + '" data-si="' + si
+        + '" style="left:' + Math.round(lay.T[row.w] * TL.px) + 'px">＋</span>'
+        + '</div></div>';
+      lanes.push({ w: row.w, si: si, top: y, h: laneH });
+      y += laneH;
+    });
+  });
+  document.getElementById('tl-guttercol').innerHTML = gutter;
+  const rowsH = y;
+  box.innerHTML = rows;
+  // 左右两栏高度对齐 + 同步横向滚动
+  document.getElementById('tl-guttercol').style.height = rowsH + 'px';
+  document.getElementById('tl-canvas').style.height = rowsH + 'px';
+  document.getElementById('tl-canvas').style.width = width + 'px';
+  tlSyncGutter();
+
+  // ---- 虚线箭头
+  tlDrawLinks(lay, lanes, width, rowsH);
+
+  tlInspector();
+  tlSyncButtons();
+}
+
+function tlMarkHtml(m, x, t, lv) {
+  const b = m.b;
+  const sel = (PLAN.sel.wave === m.w && PLAN.sel.set === m.si && PLAN.sel.block === m.bi);
+  const linking = TL.linkFrom && TL.linkFrom.w === m.w
+    && TL.linkFrom.si === m.si && TL.linkFrom.bi === m.bi;
+  const top = (lv === undefined || lv === null) ? null : (lv * TL_MH + 13);
+  return '<span class="' + tlMarkCls(b) + (sel ? ' sel' : '') + (linking ? ' linking' : '')
+    + (tlIsEvent(m) ? ' dyn' : '') + '" data-tlmark="1"'
+    + ' data-w="' + m.w + '" data-si="' + m.si + '" data-bi="' + m.bi + '"'
+    + ' data-id="' + plEsc(m.id) + '" style="left:' + x + 'px'
+    + (top === null ? '' : ';top:' + top + 'px') + '"'
+    + ' title="' + plEsc(tlTip(m, t)) + '">'
+    + '<b class="lb">' + plEsc(tlLetter(b)) + '</b>'
+    + '<span>' + plEsc(plOp(b.op)) + '</span>'
+    + (b.repeat ? '<span class="lg">↻</span>' : '')
+    + (b.ice_var ? '<span class="lg">' + plEsc(b.ice_var) + '</span>' : '')
+    + (tlIsEvent(m) ? '<span class="lk">⏱</span>' : '')
+    + '<span class="lg">' + (Math.round(t) / 100).toFixed(2) + '</span>'
+    + '</span>';
+}
+
+function tlDrawLinks(lay, lanes, width, height) {
+  const svg = document.getElementById('tl-links');
+  if (!svg) return;
+  const laneTop = {};
+  lanes.forEach(function (L) { laneTop[L.w + '|' + L.si] = L.top; });
+  const p = plP();
+  const M = lay.R;
+  const yOf = function (m) {
+    if (TL.markY && TL.markY[m.id] !== undefined) return TL.markY[m.id];
+    const t = laneTop[m.w + '|' + m.si];
+    return (t === undefined ? 0 : t + 13);
+  };
+  let out = '<defs><marker id="tlarw" viewBox="0 0 8 8" refX="7" refY="4"'
+    + ' markerWidth="6" markerHeight="6" orient="auto">'
+    + '<path d="M0,1 L7,4 L0,7 z" fill="#f59e0b"/></marker></defs>';
+  M.flat.forEach(function (m) {
+    const tr = m.b.trig || {};
+    const k = tr.kind || 'spawn';
+    let srcT = null, srcY = null;
+    const tgtY = yOf(m);
+    const myTop = laneTop[m.w + '|' + m.si];
+    if (myTop === undefined) return;
+    if (k === 'spawn' || k === 'time') {
+      srcT = lay.T[m.w];
+      srcY = myTop + 13;                 // 波 mark 是竖线 → 接到本行顶部
+    } else if (k === 'after') {
+      const ops = (((p.waves || [])[m.wi] || {}).sets || [])[m.si]
+        ? (((p.waves || [])[m.wi] || {}).sets[m.si] || {}).ops || [] : [];
+      const pv = ops[m.bi - 1];
+      if (!pv) return;
+      const pid = pv.id || plAutoBlockId(m.w, m.si, m.bi - 1);
+      srcT = M.tOf[pid];
+      srcY = TL.markY[pid] !== undefined ? TL.markY[pid] : myTop + 13;
+    } else if (k === 'after_block') {
+      const tid = String(tr.id || '');
+      const wm = /^w(\d+)$/.exec(tid);
+      if (wm) {
+        srcT = lay.T[+wm[1]];
+        srcY = myTop + 13;               // 别的波的 wave mark
+      } else if (M.byId[tid]) {
+        const am = M.byId[tid];
+        srcT = M.tOf[tid];
+        srcY = yOf(am);
+      } else return;
+    } else {
+      return;                            // 事件驱动 → 不画线
+    }
+    if (srcT === null || srcT === undefined) return;
+    const x1 = Math.round(srcT * TL.px);
+    const x2 = Math.round((M.tOf[m.id] || 0) * TL.px);
+    if (x2 - x1 < 2) return;             // 两点重合就不画
+    const dx = Math.max(14, Math.min(70, (x2 - x1) / 2));
+    out += '<path d="M ' + x1 + ' ' + srcY + ' C ' + (x1 + dx) + ' ' + srcY + ', '
+      + (x2 - dx) + ' ' + tgtY + ', ' + (x2 - 3) + ' ' + tgtY + '" fill="none"'
+      + ' stroke="#f59e0b" stroke-width="1.1" stroke-dasharray="3 3"'
+      + ' marker-end="url(#tlarw)"/>';
+  });
+  svg.setAttribute('width', width);
+  svg.setAttribute('height', height);
+  svg.innerHTML = out;
+}
+
+function tlSyncGutter() {
+  const sc = document.getElementById('tl-scroll');
+  const gc = document.getElementById('tl-guttercol');
+  const rw = document.getElementById('tl-rulerwrap');
+  if (sc && gc) gc.scrollTop = sc.scrollTop;
+  if (sc && rw) rw.scrollLeft = sc.scrollLeft;
+}
+
+function tlSyncButtons() {
+  const b = document.getElementById('tl-linkbtn');
+  if (b) b.textContent = TL.linkFrom ? '🔗 点目标 mark…' : '🔗 锚定…';
+}
+
+/* ---------------- mark 详情（复用积木详情 UI） ---------------- */
+function tlInspector() {
+  const box = document.getElementById('tl-insp');
+  if (!box) return;
+  const p = plP();
+  const wi = (p.waves || []).findIndex(function (r) { return r.w === PLAN.sel.wave; });
+  if (wi < 0) { box.innerHTML = '<div class="hint">点一根轨道上的方块看详情</div>'; return; }
+  const si = PLAN.sel.set, bi = PLAN.sel.block;
+  const st = ((p.waves[wi] || {}).sets || [])[si];
+  if (si < 0 || bi < 0 || !st) {
+    box.innerHTML = '<div class="hint">点一根轨道上的方块看详情（双击左侧 w 行可以给这一波加 mark）</div>';
+    return;
+  }
+  box.innerHTML = '<div style="border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;'
+    + 'background:#f8fafc">'
+    + '<div class="hint" style="font-weight:600;color:#334155;margin-bottom:4px">'
+    + 'Mark 详情 · w' + p.waves[wi].w + '　候选 ' + (si + 1) + '</div>'
+    + plInspector(st, 'waves.' + wi + '.sets.' + si, si) + '</div>';
+}
+
+/* 锚定行：把「指向谁 + 延时」显式画出来（时间轴视图专用，替代 time/after/after_block） */
+function tlAnchorRow(bp, b) {
+  if (tlView() !== 'tl') return '';
+  const tr = b.trig || {};
+  const k = tr.kind || 'spawn';
+  const M = TL_CACHE ? TL_CACHE.R : null;
+  const myId = b.id || '';
+  let mode = 'spawn', tgt = '', off = 0;
+  if (k === 'time') { mode = 'wave'; off = +tr.at || 0; }
+  else if (k === 'after') { mode = 'prev'; off = +tr.at || 0; }
+  else if (k === 'after_block') {
+    const id = String(tr.id || '');
+    mode = /^w\d+$/.test(id) ? 'wave' : 'mark';
+    tgt = id; off = +(tr.at || tr.delay) || 0;
+  } else if (k !== 'spawn') { mode = 'event'; }
+  const opts = [['spawn', '本波刷怪即刻'], ['wave', '本波 wave mark + 延时'],
+                ['prev', '同候选上一块 + 延时'], ['mark', '指定某个 mark + 延时']];
+  if (mode === 'event') opts.push(['event', '事件驱动（' + k + '）']);
+  let markList = '';
+  if (mode === 'mark') {
+    const cands = [];
+    if (M) M.flat.forEach(function (m) { cands.push([m.id, m.id + ' ' + plOp(m.b.op)]); });
+    markList = plSel(bp, 'trig.id', tgt || (cands[0] ? cands[0][0] : ''),
+                     cands.length ? cands : [['', '（还没有别的 mark）']]);
+  }
+  return '<div class="row" style="background:#fffbeb;border-radius:6px;padding:4px 6px;'
+    + 'border:1px dashed #fcd34d"><label>锚定</label>'
+    + '<select data-tlanchor="' + bp + '">'
+    + opts.map(function (o) {
+        return '<option value="' + o[0] + '"' + (o[0] === mode ? ' selected' : '') + '>'
+          + o[1] + '</option>';
+      }).join('') + '</select>'
+    + (mode === 'mark' ? markList : '')
+    + (mode === 'wave' || mode === 'prev' || mode === 'mark'
+       ? ' + <input type="number" step="10" data-tloff="' + bp + '" value="' + off
+         + '" style="width:64px"> cs' : '')
+    + '<button class="ghost mini2" data-act="tlLink" data-bp="' + bp
+    + '" style="margin-left:6px" title="点一下，然后点它要依赖的 mark">🔗 点选目标</button>'
+    + '</div>';
+}
+
+/* ---------------- 交互：选择 / 拖动 / 拉锚定 ---------------- */
+function tlElMark(el) {
+  return { w: +el.dataset.w, si: +el.dataset.si, bi: +el.dataset.bi, id: el.dataset.id };
+}
+function tlFindBlock(w, si, bi) {
+  const p = plP();
+  const row = (p.waves || []).find(function (r) { return r.w === w; });
+  if (!row) return null;
+  const st = (row.sets || [])[si];
+  if (!st) return null;
+  return (st.ops || [])[bi] || null;
+}
+function tlSelect(w, si, bi) {
+  PLAN.sel.wave = w; PLAN.sel.set = si; PLAN.sel.block = bi;
+}
+function tlTimeOfMark(m) {
+  if (!TL_CACHE) { TL_CACHE = tlLayout(); }
+  return TL_CACHE.R.tOf[m.id];
+}
+
+/* 把某块的锚定延时改成 newOff（保持原有锚定类型） */
+function tlSetOffset(b, newOff) {
+  const tr = b.trig || {};
+  const k = tr.kind || 'spawn';
+  const off = Math.max(0, Math.round(newOff / TL.snap) * TL.snap);
+  if (k === 'time') { tr.at = off; }
+  else if (k === 'after') { tr.at = off; }
+  else if (k === 'after_block') { tr.at = off; delete tr.delay; }
+  else {
+    // 事件驱动 / 即刻 → 拖动就改成「本波 + 延时」
+    b.trig = { kind: 'time', at: off };
+    delete b.trig.delay;
+    return;
+  }
+  b.trig = tr;
+}
+
+(function tlBind() {
+  const area = document.getElementById('tl-area');
+  if (!area) return;
+  const sc = document.getElementById('tl-scroll');
+  if (sc) sc.addEventListener('scroll', tlSyncGutter);
+
+  area.addEventListener('pointerdown', function (e) {
+    // ① 波 mark 拖动 = 改波长串
+    const wb = e.target.closest ? e.target.closest('[data-tlwave]') : null;
+    if (wb) {
+      e.preventDefault();
+      const w = +wb.dataset.tlwave;
+      const t0 = TL_CACHE ? TL_CACHE.T[w] : tlWaveTimes()[w];
+      const tprev = TL_CACHE ? TL_CACHE.T[w - 1] : 0;
+      TL.drag = { type: 'wave', w: w, x0: e.clientX, t0: t0, tprev: tprev };
+      return;
+    }
+    // ② mark 拖动 = 改锚定延时
+    const mk = e.target.closest ? e.target.closest('[data-tlmark]') : null;
+    if (!mk) return;
+    const m = tlElMark(mk);
+    // 正在拉锚定：这一下就是「选目标」
+    if (TL.linkFrom) {
+      tlMakeLink(TL.linkFrom, m);
+      return;
+    }
+    e.preventDefault();
+    tlSelect(m.w, m.si, m.bi);
+    const b = tlFindBlock(m.w, m.si, m.bi);
+    const t = tlTimeOfMark(m);
+    TL.drag = { type: 'mark', m: m, x0: e.clientX, t0: t, el: mk, moved: false };
+    // 选中样式当场给（避免重画把正在拖的元素换掉）
+    Array.prototype.forEach.call(area.querySelectorAll('.mk.sel'), function (x) {
+      x.classList.remove('sel');
+    });
+    mk.classList.add('sel');
+  });
+
+  window.addEventListener('pointermove', function (e) {
+    const d = TL.drag;
+    if (!d) return;
+    const dx = e.clientX - d.x0;
+    if (Math.abs(dx) < 3 && !d.moved) return;
+    d.moved = true;
+    if (d.type === 'mark') {
+      d.el.style.left = Math.max(0, Math.round(d.t0 * TL.px + dx)) + 'px';
+    } else if (d.type === 'wave') {
+      const newT = Math.max(TL_MIN_GAP, Math.round((d.t0 + dx / TL.px) / TL.snap) * TL.snap);
+      tlSetGapAt(d.w, newT - d.tprev);
+      tlRender();
+    }
+  });
+
+  window.addEventListener('pointerup', function (e) {
+    const d = TL.drag;
+    TL.drag = null;
+    if (!d || !d.moved) return;
+    if (d.type === 'mark') {
+      const dx = e.clientX - d.x0;
+      const t = d.t0 + dx / TL.px;
+      const b = tlFindBlock(d.m.w, d.m.si, d.m.bi);
+      if (!b) return;
+      const old = d.t0;
+      tlSetOffset(b, t - (old - tlCurOffset(b)));
+      plRender();
+    } else if (d.type === 'wave') {
+      plRender();
+    }
+  });
+})();
+
+/* 当前的锚定延时（用于「拖动后反算新延时」） */
+function tlCurOffset(b) {
+  const tr = b.trig || {};
+  const k = tr.kind || 'spawn';
+  if (k === 'time' || k === 'after') return +tr.at || 0;
+  if (k === 'after_block') return +(tr.at || tr.delay) || 0;
+  return 0;
+}
+
+/* 改第 (w-1) 拍的波长：拖动 wave mark 时写回波长串 */
+function tlSetGapAt(w, cs) {
+  if (w < 2) return;
+  const p = plP();
+  let g = tlGapList().slice();
+  if (!g.length) {
+    const T = tlWaveTimes();
+    g = [];
+    for (let i = 1; i < TL_N; i++) g.push(+((T[i + 1] - T[i]) / 100).toFixed(2));
+  }
+  const i = ((w - 2) % g.length + g.length) % g.length;
+  const secs = Math.max(0.6, Math.round(cs / 10) / 10);   // cs → 秒，吸附到 0.1s
+  g[i] = +secs.toFixed(2);
+  p.rhythm = p.rhythm || {};
+  p.rhythm.gaps = g;
+  const box = document.getElementById('pl-gaps');
+  if (box) box.value = '(' + g.join(',') + ')';
+  plSpectrumSoon();
+}
+
+/* 建立 A → B 的锚定（A 依赖 B） */
+function tlMakeLink(from, to) {
+  const b = tlFindBlock(from.w, from.si, from.bi);
+  if (!b) { TL.linkFrom = null; tlRender(); return; }
+  if (from.w === to.w && from.si === to.si && from.bi === to.bi) {
+    TL.linkFrom = null; tlRender(); return;
+  }
+  const tb = M_t(to);
+  const ta = tlTimeOfMark(from);
+  let off = (tb === undefined || ta === undefined) ? 0 : Math.round((ta - tb) / TL.snap) * TL.snap;
+  if (!isFinite(off) || off < 0) off = 0;
+  // 目标是本波 wave mark → time；否则 after_block（跨波也认）
+  const isOwnWave = (to.id === 'w' + from.w);
+  b.trig = isOwnWave ? { kind: 'time', at: off }
+                     : { kind: 'after_block', id: to.id, at: off };
+  TL.linkFrom = null;
+  plSnap();
+  plRender();
+}
+function M_t(mark) {
+  if (!TL_CACHE) TL_CACHE = tlLayout();
+  return TL_CACHE.R.tOf[mark.id];
+}
+
+/* ---------------- 时间轴工具 ---------------- */
+function tlAddMark(kind) {
+  const p = plP();
+  const w = PLAN.sel.wave || 1;
+  const row = (p.waves || []).find(function (r) { return r.w === w; });
+  if (!row) return;
+  row.sets = row.sets || [];
+  if (!row.sets.length) row.sets.push({ when: { kind: 'always' }, ops: [] });
+  const si = Math.max(0, Math.min(row.sets.length - 1, PLAN.sel.set));
+  const arr = row.sets[si].ops = row.sets[si].ops || [];
+  plSnap();
+  let b;
+  if (kind === 'P') {
+    b = { op: '玉米炮', cob: 'P', aim: [2, 'front'], trig: { kind: 'spawn' } };
+  } else {
+    tlFillCmarkSelect();
+    const sel = document.getElementById('tl-cmark');
+    const op = (sel && sel.value) || '寒冰菇';
+    b = { op: op, aim: null, trig: { kind: 'spawn' } };
+  }
+  arr.push(b);
+  tlRenumber(row.w, si, arr);
+  PLAN.sel.set = si;
+  PLAN.sel.block = arr.length - 1;
+}
+function tlRenumber(w, si, arr) {
+  (arr || []).forEach(function (b, i) { b.id = 'w' + w + '-' + (si + 1) + '-' + (i + 1); });
+}
+function tlFillCmarkSelect() {
+  const sel = document.getElementById('tl-cmark');
+  if (!sel || sel.options.length) return;
+  const map = (PLAN.cat && PLAN.cat.layout_letters) || {};
+  const want = ['c', 'C', 'A', "A'", 'a', 'I', "I'", 'N', "N'", 'K', 'W'];
+  const seen = {};
+  const opts = [];
+  want.forEach(function (k) {
+    const arr = map[k];
+    if (!arr || !arr.length) return;
+    if (seen[arr[0]]) return;
+    seen[arr[0]] = 1;
+    opts.push([arr[0], k + '　' + arr[0]]);
+  });
+  (PLAN.cat.card_ops || []).forEach(function (o) {
+    if (seen[o.name]) return;
+    if (['玉米炮'].indexOf(o.name) >= 0) return;
+    opts.push([o.name, o.name]);
+  });
+  sel.innerHTML = opts.map(function (o) {
+    return '<option value="' + plEsc(o[0]) + '">' + plEsc(o[1]) + '</option>';
+  }).join('');
+}
+
+/* 时间轴动作（data-act 以 tl 开头，只在这里处理） */
+PL_ROOT.addEventListener('click', function (e) {
+  const el = e.target.closest ? e.target.closest('[data-act]') : null;
+  if (!el) {
+    // 点左侧行 → 选中这一波
+    const gw = e.target.closest ? e.target.closest('[data-tlselw]') : null;
+    if (gw && tlView() === 'tl') {
+      tlSelect(+gw.dataset.tlselw, +gw.dataset.si, -1);
+      plRender();
+    }
+    return;
+  }
+  const act = el.dataset.act;
+  if (String(act).indexOf('tl') !== 0) return;
+  if (act === 'tlAddP') { tlAddMark('P'); plRender(); return; }
+  if (act === 'tlAddC') { tlAddMark('C'); plRender(); return; }
+  if (act === 'tlAddHere') {
+    tlSelect(+el.dataset.w, +el.dataset.si, -1);
+    tlAddMark('C');
+    plRender();
+    return;
+  }
+  if (act === 'tlZoom') {
+    const d = +el.dataset.d;
+    TL.px = Math.max(0.02, Math.min(1.6, TL.px * (d > 0 ? 1.4 : 1 / 1.4)));
+    tlRender();
+    return;
+  }
+  if (act === 'tlFit' || act === 'tlFitCycle') {
+    const sc = document.getElementById('tl-scroll');
+    const viewW = (sc ? sc.clientWidth : 900) - 30;
+    let span = 0;
+    if (act === 'tlFit') {
+      const lay = tlLayout();
+      span = lay.T[TL_N] + TL_END_EXTRA;
+      lay.R.flat.forEach(function (m) {
+        const t = lay.R.tOf[m.id] || 0;
+        if (t + 300 > span) span = t + 300;
+      });
+    } else {
+      const g = tlGapList();
+      span = g.length ? g.reduce(function (a, b) { return a + b; }, 0) * 100
+                      : TL_REG_MAX * 2;
+    }
+    TL.px = Math.max(0.02, Math.min(1.6, viewW / Math.max(600, span)));
+    tlRender();
+    return;
+  }
+  if (act === 'tlAutoWave') {
+    // 按刷怪机理重排 + 有节奏型就给回官方波长
+    const preset = plPreset((plP().rhythm || {}).id);
+    if (preset && (preset.gaps || []).length) plFillGaps(preset);
+    else {
+      plP().rhythm.gaps = [];
+      const box = document.getElementById('pl-gaps');
+      if (box) box.value = '';
+    }
+    TL_CACHE = null;
+    plRender();
+    return;
+  }
+  if (act === 'tlLink') {
+    if (PLAN.sel.set < 0 || PLAN.sel.block < 0) {
+      alert('先点一个 mark，再点「🔗 锚定」');
+      return;
+    }
+    const cur = TL.linkFrom;
+    const same = cur && cur.w === PLAN.sel.wave && cur.si === PLAN.sel.set
+      && cur.bi === PLAN.sel.block;
+    TL.linkFrom = same ? null : { w: PLAN.sel.wave, si: PLAN.sel.set, bi: PLAN.sel.block };
+    tlRender();
+    return;
+  }
+  if (act === 'tlUnlink') {
+    const b = tlFindBlock(PLAN.sel.wave, PLAN.sel.set, PLAN.sel.block);
+    if (!b) { alert('先点一个 mark'); return; }
+    plSnap();
+    b.trig = { kind: 'spawn' };
+    TL_CACHE = null;
+    plRender();
+    return;
+  }
+  if (act === 'tlViewSet') {
+    TL.view = el.dataset.v || 'tl';
+    try { localStorage.setItem('tc.tlview', TL.view); } catch (er) {}
+    plRender();
+    return;
+  }
+});
+
+/* 时间轴自己的控件（视图切换 / 锚定的下拉与数字框） */
+PL_ROOT.addEventListener('change', function (e) {
+  const el = e.target;
+  if (el.id === 'tl-view') {
+    TL.view = el.value;
+    try { localStorage.setItem('tc.tlview', TL.view); } catch (er) {}
+    plRender();
+    return;
+  }
+  const bp = el.dataset.tlanchor;
+  if (bp !== undefined) {
+    const b = plPath(plP(), bp);
+    if (!b) return;
+    plSnap();
+    const v = el.value;
+    const off = tlCurOffset(b);
+    if (v === 'spawn') b.trig = { kind: 'spawn' };
+    else if (v === 'wave') b.trig = { kind: 'time', at: off };
+    else if (v === 'prev') b.trig = { kind: 'after', at: off };
+    else if (v === 'mark') {
+      const M = TL_CACHE ? TL_CACHE.R : null;
+      const first = (M && M.flat.length) ? M.flat[0].id : '';
+      b.trig = { kind: 'after_block', id: first, at: off };
+    }
+    TL_CACHE = null;
+    plRender();
+    return;
+  }
+  const ob = el.dataset.tloff;
+  if (ob !== undefined) {
+    const b = plPath(plP(), ob);
+    if (!b) return;
+    tlSetOffset(b, +el.value || 0);
+    TL_CACHE = null;
+    plRender();
+    return;
+  }
+});
+
+/* 视图切换时清掉时间轴检查器里的旧节点（避免和列表视图 ID 冲突） */
+function tlInspClear() {
+  const box = document.getElementById('tl-insp');
+  if (box) box.innerHTML = '';
+  TL.linkFrom = null;
 }
 </script>
 """

@@ -775,6 +775,10 @@ class Sim:
         self.waves.append(meta)
         self.wave_meta = meta
         self.cur_wave = w
+        # ★★ 2026-10-31：给**波 mark** 也记一个"生效时刻" —— 时间轴编辑器允许把
+        #   某个操作锚定到"第 N 波的刷怪时刻"（`after_block.id = "w7"`）。
+        #   引擎这边只要把 `w7` 记进同一张 `_block_fired` 表，`after_block` 就能查。
+        self.__dict__.setdefault('_block_fired', {})['w%d' % w] = self.t
 
         # ★ 2026-10-23 用户：「空降落地和珊瑚一样，在简化模型下**忽略时延**，
         #   视为在特定区域突然出现」→ 每 20 波的收尾（w20）直接把三人组放进场，
