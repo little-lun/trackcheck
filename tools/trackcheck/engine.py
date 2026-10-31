@@ -765,8 +765,10 @@ class Sim:
             self.queue.append((self.t, kind, row, x, w))
             idx += 1
 
-        thr = self.rng.uniform(*D.R2_THRESHOLD)
-        hard = self.rng.randint(*D.R3_HARD)
+        # ★★ 2026-10-31 用户：常规波的时间不再有随机血线 / 硬顶，
+        #   固定成「4s + 27s 窗口(掉到 65%) + 2s」。`thr` 仍写进 meta 供报告显示。
+        thr = D.WAVE_HP_THR
+        hard = D.WAVE_HOLD + D.WAVE_WINDOW
         meta = dict(wave=w, t=self.t, total_hp=total_hp, thr=thr, hard=hard,
                     zs=[], skip_hp=skip_hp, skips=skips,
                     next_at=None, age=0, reason=None, stall=None, remain=total_hp)
@@ -4643,24 +4645,21 @@ class Sim:
                     self.done = True
                     return
         else:
-            # ★★ 2026-10-25 用户：「**无论如何，最短波长为 6s**。本波刷新后最极限的
-            #   情况下也必须 6s 才可以刷新下一波。」
-            #   → 修正：以前把 R1 挂在"**设 trig 之前**"，于是最坏情况变成
-            #     max(6s, T) + 2s真空 = 最少 8s。正确口径是
-            #     `波长 = max(R1 6s, 血量跌破阈值 + 2s)`（R3 硬顶直接刷）。
-            if m.get('trig') is None:
-                if m['total_hp'] > 0 and remain / m['total_hp'] < m['thr']:
+            # ★★ 2026-10-31 用户：**重做常规波**。
+            #   ① 刷怪后等 4s；② 接着 27s 内统计本波血量，掉到原来的 65%
+            #   或 27s 到期；③ 再等 2s 刷下一波。
+            #   → 波长 = 4 + min(27, 掉到 65% 用时) + 2，落在 6s ~ 33s。
+            if m.get('trig') is None and m['age'] >= D.WAVE_HOLD:
+                if m['total_hp'] > 0 and remain / m['total_hp'] <= D.WAVE_HP_THR:
                     m['trig'] = self.t
-                    m['reason'] = 'R2 血线 %.2f' % m['thr']
-                elif m['age'] >= m['hard']:
+                    m['reason'] = '血量掉到 %d%% （%.1fs）' % (
+                        round(D.WAVE_HP_THR * 100), m['age'] / 100.0)
+                elif m['age'] >= D.WAVE_HOLD + D.WAVE_WINDOW:
                     m['trig'] = self.t
-                    m['reason'] = 'R3 硬顶 %d' % m['hard']
-            if m.get('trig') is not None:
-                if m['age'] >= m['hard']:
-                    nxt = self.t            # R3 到点必刷
-                elif (self.t - m['trig'] >= D.R2_VACUUM
-                      and m['age'] >= D.R1_MIN_GAP):
-                    nxt = self.t
+                    m['reason'] = '27s 窗口到期'
+            if (m.get('trig') is not None
+                    and self.t - m['trig'] >= D.WAVE_VACUUM):
+                nxt = self.t
 
         if nxt is not None:
             self._bungee_resolve()      # ★ 2026-10-22：这一波的蹦极到点结算

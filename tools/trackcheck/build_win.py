@@ -36,7 +36,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 DESK = os.path.join(ROOT, 'tools', 'trackcheck', 'desktop')
 DIST = os.path.join(ROOT, 'tools', 'trackcheck', 'dist')
 WORK = os.path.join(ROOT, 'tools', 'trackcheck', 'build')
-APP_VER = '0.3.24'
+APP_VER = '0.3.25'
 APP_PKG = '0.3'          # 文件名只到 0.x（0.x.n 是同一发布里的改动计数）
 ICON = os.path.join(DESK, 'trackcheck.ico')
 VERFILE = os.path.join(DESK, 'version_info.txt')
@@ -126,15 +126,25 @@ def build_app():
     """主程序：内部版本输出 `TrackCheck-<完整版本号>.exe`
 
     ★ 2026-10-25 用户：内部版本用完整版本号命名；安装包只在 release 时生成、只用发布版本号。
+    ★★ 2026-10-31 用户：桌面版要**原生窗口**，不再借浏览器 →
+      入口从 `launcher.py` 换成 `appwin.py`（pywebview + Edge WebView2）。
+      pywebview / pythonnet 是纯 Python 包，但它们要在运行时加载 .NET 的
+      `Python.Runtime.dll` 和 WebView2 的托管库，所以必须 `--collect-all` 打进去。
     """
     print('① 主程序 TrackCheck-%s.exe …' % APP_VER, flush=True)
     name = 'TrackCheck-%s' % APP_VER
-    out = pyi(os.path.join(DESK, 'launcher.py'), name,
+    out = pyi(os.path.join(DESK, 'appwin.py'), name,
+              add=[(ICON, '.')],
               hidden=['tools.trackcheck.app', 'tools.trackcheck.jobs',
                       'tools.trackcheck.ui', 'tools.trackcheck.webbridge',
                       'tools.trackcheck.plan', 'tools.trackcheck.planui',
                       'tools.trackcheck.metainfo', 'tools.trackcheck.fields',
-                      'tools.trackcheck.layout'])
+                      'tools.trackcheck.layout',
+                      'webview', 'webview.platforms.edgechromium',
+                      'clr_loader', 'pythonnet'],
+              extra=['--collect-all', 'webview',
+                     '--collect-all', 'clr_loader',
+                     '--collect-all', 'pythonnet'])
     print('   %.1f MB' % (os.path.getsize(out) / 1048576.0), flush=True)
     return out
 

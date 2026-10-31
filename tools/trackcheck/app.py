@@ -237,6 +237,52 @@ class Handler(BaseHTTPRequestHandler):
         n = int(self.headers.get('Content-Length') or 0)
         raw = self.rfile.read(n) if n else b'{}'
         path = self.path.split('?')[0]
+        if path == '/api/native':
+            # ★ 2026-10-31：桌面版的**原生文件对话框**（页面 → HTTP → comdlg32）。
+            #   不走 pywebview 的 js_api —— 那条桥会把解释器卡死（见 native_dlg 的注释）。
+            #   网页版没有这道门，前端的 `TCFILES` 会自动退回 Blob 下载 / <input type=file>。
+            if not os.environ.get('TRACKCHECK_DESKTOP'):
+                return self._json({'ok': False, 'why': 'web'})
+            try:
+                d = json.loads(raw or b'{}')
+            except Exception:
+                return self._json({'error': 'bad json'}, 400)
+            from tools.trackcheck import native_dlg as ND
+            act = d.get('action')
+            home = os.path.join(os.environ.get('LOCALAPPDATA') or
+                                os.path.expanduser('~'), 'TrackCheck')
+            try:
+                os.makedirs(home, exist_ok=True)
+            except OSError:
+                pass
+            if act == 'save':
+                p = ND.save_file(d.get('name') or 'trackcheck.json',
+                                 initial_dir=home)
+                if not p:
+                    return self._json({'ok': True, 'cancelled': True})
+                ND.write_text(p, d.get('text') or '')
+                return self._json({'ok': True, 'path': p})
+            if act == 'savebin':
+                import base64 as _b64
+                p = ND.save_file(d.get('name') or 'trackcheck.pdf',
+                                 initial_dir=home,
+                                 types=(('PDF', '*.pdf'), ('所有文件', '*.*')),
+                                 default_ext='pdf')
+                if not p:
+                    return self._json({'ok': True, 'cancelled': True})
+                ND.write_bytes(p, _b64.b64decode(d.get('b64') or ''))
+                return self._json({'ok': True, 'path': p})
+            if act == 'open':
+                p, text = ND.open_file(initial_dir=home)
+                if not p:
+                    return self._json({'ok': True, 'cancelled': True})
+                return self._json({'ok': True, 'name': os.path.basename(p),
+                                   'text': text or ''})
+            if act == 'paths':
+                return self._json({'ok': True, 'data_dir': home})
+            if act == 'folder':
+                return self._json({'ok': ND.open_folder(home)})
+            return self._json({'error': 'unknown action'}, 400)
         if path == '/api/start':
             try:
                 d = json.loads(raw or b'{}')
@@ -350,6 +396,19 @@ class Handler(BaseHTTPRequestHandler):
         return self._json({'error': 'not found'}, 404)
 
 
+def create_server(host='127.0.0.1', port=8765):
+    """起一个只监听本机的服务 → `(srv, url)`；端口已被占用时 `(None, url)`
+
+    ★ 2026-10-31：从 `main()` 里抠出来，桌面版（`desktop/appwin.py` 的
+      pywebview 原生窗口）和网页版共用同一份服务端逻辑。
+    """
+    url = 'http://%s:%d/' % (host, port)
+    try:
+        return Server((host, port), Handler), url
+    except OSError:
+        return None, url
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument('--port', type=int, default=8765)
@@ -359,10 +418,8 @@ def main(argv=None):
                     help='这么久没收到页面心跳就退出（0 = 不退）')
     a = ap.parse_args(argv)
 
-    url = 'http://%s:%d/' % (a.host, a.port)
-    try:
-        srv = Server((a.host, a.port), Handler)
-    except OSError:
+    srv, url = create_server(a.host, a.port)
+    if srv is None:
         # ★ 双击第二次时很常见：上一实例还开着。直接把浏览器指过去，正常退出（exit 0），
         #   这样启动脚本不会停在 pause 上。
         print('端口 %d 已被占用 —— 应该已经有一个沙盘在跑，直接打开它：%s'

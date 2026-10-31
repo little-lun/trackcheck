@@ -466,6 +466,17 @@ table.lygrid td{padding:0}
     <div id="set-fields"></div>
   </div>
   <div class="panel">
+    <div class="ptitle">设置 · 本地文件
+      <span class="hint" style="font-weight:400">（把所有本地设置导出成一个文件，换台机器也能接着用）</span></div>
+    <div class="row" style="gap:10px;flex-wrap:wrap">
+      <button class="ghost" id="cfg-exp">⤓ 导出配置</button>
+      <button class="ghost" id="cfg-imp">⤒ 导入配置</button>
+      <button class="ghost" id="cfg-dir" style="display:none">📂 打开数据目录</button>
+      <input type="file" id="cfg-file" accept=".json,application/json" style="display:none">
+    </div>
+    <div class="hint" id="cfg-note" style="margin-top:6px"></div>
+  </div>
+  <div class="panel">
     <div class="ptitle">关于</div>
     <div id="set-about" class="hint"></div>
   </div>
@@ -1294,7 +1305,70 @@ function normJobs(d){
   }).filter(x => x.kinds.length);
 }
 
-document.getElementById('exp').onclick = () => {
+/* ---------------- 本地文件：桌面版弹 Windows 原生对话框，网页版走下载/选择 ----------------
+   ★ 2026-10-31：**不走 pywebview 的 js_api**（那条桥会把解释器卡死，见 native_dlg.py）。
+     桌面版（META.desktop）统一 POST `/api/native`：
+       {action:'save',    name, text}     → 弹「另存为」，落盘
+       {action:'savebin', name, b64}      → 二进制落盘（PDF 报告）
+       {action:'open'}                    → 弹「打开」，返回 {name, text}
+       {action:'paths'} / {action:'folder'}→ 数据目录 / 打开资源管理器
+     网页版没有这道门（后端直接回 {ok:false, why:'web'}），退回 Blob 下载 / <input type=file>。
+*/
+const TCFILES = {
+  async native(payload){
+    if (!META.desktop) return { ok: false, why: 'web' };
+    try {
+      const r = await fetch('/api/native', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      return await r.json();
+    } catch (e){ return { ok: false, why: 'io' }; }
+  },
+  async save(name, text){
+    if (META.desktop){
+      const d = await TCFILES.native({ action: 'save', name: name, text: text });
+      return (d && d.ok && d.path) ? d.path : '';
+    }
+    const blob = new Blob([text], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    return name;
+  },
+  async saveBytes(name, buf){
+    if (!META.desktop) return '';
+    let s = '';
+    const u8 = new Uint8Array(buf);
+    for (let i = 0; i < u8.length; i += 8192)
+      s += String.fromCharCode.apply(null, u8.subarray(i, i + 8192));
+    const d = await TCFILES.native({ action: 'savebin', name: name, b64: btoa(s) });
+    return (d && d.ok && d.path) ? d.path : '';
+  },
+  async open(){
+    if (META.desktop){
+      const d = await TCFILES.native({ action: 'open' });
+      if (d && d.ok && !d.cancelled) return { name: d.name, text: d.text };
+      return null;
+    }
+    return await new Promise(res => {
+      const inp = document.createElement('input');
+      inp.type = 'file'; inp.accept = '.json,application/json,text/plain';
+      inp.onchange = () => {
+        const f = inp.files && inp.files[0];
+        if (!f) return res(null);
+        const rd = new FileReader();
+        rd.onload = () => res({ name: f.name, text: String(rd.result) });
+        rd.readAsText(f, 'utf-8');
+      };
+      inp.click();
+    });
+  },
+};
+
+document.getElementById('exp').onclick = async () => {
   let jobs = queue.slice();
   if (!jobs.length && sel.size){
     jobs = [{ name: document.getElementById('name').value.trim() || '当前勾选',
@@ -1306,36 +1380,95 @@ document.getElementById('exp').onclick = () => {
   if (!jobs.length){ alert('列表和勾选都是空的，没东西可导出'); return; }
   const data = { app: 'trackcheck-spawn', version: 1,
                  savedAt: new Date().toISOString(), jobs: jobs };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = '出怪列表.json';
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  document.getElementById('status').textContent = '已导出 ' + jobs.length + ' 组';
+  const saved = await TCFILES.save('出怪列表.json',
+                                   JSON.stringify(data, null, 2));
+  document.getElementById('status').textContent = saved
+    ? tcmTpl('已导出 {0} 组 → {1}', [jobs.length, saved])
+    : tcmTpl('已取消导出（{0} 组）', [jobs.length]);
 };
 
-document.getElementById('imp').onclick = () => document.getElementById('file').click();
+function applyJobsJson(text){
+  let d;
+  try { d = JSON.parse(text); }
+  catch (err){ alert('不是合法的 JSON：' + err.message); return; }
+  const jobs = normJobs(d);
+  if (!jobs.length){ alert('文件里没有可用的出怪组合（僵尸名要能对上）'); return; }
+  if (queue.length){
+    const rep = confirm('列表里已有 ' + queue.length + ' 组。\n确定 = 用文件内容替换；取消 = 追加在后面。');
+    queue = rep ? jobs : queue.concat(jobs);
+  } else queue = jobs;
+  renderQueue();
+  document.getElementById('status').textContent = '已导入 ' + jobs.length + ' 组';
+}
+
+document.getElementById('imp').onclick = async () => {
+  const got = await TCFILES.open();
+  if (got && got.text != null) applyJobsJson(got.text);
+};
 document.getElementById('file').onchange = ev => {
   const f = ev.target.files && ev.target.files[0];
   if (!f) return;
   const rd = new FileReader();
-  rd.onload = () => {
-    let d;
-    try { d = JSON.parse(rd.result); }
-    catch (err){ alert('不是合法的 JSON：' + err.message); return; }
-    const jobs = normJobs(d);
-    if (!jobs.length){ alert('文件里没有可用的出怪组合（僵尸名要能对上）'); return; }
-    if (queue.length){
-      const rep = confirm('列表里已有 ' + queue.length + ' 组。\n确定 = 用文件内容替换；取消 = 追加在后面。');
-      queue = rep ? jobs : queue.concat(jobs);
-    } else queue = jobs;
-    renderQueue();
-    document.getElementById('status').textContent = '已导入 ' + jobs.length + ' 组';
-  };
+  rd.onload = () => applyJobsJson(String(rd.result));
   rd.readAsText(f, 'utf-8');
   ev.target.value = '';
 };
+
+/* ---------------- 设置 · 本地文件：整包导出/导入 ----------------
+   把 localStorage 里所有 tc* 键 + 语言/命名/简写这些设置打成一个 JSON。
+   桌面版还能直接打开数据目录（%LOCALAPPDATA%\TrackCheck）。
+*/
+const CFG_PREFIXES = ['tc', 'tc-lang'];
+function tcmTpl(s, v){ return s.replace(/\{(\d+)\}/g, (m, i) => v[+i]); }
+function collectConfig(){
+  const kv = {};
+  try {
+    for (let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if (CFG_PREFIXES.some(p => k === p || k.indexOf(p + '.') === 0)) kv[k] = localStorage.getItem(k);
+    }
+  } catch (e) {}
+  return { app: 'trackcheck-config', version: 1,
+           savedAt: new Date().toISOString(), kv: kv };
+}
+document.getElementById('cfg-exp').onclick = async () => {
+  const d = collectConfig();
+  const n = Object.keys(d.kv).length;
+  const saved = await TCFILES.save('trackcheck-配置.json', JSON.stringify(d, null, 2));
+  document.getElementById('cfg-note').textContent = saved
+    ? tcmTpl('已导出 {0} 项设置 → {1}', [n, saved])
+    : tcmTpl('已取消导出（{0} 项设置）', [n]);
+};
+function applyConfig(text){
+  let d;
+  try { d = JSON.parse(text); }
+  catch (err){ alert('不是合法的 JSON：' + err.message); return; }
+  const kv = (d && d.kv && typeof d.kv === 'object') ? d.kv : d;
+  let n = 0;
+  try {
+    Object.keys(kv || {}).forEach(k => {
+      if (typeof kv[k] === 'string'){ localStorage.setItem(k, kv[k]); n++; }
+    });
+  } catch (e) {}
+  if (!n){ alert('文件里没有可用的设置项'); return; }
+  document.getElementById('cfg-note').textContent =
+    tcmTpl('已导入 {0} 项设置，即将重新加载…', [n]);
+  setTimeout(() => location.reload(), 400);
+}
+document.getElementById('cfg-imp').onclick = async () => {
+  const got = await TCFILES.open();
+  if (got && got.text != null) applyConfig(got.text);
+};
+if (META.desktop){
+  const b = document.getElementById('cfg-dir');
+  b.style.display = '';
+  TCFILES.native({ action: 'paths' }).then(d => {
+    if (d && d.ok && d.data_dir)
+      document.getElementById('cfg-note').textContent =
+        tcmTpl('本地数据目录：{0}', [d.data_dir]);
+  }).catch(() => {});
+  b.onclick = () => { TCFILES.native({ action: 'folder' }); };
+}
 
 /* ---------------- 单组报告 → PDF ----------------
    后端优先调本机 Edge/Chrome 无头打印（真 PDF）；
@@ -1365,16 +1498,23 @@ document.addEventListener('click', async e => {
   const url = '/api/pdf?id=' + b.dataset.pdf;
   const old = b.textContent;
   b.disabled = true; b.textContent = '生成中…';
+  const fname = (b.dataset.name || '运阵报告').replace(/[\\/:*?"<>|]/g, '_') + '.pdf';
   try {
     const r = await fetch(url);
     const ct = r.headers.get('Content-Type') || '';
     if (ct.includes('application/pdf')){
-      const blob = await r.blob();
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = (b.dataset.name || '运阵报告').replace(/[\\/:*?"<>|]/g, '_') + '.pdf';
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      // 桌面版：直接弹「另存为」，存到用户选的位置（WebView2 里 Blob 下载不可靠）
+      if (META.desktop){
+        const got = await TCFILES.saveBytes(fname, await r.arrayBuffer());
+        if (got) b.textContent = '已保存';
+      } else {
+        const blob = await r.blob();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = fname;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      }
     } else {
       const w = window.open('', '_blank');
       if (w){ w.document.write(await r.text()); w.document.close(); }
@@ -1383,19 +1523,21 @@ document.addEventListener('click', async e => {
   } catch (err){
     alert('生成 PDF 失败：' + err.message);
   } finally {
-    b.disabled = false; b.textContent = old;
+    b.disabled = false;
+    if (b.textContent === '生成中…') b.textContent = old;
   }
 });
 
 /* ---------------- 桌面版：心跳 + 退出 ----------------
-   桌面版 TrackCheck.exe 是"后台跑一个本地服务 + 打开浏览器"：
-   这里每 10s 打一次心跳，关掉页面之后服务会自己退（--idle-exit）。
+   桌面版 TrackCheck.exe 在后台跑一个本地服务：
+     · 原生窗口模式（pywebview）→ 「退出程序」直接把窗口关掉；
+     · 浏览器模式 → 每 10s 打一次心跳，关掉页面后服务会自己退（--idle-exit）。
 */
 if (META.desktop){
   const q = document.getElementById('quit');
   q.style.display = '';
   q.onclick = async () => {
-    if (!confirm('退出 TrackCheck？（这个页面会失效，可以直接关掉）')) return;
+    if (!confirm('退出 TrackCheck？')) return;
     try { await fetch('/api/quit'); } catch (e){}
     document.body.innerHTML =
       '<div class="panel" style="margin:60px auto;max-width:520px;text-align:center">'
@@ -1690,7 +1832,9 @@ function renderSettings() {
   document.getElementById('set-about').innerHTML =
     'TrackCheck <b>' + esc(MODELS.version) + '</b>　·　阵解 JSON schema <code>'
     + esc(MODELS.schema) + '</code>　·　研究基线：PVZ 1.0.0.1051（EN）'
-    + '<br>网页版不能写磁盘：阵解请用「导出 JSON」；桌面版保存到 %APPDATA%\\TrackCheck\\plans。';
+    + '<br>网页版不能写磁盘：阵解请用「导出 JSON」。'
+    + '桌面版是原生窗口，本地设置存在 %LOCALAPPDATA% 下的 TrackCheck 目录，'
+    + '「设置 · 本地文件」可以整包导出/导入。';
 }
 
 /* ---------------- demo：?demo=1 自动排两组并开跑 ---------------- */

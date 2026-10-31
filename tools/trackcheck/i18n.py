@@ -191,6 +191,12 @@ PHRASES = {
     '设置 · 节奏命名方案': 'Settings · Rhythm naming',
     '设置 · 阵型字符串格式': 'Settings · Formation string format',
     '设置 · 轨道简写 / 复写': 'Settings · Track shorthand / pair form',
+    '设置 · 本地文件': 'Settings · Local files',
+    '（把所有本地设置导出成一个文件，换台机器也能接着用）':
+        '(dump every local setting into one file so another machine can pick it up)',
+    '⤓ 导出配置': '⤓ Export settings',
+    '⤒ 导入配置': '⤒ Import settings',
+    '📂 打开数据目录': '📂 Open data folder',
     '模型清单 · 植物': 'Model list · Plants',
     '模型清单 · 僵尸': 'Model list · Zombies',
     '模型清单 · 场地': 'Model list · Fields',
@@ -518,6 +524,23 @@ def _keys_desc(d):
 #   ⚠️ 只放**纯显示**的片段：`任意`（= 任意僵尸）、`旗波`（role 值）、`炮`/`特技`
 #      （group 值）、`模仿`（模仿者前缀）这些是**数据**，绝不能进来。
 JS_LITERALS = {
+    # ★ 2026-10-31：桌面版「本地文件」面板的提示语（带 {0} 占位符，整句一条）
+    '已导出 {0} 组 → {1}': 'Exported {0} group(s) → {1}',
+    '已取消导出（{0} 组）': 'Export cancelled ({0} group(s))',
+    'trackcheck-配置.json': 'trackcheck-settings.json',
+    '已导出 {0} 项设置 → {1}': 'Exported {0} setting(s) → {1}',
+    '已取消导出（{0} 项设置）': 'Export cancelled ({0} setting(s))',
+    '文件里没有可用的设置项': 'The file contains no usable settings',
+    '已导入 {0} 项设置，即将重新加载…':
+        'Imported {0} setting(s); reloading…',
+    '本地数据目录：{0}': 'Local data folder: {0}',
+    '退出 TrackCheck？': 'Quit TrackCheck?',
+    '<br>网页版不能写磁盘：阵解请用「导出 JSON」。':
+        '<br>The web build cannot write to disk: use “Export JSON” for solutions.',
+    '桌面版是原生窗口，本地设置存在 %LOCALAPPDATA% 下的 TrackCheck 目录，':
+        'The desktop build is a native window; local settings live in the TrackCheck folder under %LOCALAPPDATA%, and',
+    '「设置 · 本地文件」可以整包导出/导入。':
+        '“Settings · Local files” can export/import the whole bundle.',
     # ★ 2026-10-25：匹配表「一键全绑 / 清空」按钮与空列表提示
     #   （`check_i18n` 抓的是**整条 JS 字符串字面量**，所以键要连 `<button …>` 一起写全）
     '<button class="ghost mini2" data-act="mapAll">⚡ 所有出怪都用当前这套阵解</button>':

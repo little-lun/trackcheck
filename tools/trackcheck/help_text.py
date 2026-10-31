@@ -23,6 +23,15 @@ HELP_ZH = '''<div class="panel">__GLOSSARY__</div>
       报告里也不展示阳光（结余 / 峰值 / 曲线都不画）。适合验证"阳光管够时这个阵能不能站住"。</p>
       <h3>② 出怪沙盘</h3>
       <p>勾选这一关允许出现的僵尸，起个名字点「加入列表」。可以加多组（不同出怪组合）。</p>
+      <p><b>刷怪时间怎么算</b>（2026-10-31 起就这么算，不再有随机血线 / 硬顶）：
+      开始后 <b>6s</b> 刷 w1。<br>
+      <b>常规波</b>：本波刷出后<b>等 4s</b> → 接着的 <b>27s</b> 里盯着本波僵尸总血量，
+      掉到「原本波总血量的 <b>65%</b>」<b>或</b> 27s 结束 → 再<b>等 2s</b>刷下一波。
+      所以常规波长落在 <b>6s ~ 33s</b>。<br>
+      <b>长间隔波</b>（w9 / w19 到旗波）：等 <b>45s</b> 或僵尸全灭 → 红字
+      <i>a huge wave of zombies is approaching</i> 显示 <b>7.2s</b> → 旗波刷新。<br>
+      <b>结束</b>（w20 到本次 2F 结束）：等 <b>49s</b> 或僵尸全灭 → 白字
+      <i>more zombies approaching</i> 显示 <b>5s</b> → 模拟结束（相当于进选卡界面）。</p>
       <h3>③ 阵解编辑</h3>
       <p>阵解 = 「节奏 + 每波做什么 + 全场判定 + 救场」。如果只想看自然输出能撑多久，
       这一步可以跳过（不选阵解就是"什么都不做"的空轨道）。
@@ -88,6 +97,19 @@ HELP_EN = '''<div class="panel">__GLOSSARY__</div>
       <h3>② Spawn Sandbox</h3>
       <p>Tick the zombies allowed in this level, name the set and click
       “Add to queue”. Several sets can be queued.</p>
+      <p><b>How the spawn clock works</b> (since 2026-10-31 — no random HP line,
+      no hard cap): wave 1 spawns <b>6s</b> after start.<br>
+      <b>Regular wave</b>: wait <b>4s</b> after this wave spawns → for the next
+      <b>27s</b> watch the wave's total zombie HP; the moment it drops to
+      <b>65%</b> of what the wave spawned with, <b>or</b> the 27s run out →
+      wait another <b>2s</b> and spawn the next wave. So a regular wavelength
+      lands between <b>6s and 33s</b>.<br>
+      <b>Long gap</b> (w9 / w19 → flag wave): wait <b>45s</b> or until every
+      zombie is dead → the red <i>a huge wave of zombies is approaching</i>
+      shows for <b>7.2s</b> → the flag wave spawns.<br>
+      <b>End</b> (w20 → end of this 2F): wait <b>49s</b> or until every zombie is
+      dead → the white <i>more zombies approaching</i> shows for <b>5s</b> →
+      the simulation ends (as if entering the seed-selection screen).</p>
       <h3>③ Solution editor</h3>
       <p>A solution = “rhythm + what to do each wave + global checks + rescue”.
       If you only want to see how long passive damage holds, skip this step
