@@ -3,7 +3,7 @@
 > 用代码替代"上机打 2F"：**布阵 → 选怪 → 编阵解 → 跑运阵 → 出报告**。
 > 引擎按 PvZ 1.0.0.1051 EN 的实测数值建模，可以离线跑在浏览器里，也可以装成 Windows 桌面程序。
 
-![version](https://img.shields.io/badge/version-0.2.6-blue)
+![version](https://img.shields.io/badge/version-1.0-blue)
 ![engine](https://img.shields.io/badge/engine-CPython%20%2B%20Pyodide-3776ab)
 ![dist](https://img.shields.io/badge/dist-web%20%7C%20win11-success)
 
@@ -16,6 +16,7 @@
 ```bash
 python -m tools.trackcheck.run                       # 命令行跑一组
 python -m tools.trackcheck.app                       # 起本地服务，浏览器里用
+python -m tools.trackcheck.desktop.appwin            # 桌面版（原生窗口）
 ```
 
 ---
@@ -27,13 +28,14 @@ python -m tools.trackcheck.app                       # 起本地服务，浏览�
 
 | 文件 | 大小 | 适合谁 | 需要联网 |
 |---|---|---|---|
-| `trackcheck-v0.2.html` | 16 MB | **最省事**：一个文件，双击就开，断网也能算 | 不需要 |
-| `trackcheck-v0.2-web.html` | 0.7 MB | 网速好、只想发个小文件 | 首次打开需要 |
-| `trackcheck-v0.2-setup.exe` | 23 MB | **想装成软件**：开始菜单、卸载条目齐全 | 不需要 |
+| `trackcheck-v1.0.html` | 16.8 MB | **最省事**：一个文件，双击就开，断网也能算 | 不需要 |
+| `trackcheck-v1.0-web.html` | 1.2 MB | 网速好、只想发个小文件 | 首次打开需要 |
+| `trackcheck-v1.0-setup.exe` | 21 MB | **想装成软件**：开始菜单、卸载条目齐全 | 不需要 |
 
 - 网页版：**没有服务器、没有账号、不上传任何东西**，所有计算都在你自己的浏览器里完成。
-- 桌面版支持**原地覆盖升级**（装过旧版不用先卸载）。
-- 详见 [releases/v0.2/发布说明.md](releases/v0.2/发布说明.md)。
+- 桌面版是**原生窗口**（不是浏览器）：本地设置落盘、可整包导出/导入配置，
+  支持**原地覆盖升级**（装过旧版不用先卸载）。
+- 详见 [releases/v1.0/发布说明.md](releases/v1.0/发布说明.md)。
 
 ---
 
@@ -61,7 +63,7 @@ python -m tools.trackcheck.app                       # 起本地服务，浏览�
 ├─ LICENSE                    ← 代码 MIT / 文档 CC BY-NC-SA 4.0
 ├─ .gitignore
 ├─ releases/                  ← 每个版本的发布说明（产物在 GitHub Releases 附件里）
-│  ├─ v0.1/  └─ v0.2/
+│  ├─ v0.1/  ├─ v0.2/  └─ v1.0/
 ├─ docs/                      ← 研究资料
 │  ├─ 知识库/                 ← 15 篇：场地/刷新/轨道语言/节奏/精确数值/控丑/炮位/命名/出怪/无炮/栈位/内存基址/版本差异/搭梯
 │  ├─ 原始资料/               ← 新旧轨道读本（txt/pdf/docx）+ wiki 图

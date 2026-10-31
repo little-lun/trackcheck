@@ -10,17 +10,20 @@
 
 | 版本 | 说明 | 产物 |
 |---|---|---|
+| `v1.0` | [发布说明](v1.0/发布说明.md) | **第一个正式版**：网页版（离线/在线）+ Win11 安装包（原生窗口） |
 | `v0.2` | [发布说明](v0.2/发布说明.md) | 网页版（离线/在线）+ Win11 安装包 |
 | `v0.1` | [发布说明](v0.1/发布说明.md) | 首个分发版 |
 
 ## 自己打包
 
 ```bash
-python -m tools.trackcheck.build_web   # → tools/trackcheck/dist/trackcheck-v0.2*.html
-python -m tools.trackcheck.build_win   # → tools/trackcheck/dist/trackcheck-v0.2-setup.exe
+python -m tools.trackcheck.build_web              # → dist/trackcheck-<完整版本号>.html / -web.html
+python -m tools.trackcheck.build_win --release    # → dist/trackcheck-v1.0-setup.exe（只在正式发布时）
 ```
 
 ## 版本编号约定
 
-对外测试版一律 `0.x`；同一次发布里**每一处改动**记 `0.x.n`（`0.2` → `0.2.1` → `0.2.6` …）；
-`0.x.0` 是打包基线。所以**文件名永远只到 `0.x`**，内部版本号写在 exe 的版本资源里。
+`0.x` 是对外测试版，`1.0` 起是正式版；同一个发布里**每一处内部改动**记一位小版本
+（`1.0` → `1.0.1` → `1.0.2` …），`1.0.0` 是打包基线。
+**安装包文件名只用发布号**（`trackcheck-v1.0-setup.exe`），完整内部版本号写在 exe 的版本资源里；
+html/exe 用完整内部版本号命名（`trackcheck-1.0.0.html`）。

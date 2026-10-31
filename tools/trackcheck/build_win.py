@@ -22,7 +22,7 @@ build_win.py —— 打 Windows 版：主程序 exe + 安装程序 exe（内含�
 
 ★ 2026-10-24 用户定的轻量化规则：
   **没有 release 的内部版本只出 html + exe，不生成 setup 安装包**；
-  正式 release 时才把这一段所有 `0.x.n` 的更新日志**合并**成一份发布说明，
+  正式 release 时才把这一段所有 `1.0.n` 的更新日志**合并**成一份发布说明，
   再打安装包（这样安装包里带的日志是"一个发布"的完整说明，不是逐条碎片）。
 """
 
@@ -36,8 +36,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 DESK = os.path.join(ROOT, 'tools', 'trackcheck', 'desktop')
 DIST = os.path.join(ROOT, 'tools', 'trackcheck', 'dist')
 WORK = os.path.join(ROOT, 'tools', 'trackcheck', 'build')
-APP_VER = '0.3.25'
-APP_PKG = '0.3'          # 文件名只到 0.x（0.x.n 是同一发布里的改动计数）
+APP_VER = '1.0.0'
+APP_PKG = '1.0'          # 文件名只到 1.0（1.0.n 是同一发布里的改动计数）
 ICON = os.path.join(DESK, 'trackcheck.ico')
 VERFILE = os.path.join(DESK, 'version_info.txt')
 
@@ -159,7 +159,7 @@ def build_uninstaller():
 
 
 def build_installer(app_exe, un_exe):
-    """安装包：只在 release 时打，文件名只用**发布版本号**（`trackcheck-v0.3-setup.exe`）
+    """安装包：只在 release 时打，文件名只用**发布版本号**（`trackcheck-v1.0-setup.exe`）
 
     ★ 2026-10-25：主程序/卸载程序在 dist 里是按完整版本号命名的
       （`TrackCheck-0.3.8.exe`），但安装进去的目录里应该还是 `TrackCheck.exe` /
@@ -184,7 +184,7 @@ def write_docs():
 
 
 def merged_changelog(pkg=None):
-    """把 CHANGELOG 里属于**同一个 0.x 发布**的所有小节合并成一份发布说明
+    """把 CHANGELOG 里属于**同一个发布**（`1.0` / `0.3` …）的所有小节合并成一份发布说明
 
     ★ 2026-10-24 用户：内部版本只出 html+exe；到 release 时才合并更新日志、
       再打安装包（安装包里带的应该是"这一个发布"的完整说明）。
@@ -210,7 +210,7 @@ def merged_changelog(pkg=None):
 
 
 def write_release_notes():
-    """release 专用：把 0.x.n 的日志合并成 dist/更新日志-v0.x.md"""
+    """release 专用：把同一发布内 1.0.n 的日志合并成 dist/更新日志-v1.0.md"""
     body = merged_changelog()
     if not body:
         return None
@@ -225,7 +225,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument('--only', choices=['app', 'uninst', 'setup', 'all'], default='all')
     ap.add_argument('--release', action='store_true',
-                    help='正式发布：额外打 setup 安装包，并合并 0.x.n 的更新日志')
+                    help='正式发布：额外打 setup 安装包，并合并同一发布内的更新日志')
     a = ap.parse_args(argv)
 
     with open(VERFILE, 'w', encoding='utf-8') as f:
