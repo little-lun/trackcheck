@@ -60,6 +60,6 @@
 | `trackcheck-v1.0.html` | 离线单文件（16.8 MB），双击就开，断网也能算 |
 | `trackcheck-v1.0-web.html` | 在线版（1.2 MB），首次打开从 CDN 取引擎 |
 | `trackcheck-v1.0-setup.exe` | Windows 11 安装包（28 MB），含主程序 + 卸载程序 |
-| `更新日志-v1.0.md` | 本版完整更新日志 |
+| `CHANGELOG-v1.0.md` | 本版完整更新日志（= dist 里的 `更新日志-v1.0.md`） |
 
 > 详见仓库 `releases/v1.0/发布说明.md`。
